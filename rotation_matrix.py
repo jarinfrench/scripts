@@ -12,7 +12,10 @@
 #                                        with the accompanying rotation axis
 #                                        and misorientation type.
 #
+#    -q --quiet                          Suppresses output of the rotation matrix
+#
 #    --help                              Display this help info
+#
 # Output:
 # The output displayed will be the resultant rotation matrix for the given
 # misorientation.
@@ -98,6 +101,17 @@ def check4Save(args): # Check the args for a save command
     else:
         return False, args
 
+def check4Quiet(args): # Check the args for a quiet command
+    if "-q" in args or "--quiet" in args: # We don't want terminal output
+        try:
+            index = args.index("-q")
+        except:
+            index = args.index("--quiet")
+        del args[index]
+        return True, args
+    else:
+        return False, args
+
 def writeMat(m, axis, _type ): # Write the matrix and angles to a file
     tex_filename = "rotation_matrix_database.tex"
     var_name = "rot%s%s"%(axis,_type)
@@ -153,6 +167,7 @@ if "--help" in argv: # Help info
     exit()
 
 save, argv = check4Save(argv)
+quiet, argv = check4Quiet(argv) # Checks for suppressing output
 
 if len(argv) != 3:
     print("ERROR: Incorrect number of command line arguments.")
@@ -199,6 +214,7 @@ else:
 # So much work...
 rotation_matrix = rotVec1ToVec2(gbnormal, axis)
 
-displayMat(rotation_matrix)
+if not quiet:
+    displayMat(rotation_matrix)
 if save:
     writeMat(rotation_matrix, _rotation_axis, _mis_type)
