@@ -335,11 +335,11 @@ else:
             _x[0] = _misorientation / 2.0
             _x[1] = - _misorientation / 2.0
             _z2   = 0.00
-
+            
         elif _axis == 110:
             _z1   = 45.00
-            _x[0] = _misorientation / 2.0
-            _x[1] = - _misorientation / 2.0
+            _x[0] = (180 - _misorientation) / 2.0
+            _x[1] = - (180 - _misorientation) / 2.0
             _z2   = 0.00
 
         elif _axis == 111:
