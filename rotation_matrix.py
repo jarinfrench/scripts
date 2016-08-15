@@ -108,7 +108,7 @@ def writeMat(m, axis, _type ): # Write the matrix and angles to a file
         tex_file.write("%Rotation Matrix                                    Axis     Type\n")
         tex_file.write("%s=[%2.4f  %2.4f  %2.4f                 %%%s      %s\n"%(var_name, m[0][0], m[0][1], m[0][2], axis, _type.title()))
         tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
-        tex_file.write("%2.4f  %2.4f  %2.4f]\n"%(m[2][0], m[2][1], m[2][2]))
+        tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
         tex_file.write("%----------------------------------------------------------------\n")
         tex_file.close()
     else:
@@ -118,7 +118,7 @@ def writeMat(m, axis, _type ): # Write the matrix and angles to a file
             tex_file = open(tex_filename, "a")
             tex_file.write("%s=[%2.4f  %2.4f  %2.4f                 %%%s      %s\n"%(var_name, m[0][0], m[0][1], m[0][2], axis, _type.title()))
             tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
-            tex_file.write("%2.4f  %2.4f  %2.4f]\n"%(m[2][0], m[2][1], m[2][2]))
+            tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
             tex_file.write("%----------------------------------------------------------------\n")
             tex_file.close()
         else:
@@ -138,7 +138,7 @@ def writeMat(m, axis, _type ): # Write the matrix and angles to a file
                 tex_file = open(tex_filename, "a")
                 tex_file.write("%s=[%2.4f  %2.4f  %2.4f                 %%%s      %s\n"%(var_name, m[0][0], m[0][1], m[0][2], axis, _type.title()))
                 tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
-                tex_file.write("%2.4f  %2.4f  %2.4f]\n"%(m[2][0], m[2][1], m[2][2]))
+                tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
                 tex_file.write("%----------------------------------------------------------------\n")
                 tex_file.close()
 

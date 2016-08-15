@@ -157,9 +157,9 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
         tex_file.write("%Database for orientation matrices for specified Euler Angles\n")
         tex_file.write("%-------------------------------------------------------------------\n")
         tex_file.write("%Orientation Matrix                                     Euler Angles\n")
-        tex_file.write("%s(%d,:,:)=[%2.4f  %2.4f  %2.4f                      %%%2.4f  %2.4f  %2.4f\n"%(var_name, lastVal, m[0][0], m[0][1], m[0][2], _z1, _x, _z2))
+        tex_file.write("%s(:,:,%d)=[%2.4f  %2.4f  %2.4f                      %%%2.4f  %2.4f  %2.4f\n"%(var_name, lastVal, m[0][0], m[0][1], m[0][2], _z1, _x, _z2))
         tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
-        tex_file.write("%2.4f  %2.4f  %2.4f]\n"%(m[2][0], m[2][1], m[2][2]))
+        tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
         tex_file.write("%-------------------------------------------------------------------\n")
         tex_file.close()
     else:
@@ -171,57 +171,57 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
             elif len(data) != 6:
                 continue
             else:
-                #print("%s%d%s"%(grain, axis,_type))
-                #print(data[0][0:9])
                 if not "%d%s"%(axis,_type) in {data[0][1:8], data[0][1:9]}:
                     lastVal = 0
                 elif data[0][5] == 'w': # We're looking at either P or Q1xxtwist(i)
                     try:
                         if data[0][0] == 'P':
-                            lastVal = int(data[0][10:12]) - 1
+                            lastVal = int(data[0][14:16]) - 1
                         elif data[0][0] == 'Q':
-                            lastVal = int(data[0][10:12])
+                            lastVal = int(data[0][14:16])
                         else:
                             print("Unknown orientation matrix type (should be \'P\' or \'Q\')")
                             exit()
                     except:
                         if data[0][0] == 'P':
-                            lastVal = int(data[0][10]) - 1
+                            lastVal = int(data[0][14]) - 1
                         elif data[0][0] == 'Q':
-                            lastVal = int(data[0][10])
+                            lastVal = int(data[0][14])
                         else:
                             print("Unknown orientation matrix type (should be \'P\' or \'Q\')")
                             exit()
                 elif data[0][5] == 'i': # P or Q1xxtilt(i)
                     try:
                         if data[0][0] == 'P':
-                            lastVal = int(data[0][9:11]) - 1
+                            lastVal = int(data[0][13:15]) - 1
                         elif data[0][0] == 'Q':
-                            lastVal = int(data[0][9:11])
+                            lastVal = int(data[0][13:15])
                         else:
                             print("Unknown orientation matrix type (should be \'P\' or \'Q\')")
                             exit()
                     except:
                         if data[0][0] == 'P':
-                            lastVal = int(data[0][9]) - 1
+                            lastVal = int(data[0][13]) - 1
                         elif data[0][0] == 'Q':
-                            lastVal = int(data[0][9])
+                            lastVal = int(data[0][13])
                         else:
                             print("Unknown orientation matrix type (should be \'P\' or \'Q\')")
                             exit()
                 else:
                     print("Error: Unknown last index")
                     exit()
-                if data[0][0] == grain and data[3] == ('%' + "%2.4f"%_z1) and data[4] == "%2.4f"%_x and data[5] == "%2.4f"%_z2:
+                if grain == 'Q' and _type == 'twist': # We run into problems if we're doing twist matrices for the Q grain
+                    unique = True
+                elif data[0][0] == grain and (data[0][4:8] == _type or data[0][4:9] == _type) and data[3] == ('%' + "%2.4f"%_z1) and data[4] == "%2.4f"%_x and data[5] == "%2.4f"%_z2:
                     unique = False
                     break
                 else:
                     unique = True
         if unique:
             tex_file = open(tex_filename, "a")
-            tex_file.write("%s(%d,:,:)=[%2.4f  %2.4f  %2.4f                      %%%2.4f  %2.4f  %2.4f\n"%(var_name, lastVal + 1, m[0][0], m[0][1], m[0][2], _z1, _x, _z2))
+            tex_file.write("%s(:,:,%d)=[%2.4f  %2.4f  %2.4f                      %%%2.4f  %2.4f  %2.4f\n"%(var_name, lastVal + 1, m[0][0], m[0][1], m[0][2], _z1, _x, _z2))
             tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
-            tex_file.write("%2.4f  %2.4f  %2.4f]\n"%(m[2][0], m[2][1], m[2][2]))
+            tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
             tex_file.write("%-------------------------------------------------------------------\n")
             tex_file.close()
 
