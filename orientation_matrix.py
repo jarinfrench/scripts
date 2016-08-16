@@ -45,6 +45,7 @@ from sys import argv # for CLI arguments
 from math import cos,sin,pi # Trig functions
 from numbers import Number # For checking input parameters
 from os.path import exists # For checking existence of a file
+from numpy import array
 
 orientation_matrix = []
 
@@ -92,10 +93,18 @@ def displayHelp():
     65 (2014)).
     ''')
     return
+
 def calcRotMat(_z1,_x,_z2): # Calculates the Bunge orientation matrix.  Arguments are first z rotation, x rotation, and second z rotation
-    rot_mat = [[cos(_z1)*cos(_z2) - cos(_x)*sin(_z1)*sin(_z2), sin(_z1)*cos(_z2) + cos(_x)*cos(_z1)*sin(_z2), sin(_x)*sin(_z2)],
-                       [-cos(_z1)*sin(_z2) - cos(_x)*sin(_z1)*cos(_z2), cos(_z1)*cos(_x)*cos(_z2) - sin(_z1)*sin(_z2), sin(_x)*cos(_z2)],
-                       [sin(_z1)*sin(_x), -cos(_z1)*sin(_x), cos(_x)]]
+    c1 = cos(_z1)
+    c2 = cos(_x)
+    c3 = cos(_z2)
+    s1 = sin(_z1)
+    s2 = sin(_x)
+    s3 = sin(_z2)
+    
+    rot_mat = array([[ c1*c3 - c2*s1*s3,  c3*s1 + c1*c2*s3,  s2*s3],
+                     [-c1*s3 - c2*c3*s1,  c1*c2*c3 - s1*s3,  c3*s2],
+                     [ s1*s2           , -c1*s2           ,  c2  ]])
     return rot_mat
 
 def deg2rad(x): # Converts degrees to radians.  Argument is in degrees
@@ -110,12 +119,13 @@ def displayMat(m): # Displays the matrix
     return
 
 def matMult(m1,m2): # Multiplies two matrices together
-    assert(all(len(m1) == len(m2[i]) for i in range(0,len(m2)))) # Assert that the dimensions are correct
-    result = [[0]*len(m2[0]) for i in range(0,len(m1))]
-    for i in range(0,len(m1)):
-        for j in range(0,len(m1[0])):
-            for k in range(0,len(m2)):
-                result[i][j] += m1[i][k] * m2[k][j]
+    #assert(all(len(m1) == len(m2[i]) for i in range(0,len(m2)))) # Assert that the dimensions are correct
+    #result = [[0]*len(m2[0]) for i in range(0,len(m1))]
+    #for i in range(0,len(m1)):
+    #    for j in range(0,len(m1[0])):
+    #        for k in range(0,len(m2)):
+    #            result[i][j] += m1[i][k] * m2[k][j]
+    result = m1.dot(m2)
     return result
 
 def check4Save(args): # Check the args for a save command
@@ -335,11 +345,11 @@ else:
             _x[0] = _misorientation / 2.0
             _x[1] = - _misorientation / 2.0
             _z2   = 0.00
-            
+
         elif _axis == 110:
             _z1   = 45.00
-            _x[0] = (180 - _misorientation) / 2.0
-            _x[1] = - (180 - _misorientation) / 2.0
+            _x[0] = _misorientation / 2.0
+            _x[1] = - _misorientation / 2.0
             _z2   = 0.00
 
         elif _axis == 111:
@@ -393,7 +403,7 @@ else:
         orientation_matrix = calcRotMat(_z1, _x[i], _z2)
 
         if _axis == 111 and _type == "twist":
-            rot_111_to_100 = [[0.57735]*3,[-0.57735,0.78868,-0.21132],[-0.57735,-0.21132,0.78868]]
+            rot_111_to_100 = array([[0.57735]*3,[-0.57735,0.78868,-0.21132],[-0.57735,-0.21132,0.78868]])
             orientation_matrix = matMult(rot_111_to_100,orientation_matrix)
 
         if not quiet:

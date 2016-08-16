@@ -46,7 +46,7 @@ def displayHelp():
     misorientation.
     ''')
 def rotVecToZ(vec): # Creates the rotation matrix to rotate vec to the z direction
-    # Make sure vec is normalized
+    # REALLY make sure vec is normalized
     vec = vec / linalg.norm(vec)
 
     # Initialize our vectors
@@ -212,6 +212,8 @@ else:
     exit()
 
 # So much work...
+gbnormal = gbnormal / linalg.norm(gbnormal) # Normalize the gbnormal vector.
+axis = axis / linalg.norm(axis) # Just to be sure...
 rotation_matrix = rotVec1ToVec2(gbnormal, axis)
 
 if not quiet:
