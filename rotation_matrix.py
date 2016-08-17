@@ -6,10 +6,10 @@
 #                       rotated. (type: int (100), list ([1, 0, 0]) or string ('100'))
 #    _mis_type          This is either 'twist' or 'tilt.' This allows the grain
 #                       boundary normal to be determined. (type: string) TODO: determine if a mixed boundary is possible
-#    _gbnormal   This specifies the boundary plane normal.  If no option
-#                       for this is given, an assumed normal of (010) is assumed
+#    _gbnormal          This specifies the boundary plane normal.  If no option
+#                       for this is given, an assumed normal of (010) is used
 #                       for tilt boundaries, and an assumed normal of (-100) is
-#                       assumed for twist boundaries.
+#                       used for twist boundaries.
 # Options:
 #    -s --save                           Saves the resultant rotation matrix to
 #                                        a database (rotation_matrix_database.tex)
@@ -41,8 +41,12 @@ def displayHelp():
     Input:
         _rotation_axis      This specifies the axis around which the grains are rotated
                             rotated. (type: int (100), list ([1, 0, 0]) or string ('100'))
-        _mis_type           This is either 'twist' or 'tilt.' This allows the grain
-                            boundary normal to be determined. (type: string)
+        _mis_type           This is either 'twist' or 'tilt.' (type: string)
+        _gbnormal           This specifies the boundary plane normal.  If no option
+                            for this is given, an assumed normal of (010) is used
+                            for tilt boundaries, and an assumed normal of (-100) is
+                            used for twist boundaries. (type: int (100), list
+                            ([1, 0, 0]) or string ('100'))
     Options:
         -s --save           Saves the resultant rotation matrix to a database
                             (rotation_matrix_database.tex) with the accompanying
