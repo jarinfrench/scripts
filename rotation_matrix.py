@@ -6,6 +6,10 @@
 #                       rotated. (type: int (100), list ([1, 0, 0]) or string ('100'))
 #    _mis_type          This is either 'twist' or 'tilt.' This allows the grain
 #                       boundary normal to be determined. (type: string) TODO: determine if a mixed boundary is possible
+#    _gbnormal   This specifies the boundary plane normal.  If no option
+#                       for this is given, an assumed normal of (010) is assumed
+#                       for tilt boundaries, and an assumed normal of (-100) is
+#                       assumed for twist boundaries.
 # Options:
 #    -s --save                           Saves the resultant rotation matrix to
 #                                        a database (rotation_matrix_database.tex)
@@ -20,11 +24,15 @@
 # The output displayed will be the resultant rotation matrix for the given
 # misorientation.
 
+# TODO: This needs a major overhaul.  This assumes that the boundary plane is
+# perpendicular to the rotation axis (or that the boundary plane normal is
+# parallel to the rotation axis), and this is often not a valid assumption.
+
 from __future__ import division,print_function # Automatically divides as floats, and considers print() a function
 from sys import argv # for CLI arguments
 from numpy import array,linalg # for matrix operations
 from os.path import exists # For checking existence of a file
-from itertools import takewhile,repeat,islice
+from itertools import takewhile,repeat
 
 # Helper functions
 def displayHelp():
@@ -39,6 +47,8 @@ def displayHelp():
         -s --save           Saves the resultant rotation matrix to a database
                             (rotation_matrix_database.tex) with the accompanying
                             rotation axis and misorientation type.
+
+        -q --quiet          Suppresses output of the rotation matrix
 
         --help              Display this help info.
     Output:
@@ -161,6 +171,7 @@ def rawbigcount(filename): # Counts the number of lines in a file
     f = open(filename, 'rb')
     bufgen = takewhile(lambda x: x, (f.read(1024*1024) for _ in repeat(None)))
     return sum( buf.count(b'\n') for buf in bufgen if buf )
+
 # Check what we were given...
 if "--help" in argv: # Help info
     displayHelp()
@@ -169,47 +180,76 @@ if "--help" in argv: # Help info
 save, argv = check4Save(argv)
 quiet, argv = check4Quiet(argv) # Checks for suppressing output
 
-if len(argv) != 3:
-    print("ERROR: Incorrect number of command line arguments.")
-    displayHelp()
-    exit()
-else:
-    script, _rotation_axis, _mis_type = argv
+if len(argv) != 4: # if not all three values given
+    if len(argv) != 3: # Check for _rotation_axis and _mis_type, otherwise
+        print("ERROR: Incorrect number of command line arguments.")
+        displayHelp()
+        exit()
+    else: # len(argv) == 3
+        script, _rotation_axis, _mis_type = argv
+        assert _mis_type in {'twist', 'tilt'}, "ERROR: Misorientation type not recognized"
+        if _mis_type == 'twist':
+            _gbnormal = '010'
+        else:
+            _gbnormal = '-100'
+else: # len(argv) == 4
+    script, _rotation_axis, _mis_type, _gbnormal = argv
+    if not type(_gbnormal) in {int, list, str}:
+        print("ERROR: Grain boundary normal type is incorrect.  Please enter an int, a list, or a string")
+        print("You entered %s with type %s"%(str(_gbnormal), type(_gbnormal)))
+        exit()
+    else:
+        if type(_gbnormal) == str:
+            pass # Do nothing
+        elif type(_gbnormal) == int:
+            _gbnormal = '0' + '0' + '0' + str(_gbnormal)
+            _gbnormal =_gbnormal[-3:] # gets the last three characters
+            assert _gbnormal != '000', "ERROR: invalid boundary normal."
+        else type(_gbnormal) == list:
+            _gbnormal = ''.join(str(i) for i in _gbnormal)
+
+        assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _gbnormal into a string."
 
 if not type(_rotation_axis) in {int, list, str}:
-    print("ERROR: Grain boundary normal type is incorrect.  Please enter an int, a list, or a string")
-    displayHelp()
+    print("ERROR: Grain boundary rotation axis type is incorrect.  Please enter an int, a list, or a string")
+    print("You entered %s with type %s"%(str(_rotation_axis), type(_rotation_axis)))
     exit()
 else: # Convert anything besides a string into a string
     if type(_rotation_axis) == str:
         pass # Do nothing
     elif type(_rotation_axis) == int:
-        _rotation_axis = str(_rotation_axis)
-    elif type(_rotation_axis) == list:
+        _rotation_axis = '0' + '0' + '0' + str(_rotation_axis)
+        _rotation_axis = _rotation_axis[-3:] # Get the last three characters
+        assert _rotation_axis != '000', "ERROR: invalid rotation axis."
+    else type(_rotation_axis) == list:
         _rotation_axis = ''.join(str(i) for i in _rotation_axis)
-    else:
-        print("ERROR: Something went wrong converting _rotation_axis into a string.")
-        exit()
+
+    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _rotation_axis into a string."
 
 # Now that the input is taken care of, do the work
 axis = array([[1, 0, 0]]) # This is the axis that we rotate the grain boundary normal to
-if _mis_type == 'twist':
-    gbnormal = array([[None]*3])
-    for i in range(0, len(_rotation_axis)):
-        gbnormal[0][i] = int(_rotation_axis[i])
-elif _mis_type == 'tilt':
-    if _rotation_axis == '100':
-        gbnormal = array([[0, 1, 0]])
-    elif _rotation_axis == '110':
-        gbnormal = array([[1, -1, 0]])
-    elif _rotation_axis == '111':
-        gbnormal = array([[1, -1, 0]])
-    else:
-        print("ERROR: Non-standard axis used.")
-        exit()
-else:
-    print("ERROR: Misorientation type not recognized")
-    exit()
+#if _mis_type == 'twist':
+#    gbnormal = array([[None]*3])
+#    for i in range(0, len(_rotation_axis)):
+#        gbnormal[0][i] = int(_rotation_axis[i])
+#elif _mis_type == 'tilt':
+#    if _rotation_axis == '100':
+#        gbnormal = array([[0, 1, 0]])
+#    elif _rotation_axis == '110':
+#        gbnormal = array([[1, -1, 0]])
+#    elif _rotation_axis == '111':
+#        gbnormal = array([[1, -1, 0]])
+#    else:
+#        print("ERROR: Non-standard axis used.")
+#        exit()
+#else:
+#    print("ERROR: Misorientation type not recognized")
+#    exit()
+gbnormal == array([[None]*3])
+for i in len(_gbnormal):
+    gbnormal[0][i] = int(_gbnormal[i])
+
+print(gbnormal)
 
 # So much work...
 gbnormal = gbnormal / linalg.norm(gbnormal) # Normalize the gbnormal vector.
