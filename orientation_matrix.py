@@ -38,7 +38,7 @@
 # For an Euler angle set, the ouput is simply its orientation matrix.
 # For the misorientations, the first matrix is the 'P' orientation matrix, and
 # the second matrix is the 'Q' orientation matrix (see Bulatov et al. Acta Mater
-# 65 (2014)).
+# 65 (2014) 161-175).
 
 from __future__ import division,print_function # To avoid numerical problems with division, and for ease of printing
 from sys import argv # for CLI arguments
@@ -89,8 +89,8 @@ def displayHelp():
     Output:
     For an Euler angle set, the ouput is simply its orientation matrix.
     For the misorientations, the first matrix is the 'P' orientation matrix, and
-    the second matrix is the 'Q' orientation matrix (see Bulatov et al. Acta Mater
-    65 (2014)).
+    the second matrix is the 'Q' orientation matrix (see Bulatov et al., Acta Mater
+    65 (2014) 161-175).
     ''')
     return
 
@@ -101,7 +101,7 @@ def calcRotMat(_z1,_x,_z2): # Calculates the Bunge orientation matrix.  Argument
     s1 = sin(_z1)
     s2 = sin(_x)
     s3 = sin(_z2)
-    
+
     rot_mat = array([[ c1*c3 - c2*s1*s3,  c3*s1 + c1*c2*s3,  s2*s3],
                      [-c1*s3 - c2*c3*s1,  c1*c2*c3 - s1*s3,  c3*s2],
                      [ s1*s2           , -c1*s2           ,  c2  ]])
@@ -181,46 +181,35 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
             elif len(data) != 6:
                 continue
             else:
+                assert data[0][0] in {'P', 'Q'}, "Unknown orientation matrix type (should be \'P\' or \'Q\')"
                 if not "%d%s"%(axis,_type) in {data[0][1:8], data[0][1:9]}:
                     lastVal = 0
                 elif data[0][5] == 'w': # We're looking at either P or Q1xxtwist(i)
                     try:
                         if data[0][0] == 'P':
                             lastVal = int(data[0][14:16]) - 1
-                        elif data[0][0] == 'Q':
+                        else: # data[0][0] == 'Q'
                             lastVal = int(data[0][14:16])
-                        else:
-                            print("Unknown orientation matrix type (should be \'P\' or \'Q\')")
-                            exit()
                     except:
                         if data[0][0] == 'P':
                             lastVal = int(data[0][14]) - 1
-                        elif data[0][0] == 'Q':
+                        else: # data[0][0] == 'Q'
                             lastVal = int(data[0][14])
-                        else:
-                            print("Unknown orientation matrix type (should be \'P\' or \'Q\')")
-                            exit()
                 elif data[0][5] == 'i': # P or Q1xxtilt(i)
                     try:
                         if data[0][0] == 'P':
                             lastVal = int(data[0][13:15]) - 1
-                        elif data[0][0] == 'Q':
+                        else: # data[0][0] == 'Q'
                             lastVal = int(data[0][13:15])
-                        else:
-                            print("Unknown orientation matrix type (should be \'P\' or \'Q\')")
-                            exit()
                     except:
                         if data[0][0] == 'P':
                             lastVal = int(data[0][13]) - 1
-                        elif data[0][0] == 'Q':
+                        else: # data[0][0] == 'Q'
                             lastVal = int(data[0][13])
-                        else:
-                            print("Unknown orientation matrix type (should be \'P\' or \'Q\')")
-                            exit()
                 else:
                     print("Error: Unknown last index")
                     exit()
-                if grain == 'Q' and _type == 'twist': # We run into problems if we're doing twist matrices for the Q grain
+                if grain == 'Q' and _type == 'twist': # We run into problems if we're doing twist matrices for the Q grain - As is now, this will cause the 'Q' twist matrices to ALWAYS be written
                     unique = True
                 elif data[0][0] == grain and (data[0][4:8] == _type or data[0][4:9] == _type) and data[3] == ('%' + "%2.4f"%_z1) and data[4] == "%2.4f"%_x and data[5] == "%2.4f"%_z2:
                     unique = False
@@ -339,6 +328,7 @@ else:
 #------------------------------------------------------------------------------#
     _x = [None]*2
     # First, check to see if twist or tilt
+    assert _axis in {100, 110, 111}, "ERROR: Unrecognized axis."
     if _type == 'tilt': # Assuming symmetric tilt ONLY
         if _axis == 100:
             _z1   = 0.00
@@ -357,10 +347,6 @@ else:
             _x[0] = 37.9381 + _misorientation / 2.0
             _x[1] = 37.9381 - _misorientation / 2.0
             _z2   = 110.104
-
-        else:
-            print("ERROR: Unrecognized axis")
-            exit()
 
     elif _type == 'twist': # NOTE: for twist misorientations, the second grain _does_not_move_!!!
         if _axis == 100:
@@ -385,10 +371,6 @@ else:
             _x[1] = 37.9381 - _misorientation / 2.0
             _z2   = 110.104
 
-        else:
-            print("ERROR: Unrecognized axis")
-            exit()
-
     else:
         print("ERROR: Unrecognized boundary type")
         exit()
@@ -402,18 +384,16 @@ else:
     for i in range(0,len(_x)):
         orientation_matrix = calcRotMat(_z1, _x[i], _z2)
 
-        if _axis == 111 and _type == "twist":
-            rot_111_to_100 = array([[0.57735]*3,[-0.57735,0.78868,-0.21132],[-0.57735,-0.21132,0.78868]])
-            orientation_matrix = matMult(rot_111_to_100,orientation_matrix)
+        #if _axis == 111 and _type == "twist":
+            #rot_111_to_100 = array([[0.57735]*3,[-0.57735,0.78868,-0.21132],[-0.57735,-0.21132,0.78868]])
+            #orientation_matrix = matMult(rot_111_to_100,orientation_matrix)
 
         if not quiet:
             displayMat(orientation_matrix)
 
         if save:
+            assert i < 2, "ERROR: Too many values for the second Euler angle."
             if i == 0:
                 writeMat(orientation_matrix, _z1, _x[i], _z2, 'P', _axis, _type)
-            elif i == 1:
-                writeMat(orientation_matrix, _z1, _x[i], _z2, 'Q', _axis, _type)
             else:
-                print("ERROR: Too many values for the second Euler angle")
-                exit()
+                writeMat(orientation_matrix, _z1, _x[i], _z2, 'Q', _axis, _type)
