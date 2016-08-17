@@ -189,26 +189,26 @@ if len(argv) != 4: # if not all three values given
         script, _rotation_axis, _mis_type = argv
         assert _mis_type in {'twist', 'tilt'}, "ERROR: Misorientation type not recognized"
         if _mis_type == 'twist':
-            _gbnormal = '010'
+            _gbnormal = [0, 1, 0]
         else:
-            _gbnormal = '-100'
+            _gbnormal = [-1, 0, 0]
 else: # len(argv) == 4
     script, _rotation_axis, _mis_type, _gbnormal = argv
-    if not type(_gbnormal) in {int, list, str}:
-        print("ERROR: Grain boundary normal type is incorrect.  Please enter an int, a list, or a string")
-        print("You entered %s with type %s"%(str(_gbnormal), type(_gbnormal)))
-        exit()
-    else:
-        if type(_gbnormal) == str:
-            pass # Do nothing
-        elif type(_gbnormal) == int:
-            _gbnormal = '0' + '0' + '0' + str(_gbnormal)
-            _gbnormal =_gbnormal[-3:] # gets the last three characters
-            assert _gbnormal != '000', "ERROR: invalid boundary normal."
-        else type(_gbnormal) == list:
-            _gbnormal = ''.join(str(i) for i in _gbnormal)
+if not type(_gbnormal) in {int, list, str}:
+    print("ERROR: Grain boundary normal type is incorrect.  Please enter an int, a list, or a string")
+    print("You entered %s with type %s"%(str(_gbnormal), type(_gbnormal)))
+    exit()
+else:
+    if type(_gbnormal) == str:
+        pass # Do nothing
+    elif type(_gbnormal) == int:
+        _gbnormal = '0' + '0' + '0' + str(_gbnormal)
+        _gbnormal =_gbnormal[-3:] # gets the last three characters
+        assert _gbnormal != '000', "ERROR: invalid boundary normal."
+    else: # type(_gbnormal) == list
+        _gbnormal = ''.join(str(i) for i in _gbnormal)
 
-        assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _gbnormal into a string."
+    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _gbnormal into a string."
 
 if not type(_rotation_axis) in {int, list, str}:
     print("ERROR: Grain boundary rotation axis type is incorrect.  Please enter an int, a list, or a string")
@@ -221,35 +221,25 @@ else: # Convert anything besides a string into a string
         _rotation_axis = '0' + '0' + '0' + str(_rotation_axis)
         _rotation_axis = _rotation_axis[-3:] # Get the last three characters
         assert _rotation_axis != '000', "ERROR: invalid rotation axis."
-    else type(_rotation_axis) == list:
+    else: # type(_rotation_axis) == list
         _rotation_axis = ''.join(str(i) for i in _rotation_axis)
 
     assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _rotation_axis into a string."
 
 # Now that the input is taken care of, do the work
 axis = array([[1, 0, 0]]) # This is the axis that we rotate the grain boundary normal to
-#if _mis_type == 'twist':
-#    gbnormal = array([[None]*3])
-#    for i in range(0, len(_rotation_axis)):
-#        gbnormal[0][i] = int(_rotation_axis[i])
-#elif _mis_type == 'tilt':
-#    if _rotation_axis == '100':
-#        gbnormal = array([[0, 1, 0]])
-#    elif _rotation_axis == '110':
-#        gbnormal = array([[1, -1, 0]])
-#    elif _rotation_axis == '111':
-#        gbnormal = array([[1, -1, 0]])
-#    else:
-#        print("ERROR: Non-standard axis used.")
-#        exit()
-#else:
-#    print("ERROR: Misorientation type not recognized")
-#    exit()
-gbnormal == array([[None]*3])
-for i in len(_gbnormal):
-    gbnormal[0][i] = int(_gbnormal[i])
 
-print(gbnormal)
+# This part converts _gbnormal to an array for use in the rotation functions
+gbnormal = array([[None]*3])
+j = 0
+for i in range(0,len(gbnormal[0])):
+    try:
+        gbnormal[0][i] = int(_gbnormal[j])
+        j = j+1
+    except:
+        #print(_gbnormal[i:i+2])
+        gbnormal[0][i] = int(_gbnormal[j:j + 2])
+        j = j + 2
 
 # So much work...
 gbnormal = gbnormal / linalg.norm(gbnormal) # Normalize the gbnormal vector.
