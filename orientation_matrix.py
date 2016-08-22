@@ -119,12 +119,6 @@ def displayMat(m): # Displays the matrix
     return
 
 def matMult(m1,m2): # Multiplies two matrices together
-    #assert(all(len(m1) == len(m2[i]) for i in range(0,len(m2)))) # Assert that the dimensions are correct
-    #result = [[0]*len(m2[0]) for i in range(0,len(m1))]
-    #for i in range(0,len(m1)):
-    #    for j in range(0,len(m1[0])):
-    #        for k in range(0,len(m2)):
-    #            result[i][j] += m1[i][k] * m2[k][j]
     result = m1.dot(m2)
     return result
 
@@ -186,21 +180,33 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
                     lastVal = 0
                 elif data[0][5] == 'w': # We're looking at either P or Q1xxtwist(i)
                     try:
-                        if data[0][0] == 'P':
-                            lastVal = int(data[0][14:16]) - 1
-                        else: # data[0][0] == 'Q'
-                            lastVal = int(data[0][14:16])
+                        try:
+                            if data[0][0] == 'P': # Handles anything 3 digits long
+                                lastVal = int(data[0][14:17]) - 1
+                            else:
+                                lastVal = int(data[0][14:17])
+                        except:
+                            if data[0][0] == 'P': # Handles anything 2 digits long
+                                lastVal = int(data[0][14:16]) - 1
+                            else: # data[0][0] == 'Q'
+                                lastVal = int(data[0][14:16])
                     except:
-                        if data[0][0] == 'P':
+                        if data[0][0] == 'P': # One digit case
                             lastVal = int(data[0][14]) - 1
                         else: # data[0][0] == 'Q'
                             lastVal = int(data[0][14])
                 elif data[0][5] == 'i': # P or Q1xxtilt(i)
                     try:
-                        if data[0][0] == 'P':
-                            lastVal = int(data[0][13:15]) - 1
-                        else: # data[0][0] == 'Q'
-                            lastVal = int(data[0][13:15])
+                        try:
+                            if data[0][0] == 'P':
+                                lastVal = int(data[0][13:16]) - 1
+                            else:
+                                lastVal = int(data[0][13:16])
+                        except:
+                            if data[0][0] == 'P':
+                                lastVal = int(data[0][13:15]) - 1
+                            else: # data[0][0] == 'Q'
+                                lastVal = int(data[0][13:15])
                     except:
                         if data[0][0] == 'P':
                             lastVal = int(data[0][13]) - 1
@@ -209,9 +215,8 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
                 else:
                     print("Error: Unknown last index")
                     exit()
-                if grain == 'Q' and _type == 'twist': # We run into problems if we're doing twist matrices for the Q grain - As is now, this will cause the 'Q' twist matrices to ALWAYS be written
-                    unique = True
-                elif data[0][0] == grain and (data[0][4:8] == _type or data[0][4:9] == _type) and data[3] == ('%' + "%2.4f"%_z1) and data[4] == "%2.4f"%_x and data[5] == "%2.4f"%_z2:
+
+                if data[0][0] == grain and (data[0][4:8] == _type or data[0][4:9] == _type) and data[3] == ('%' + "%2.4f"%_z1) and data[4] == "%2.4f"%_x and data[5] == "%2.4f"%_z2:
                     unique = False
                     break
                 else:
@@ -224,7 +229,7 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
             tex_file.write("%-------------------------------------------------------------------\n")
             tex_file.close()
 
-save, argv = check4Save(argv) # Save the file?  Delete the save argument for later
+save, argv = check4Save(argv) # Save the file?  Delete the save argument
 quiet, argv = check4Quiet(argv) # Checks for suppressing output
 # Error checking for input arguments
 if "--help" in argv: # Help info
