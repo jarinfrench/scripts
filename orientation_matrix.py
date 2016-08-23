@@ -16,7 +16,14 @@
 # If the option -e or --euler-angles is entered, the calculation skips to simply
 # output the orientation matrices.  Otherwise, the euler angles are calculated from
 # the axis, orientation, and misorientation type, and then the orientation matrix is
-# created.
+# created through the use of the Rodrigues Rotation Formula, which is:
+# R = I + sin(theta) * K + (1 - cos(theta))*K^2
+# where I is the identity matrix, and K is the skew-symmetric matrix formed by
+# the axis of rotation:
+# K = 0  -kz  ky
+#     kz  0  -kx
+#    -ky  kx  0
+# Where the vector k is the unit vector defining the axis of rotation.
 #
 # Options:
 # -e --euler-angles <_z1> <_x> <_z2>    Returns the  Bunge orientation matrix
@@ -45,7 +52,7 @@ from sys import argv # for CLI arguments
 from math import cos,sin,pi # Trig functions
 from numbers import Number # For checking input parameters
 from os.path import exists # For checking existence of a file
-from numpy import array
+from numpy import array, linalg
 
 orientation_matrix = []
 
@@ -68,7 +75,14 @@ def displayHelp():
     If the option -e or --euler-angles is entered, the calculation skips to simply
     output the orientation matrices.  Otherwise, the euler angles are calculated from
     the axis, orientation, and misorientation type, and then the orientation matrix is
-    created.
+    created through the use of the Rodrigues Rotation Formula, which is:
+    R = I + sin(theta) * K + (1 - cos(theta))*K^2
+    where I is the identity matrix, and K is the skew-symmetric matrix formed by
+    the axis of rotation:
+    K = 0  -kz  ky
+        kz  0  -kx
+       -ky  kx  0
+    Where the vector k is the unit vector defining the axis of rotation.
 
     Options:
     -e --euler-angles <_z1> <_x> <_z2>  Returns the  Bunge orientation matrix
@@ -289,7 +303,6 @@ elif "-e" in argv or "--euler-angles" in argv:
     _x  = deg2rad(_x)
     _z2 = deg2rad(_z2)
 
-#    print(_z1,_x,_z2)
     orientation_matrix = calcRotMat(_z1, _x, _z2)
 
     if not quiet:
@@ -301,7 +314,7 @@ elif "-e" in argv or "--euler-angles" in argv:
 else:
     if len(argv) < 4:
         print("ERROR: Not enough command line arguments.")
-        print("Input either an axis, misorientation, and misorientation type, or a ZXZ Euler angle set.")
+        print("Input either an axis, misorientation, and misorientation type, or a ZXZ Euler angle set with the option -e or --euler-angles.")
         displayHelp()
         exit()
     _axis = int(argv[1])
@@ -313,7 +326,7 @@ else:
         print("ERROR: Argument 1 must by a 3 digit number like \'100\'")
         exit()
 
-    if not _axis in {100, 110, 111}:
+    if not _axis in {100, 110, 111}: # TODO: determine from ANY axis
         print("ERROR: Unrecognized axis.  Please enter \'100\', \'110\', or \'111\'")
         exit()
 
@@ -372,8 +385,8 @@ else:
             # rotate THAT matrix by the rotation necessary to get from the <111>
             # axis to the <100> axis.
             _z1   = 290.104
-            _x[0] = 37.9381 + _misorientation / 2.0
-            _x[1] = 37.9381 - _misorientation / 2.0
+            _x[0] = 37.9381 + _misorientation
+            _x[1] = 0.0
             _z2   = 110.104
 
     else:
@@ -384,14 +397,31 @@ else:
     _x[0] = deg2rad(_x[0])
     _x[1] = deg2rad(_x[1])
     _z2   = deg2rad(_z2)
+#    for i in range(0,len(_x)):
+#        orientation_matrix = calcRotMat(_z1, _x[i], _z2)
+#
+#        #if _axis == 111 and _type == "twist":
+#            #rot_111_to_100 = array([[0.57735]*3,[-0.57735,0.78868,-0.21132],[-0.57735,-0.21132,0.78868]])
+#            #orientation_matrix = matMult(rot_111_to_100,orientation_matrix)
 
-#    print(_z1,_x,_z2)
-    for i in range(0,len(_x)):
-        orientation_matrix = calcRotMat(_z1, _x[i], _z2)
+#---------------------------------------------------------------------------------------------------#
+    # Using the Rodrigues Rotation Formula, defined as R = I + sin(theta) * K + (1 - cos(theta))*K^2
+    # with K = [0 -k_z, k_y; k_z, 0, -k_x; -k_y, k_x, 0], and the components of
+    # k coming from the vector being rotated about.  Theta is specified by the misorientation.
+    k = [None]*3
+    for i in range(0,len(str(_axis))):
+        k[i] = float(str(_axis)[i])
+    k = k / linalg.norm(k)
+    K = array([[0, -k[2], k[1]],[k[2], 0, -k[0]], [-k[1], k[0], 0]])
+    if _type == 'twist':
+        theta = [_misorientation, 0]
+    else:
+        theta = [_misorientation / 2, -_misorientation / 2]
 
-        #if _axis == 111 and _type == "twist":
-            #rot_111_to_100 = array([[0.57735]*3,[-0.57735,0.78868,-0.21132],[-0.57735,-0.21132,0.78868]])
-            #orientation_matrix = matMult(rot_111_to_100,orientation_matrix)
+    for i in range(0, len(theta)):
+        R = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[i]) * K + (1 - cos(theta[i])) * matMult(K,K)
+        orientation_matrix = R
+#----------------------------------------------------------------------------------------------------#
 
         if not quiet:
             displayMat(orientation_matrix)
