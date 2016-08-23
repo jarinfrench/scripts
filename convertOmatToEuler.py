@@ -102,7 +102,7 @@ if a[2][1] == 0:
 else:
     phi_1 = atan2(a[2][0], -a[2][1])
 
-print("Euler angles are %2.4f, %2.4f, and %2.4f"%(phi_1, Phi, phi_2))
+print("Euler angles are %2.4f, %2.4f, and %2.4f"%(rad2deg(phi_1), rad2deg(Phi), rad2deg(phi_2)))
 # Double check that this creates the same matrix.
 c1 = cos(phi_1)
 c2 = cos(Phi)
