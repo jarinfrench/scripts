@@ -22,7 +22,7 @@ TYPE=`echo $FN | grep -o "T[a-z]\{3,4\}"` # Pulls out the misorientation type fr
 echo "Reading the file..."
 IFS=","
 [ ! -f $FN ] && { echo "$FN file not found"; exit 99; }
-echo "Running the command: ~/projects/scripts/orientation_matrix.py $AXIS $angle $TYPE -s -q"
+echo "Running the command: ~/projects/scripts/orientation_matrix.py $AXIS <angle> $TYPE -s -q"
 while read -r angle en; do # read the file with comma separated values
 
   ~/projects/scripts/orientation_matrix.py $AXIS $angle $TYPE -s -q
