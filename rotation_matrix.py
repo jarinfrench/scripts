@@ -24,10 +24,6 @@
 # The output displayed will be the resultant rotation matrix for the given
 # misorientation.
 
-# TODO: This needs a major overhaul.  This assumes that the boundary plane is
-# perpendicular to the rotation axis (or that the boundary plane normal is
-# parallel to the rotation axis), and this is often not a valid assumption.
-
 from __future__ import division,print_function # Automatically divides as floats, and considers print() a function
 from sys import argv # for CLI arguments
 from numpy import array,linalg # for matrix operations
@@ -39,7 +35,7 @@ def displayHelp():
     print('''
     This script will generate the rotation matrix for the given misorientation axis
     Input:
-        _rotation_axis      This specifies the axis around which the grains are 
+        _rotation_axis      This specifies the axis around which the grains are
                             rotated. (type: int (100), list ([1, 0, 0]) or string ('100'))
         _mis_type           This is either 'twist' or 'tilt.' (type: string)
         _gbnormal           This specifies the boundary plane normal.  If no option
@@ -126,16 +122,16 @@ def check4Quiet(args): # Check the args for a quiet command
     else:
         return False, args
 
-def writeMat(m, _type, gbnormal): # Write the matrix and angles to a file
+def writeMat(m, _axis, _type, gbnormal): # Write the matrix and angles to a file
     tex_filename = "rotation_matrix_database.tex"
-    normName = str(int(abs(gbnormal[0][0]))) + str(int(abs(gbnormal[0][1]))) + str(int(abs(gbnormal[0][2])))
+    normName = _axis + _type + gbnormal
     var_name = "rot%snorm"%(normName)
     if not exists(tex_filename):
         tex_file = open(tex_filename, "a")
         tex_file.write("%Database for rotation matrices for specified misorientation axes\n")
         tex_file.write("%----------------------------------------------------------------\n")
         tex_file.write("%Rotation Matrix                                    Type\n")
-        tex_file.write("%s=[%2.4f  %2.4f  %2.4f                 %%%s\n"%(var_name, m[0][0], m[0][1], m[0][2], _type.title()))
+        tex_file.write("%s=[%2.4f  %2.4f  %2.4f          %%%s\n"%(var_name, m[0][0], m[0][1], m[0][2], _type.title()))
         tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
         tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
         tex_file.write("%----------------------------------------------------------------\n")
@@ -145,7 +141,7 @@ def writeMat(m, _type, gbnormal): # Write the matrix and angles to a file
         numlines = rawbigcount(tex_filename)
         if numlines <= 4:
             tex_file = open(tex_filename, "a")
-            tex_file.write("%s=[%2.4f  %2.4f  %2.4f                 %%%s\n"%(var_name, m[0][0], m[0][1], m[0][2], _type.title()))
+            tex_file.write("%s=[%2.4f  %2.4f  %2.4f          %%%s\n"%(var_name, m[0][0], m[0][1], m[0][2], _type.title()))
             tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
             tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
             tex_file.write("%----------------------------------------------------------------\n")
@@ -165,7 +161,7 @@ def writeMat(m, _type, gbnormal): # Write the matrix and angles to a file
                         unique = True
             if unique:
                 tex_file = open(tex_filename, "a")
-                tex_file.write("%s=[%2.4f  %2.4f  %2.4f                 %%%s\n"%(var_name, m[0][0], m[0][1], m[0][2], _type.title()))
+                tex_file.write("%s=[%2.4f  %2.4f  %2.4f         %%%s\n"%(var_name, m[0][0], m[0][1], m[0][2], _type.title()))
                 tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
                 tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
                 tex_file.write("%----------------------------------------------------------------\n")
@@ -247,11 +243,15 @@ for i in range(0,len(gbnormal[0])):
         j = j + 2
 
 # So much work...
+gbnorm = '0' + '0' + '0' + ''.join(str(abs(i)) for i in gbnormal[0])
+gbnorm = gbnorm[-3:]
 gbnormal = gbnormal / linalg.norm(gbnormal) # Normalize the gbnormal vector.
 axis = axis / linalg.norm(axis) # Just to be sure...
 rotation_matrix = rotVec1ToVec2(gbnormal, axis)
 
+
+
 if not quiet:
     displayMat(rotation_matrix)
 if save:
-    writeMat(rotation_matrix, _mis_type, gbnormal)
+    writeMat(rotation_matrix, _rotation_axis, _mis_type, gbnorm)

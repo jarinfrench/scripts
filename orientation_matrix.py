@@ -168,16 +168,16 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
         _z2 = abs(_z2)
 
     lastVal = 1
-    tex_filename = "orientation_matrix_database.tex"
+    tex_filename = "orientation_matrix_database_ints.tex"
     var_name = "%s%d%s"%(grain, axis, _type)
     if not exists(tex_filename):
         tex_file = open(tex_filename, "a")
         tex_file.write("%Database for orientation matrices for specified Euler Angles\n")
         tex_file.write("%-------------------------------------------------------------------\n")
         tex_file.write("%Orientation Matrix                                     Euler Angles\n")
-        tex_file.write("%s(:,:,%d)=[%2.4f  %2.4f  %2.4f                 %%%2.4f  %2.4f  %2.4f\n"%(var_name, lastVal, m[0][0], m[0][1], m[0][2], _z1, _x, _z2))
-        tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
-        tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
+        tex_file.write("%s(:,:,%d)=[%2.6f  %2.6f  %2.6f           %%%2.4f  %2.4f  %2.4f\n"%(var_name, lastVal, m[0][0], m[0][1], m[0][2], _z1, _x, _z2))
+        tex_file.write("%2.6f  %2.6f  %2.6f\n"%(m[1][0], m[1][1], m[1][2]))
+        tex_file.write("%2.6f  %2.6f  %2.6f];\n"%(m[2][0], m[2][1], m[2][2]))
         tex_file.write("%-------------------------------------------------------------------\n")
         tex_file.close()
     else:
@@ -239,9 +239,9 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
                     unique = True
         if unique:
             tex_file = open(tex_filename, "a")
-            tex_file.write("%s(:,:,%d)=[%2.4f  %2.4f  %2.4f                 %%%2.4f  %2.4f  %2.4f\n"%(var_name, lastVal + 1, m[0][0], m[0][1], m[0][2], _z1, _x, _z2))
-            tex_file.write("%2.4f  %2.4f  %2.4f\n"%(m[1][0], m[1][1], m[1][2]))
-            tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
+            tex_file.write("%s(:,:,%d)=[%2.6f  %2.6f  %2.6f           %%%2.4f  %2.4f  %2.4f\n"%(var_name, lastVal + 1, m[0][0], m[0][1], m[0][2], _z1, _x, _z2))
+            tex_file.write("%2.6f  %2.6f  %2.6f\n"%(m[1][0], m[1][1], m[1][2]))
+            tex_file.write("%2.6f  %2.6f  %2.6f];\n"%(m[2][0], m[2][1], m[2][2]))
             tex_file.write("%-------------------------------------------------------------------\n")
             tex_file.close()
 
@@ -386,6 +386,7 @@ else:
             # for the tilt.  Once the orientation matrix is calculated, we then
             # rotate THAT matrix by the rotation necessary to get from the <111>
             # axis to the <100> axis.
+            # EDIT 23 Aug 2016: It now follows the same pattern, but uses a different formula to calculate the orientation matrix
             _z1   = 290.104
             _x[0] = 37.9381 + _misorientation
             _x[1] = 0.0
@@ -401,11 +402,6 @@ else:
     _z2   = deg2rad(_z2)
 #    for i in range(0,len(_x)):
 #        orientation_matrix = calcRotMat(_z1, _x[i], _z2)
-#
-#        #if _axis == 111 and _type == "twist":
-#            #rot_111_to_100 = array([[0.57735]*3,[-0.57735,0.78868,-0.21132],[-0.57735,-0.21132,0.78868]])
-#            #orientation_matrix = matMult(rot_111_to_100,orientation_matrix)
-
 #---------------------------------------------------------------------------------------------------#
     # Using the Rodrigues Rotation Formula, defined as R = I + sin(theta) * K + (1 - cos(theta))*K^2
     # with K = [0 -k_z, k_y; k_z, 0, -k_x; -k_y, k_x, 0], and the components of
@@ -416,9 +412,9 @@ else:
     k = k / linalg.norm(k)
     K = array([[0, -k[2], k[1]],[k[2], 0, -k[0]], [-k[1], k[0], 0]])
     if _type == 'twist':
-        theta = [_misorientation, 0]
+        theta = [deg2rad(_misorientation), 0]
     else:
-        theta = [_misorientation / 2, -_misorientation / 2]
+        theta = [deg2rad(_misorientation / 2), deg2rad(-_misorientation / 2)]
 
     for i in range(0, len(theta)):
         R = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[i]) * K + (1 - cos(theta[i])) * matMult(K,K)
