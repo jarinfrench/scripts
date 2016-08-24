@@ -168,8 +168,10 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
         _z2 = abs(_z2)
 
     lastVal = 1
-    tex_filename = "orientation_matrix_database_ints.tex"
-    var_name = "%s%d%s"%(grain, axis, _type)
+    #tex_filename = "orientation_matrix_database_ints.tex"
+    tex_filename = "orientation_matrix_database_ints_rrf.tex"
+    #var_name = "%s%d%s"%(grain, axis, _type)
+    var_name = "%s%d%srrf"%(grain, axis, _type)
     if not exists(tex_filename):
         tex_file = open(tex_filename, "a")
         tex_file.write("%Database for orientation matrices for specified Euler Angles\n")
@@ -196,36 +198,48 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
                     try:
                         try:
                             if data[0][0] == 'P': # Handles anything 3 digits long
-                                lastVal = int(data[0][14:17]) - 1
+                                #lastVal = int(data[0][14:17]) - 1
+                                lastVal = int(data[0][17:20]) - 1
                             else:
-                                lastVal = int(data[0][14:17])
+                                #lastVal = int(data[0][14:17])
+                                lastVal = int(data[0][17:20])
                         except:
                             if data[0][0] == 'P': # Handles anything 2 digits long
-                                lastVal = int(data[0][14:16]) - 1
+                                #lastVal = int(data[0][14:16]) - 1
+                                lastVal = int(data[0][17:19]) - 1
                             else: # data[0][0] == 'Q'
-                                lastVal = int(data[0][14:16])
+                                #lastVal = int(data[0][14:16])
+                                lastVal = int(data[0][17:19])
                     except:
                         if data[0][0] == 'P': # One digit case
-                            lastVal = int(data[0][14]) - 1
+                            #lastVal = int(data[0][14]) - 1
+                            lastVal = int(data[0][17]) - 1
                         else: # data[0][0] == 'Q'
-                            lastVal = int(data[0][14])
+                            #lastVal = int(data[0][14])
+                            lastVal = int(data[0][17])
                 elif data[0][5] == 'i': # P or Q1xxtilt(i)
                     try:
                         try:
                             if data[0][0] == 'P':
-                                lastVal = int(data[0][13:16]) - 1
+                                #lastVal = int(data[0][13:16]) - 1
+                                lastVal = int(data[0][16:19]) - 1
                             else:
-                                lastVal = int(data[0][13:16])
+                                #lastVal = int(data[0][13:16])
+                                lastVal = int(data[0][16:19])
                         except:
                             if data[0][0] == 'P':
-                                lastVal = int(data[0][13:15]) - 1
+                                #lastVal = int(data[0][13:15]) - 1
+                                lastVal = int(data[0][16:18]) - 1
                             else: # data[0][0] == 'Q'
-                                lastVal = int(data[0][13:15])
+                                #lastVal = int(data[0][13:15])
+                                lastVal = int(data[0][16:18])
                     except:
                         if data[0][0] == 'P':
-                            lastVal = int(data[0][13]) - 1
+                            #lastVal = int(data[0][13]) - 1
+                            lastVal = int(data[0][16]) - 1
                         else: # data[0][0] == 'Q'
-                            lastVal = int(data[0][13])
+                            #lastVal = int(data[0][13])
+                            lastVal = int(data[0][16])
                 else:
                     print("Error: Unknown last index")
                     exit()
