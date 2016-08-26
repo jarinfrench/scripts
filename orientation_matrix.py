@@ -310,7 +310,7 @@ elif "-e" in argv or "--euler-angles" in argv:
         except:
             index = argv.index("--euler-angles")
     except:
-        print("ERROR: Unable to find Euler angles")
+        print("ERROR: Unable to read Euler angles")
         exit()
     _z1 = float(argv[index + 1])
     _x =  float(argv[index + 2])
