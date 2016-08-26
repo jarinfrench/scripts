@@ -14,16 +14,21 @@
 #   _z2: The third rotation angle  (Z") (type: float)
 #
 # If the option -e or --euler-angles is entered, the calculation skips to simply
-# output the orientation matrices.  Otherwise, the euler angles are calculated from
+# output the orientation matrices.  Otherwise, the Euler angles are calculated from
 # the axis, orientation, and misorientation type, and then the orientation matrix is
 # created through the use of the Rodrigues Rotation Formula, which is:
 # R = I + sin(theta) * K + (1 - cos(theta))*K^2
-# where I is the identity matrix, and K is the skew-symmetric matrix formed by
-# the axis of rotation:
+# where I is the identity matrix, theta is the misorientation angle, and K is
+# the skew-symmetric matrix formed by the axis of rotation:
 # K = 0  -kz  ky
 #     kz  0  -kx
 #    -ky  kx  0
 # Where the vector k is the unit vector defining the axis of rotation.
+# The Euler angles are calculated in this case simply for the file to be written
+# to.  If the user does not specify to save, then the angles are not used for
+# anything.
+# Alternatively, if the user does want to use the Euler angles to calculate the
+# orientation matrices, edit the code.  (TODO: make this option available via command line).
 #
 # Options:
 # -e --euler-angles <_z1> <_x> <_z2>    Returns the  Bunge orientation matrix
@@ -73,16 +78,22 @@ def displayHelp():
        _z2: The third rotation angle  (Z") (type: float)
 
     If the option -e or --euler-angles is entered, the calculation skips to simply
-    output the orientation matrices.  Otherwise, the euler angles are calculated from
+    output the orientation matrices.  Otherwise, the Euler angles are calculated from
     the axis, orientation, and misorientation type, and then the orientation matrix is
     created through the use of the Rodrigues Rotation Formula, which is:
     R = I + sin(theta) * K + (1 - cos(theta))*K^2
-    where I is the identity matrix, and K is the skew-symmetric matrix formed by
-    the axis of rotation:
+    where I is the identity matrix, theta is the misorientation angle, and K is
+    the skew-symmetric matrix formed by the axis of rotation:
     K = 0  -kz  ky
         kz  0  -kx
        -ky  kx  0
     Where the vector k is the unit vector defining the axis of rotation.
+    The Euler angles are calculated in this case simply for the file to be written
+    to.  If the user does not specify to save, then the angles are not used for
+    anything.
+    Alternatively, if the user does want to use the Euler angles to calculate the
+    orientation matrices, edit the code.  (Future updates may have this simply be
+    an option available via command line).
 
     Options:
     -e --euler-angles <_z1> <_x> <_z2>  Returns the  Bunge orientation matrix
@@ -324,7 +335,7 @@ elif "-e" in argv or "--euler-angles" in argv:
     if not quiet:
         displayMat(orientation_matrix)
     if save:
-        writeMat(orientation_matrix, _z1, _x, _z2, 'P', _axis, _type)
+        writeMat(orientation_matrix, _z1, _x, _z2, 'P', _axis, _type) # TODO: make these different from the P and Q matrices!
 
     exit()
 else:
