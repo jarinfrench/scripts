@@ -2,6 +2,7 @@
 # A short description of each function precedes the definition.
 from __future__ import division,print_function # makes division and printing easier
 from math import sin, cos, pi
+from itertools import takewhile,repeat
 
 # This function converts degrees to radians.  Argument is assumed to be in degrees
 def deg2rad(x):

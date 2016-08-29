@@ -12,10 +12,10 @@ file_100_twist = "Twist100Angles.tex"
 file_110_twist = "Twist110Angles.tex"
 file_111_twist = "Twist111Angles.tex"
 
-max100tilt = 360 # Also max 110 twist
-max110tilt = 360
-max111tilt = 360 # Also max 111 twist
-max100twist = 360
+max100tilt = 90 # Also max 110 twist
+max110tilt = 180
+max111tilt = 60 # Also max 111 twist
+max100twist = 45
 
 genAngleFile(file_100_tilt, max100tilt)
 genAngleFile(file_110_tilt, max110tilt)

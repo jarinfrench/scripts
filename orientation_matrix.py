@@ -170,10 +170,10 @@ def defineMisorientation(axis,gbnorm):
     # Now take the dot product
     dotp = axis_norm.dot(gbnorm_norm.T)
 
-    if dotp == 0.0:
+    if round(dotp, 10) == 0.0:
         return 'tilt'
 
-    elif dotp == 1.0 or dotp == -1.0:
+    elif round(dotp, 10) == 1.0 or round(dotp, 10) == -1.0:
         return 'twist'
 
     else:
@@ -199,7 +199,7 @@ def matMult(m1,m2): # Multiplies two matrices together
     return result
 
 # Write the matrix and angles to a file
-def writeMat(m, z1, x, z2, grain, axis):
+def writeMat(m, _z1, _x, _z2, grain, axis, _type):
     # This is to avoid issues with duplicates
     if _z1 == 0:
         _z1 = abs(_z1)
@@ -286,7 +286,7 @@ def writeMat(m, z1, x, z2, grain, axis):
                     print("Error: Unknown last index. Line 286")
                     exit()
 
-                if grain == 'Q' and _type == 'twist': # We run into problems if we're doing twist matrices for the Q grain - As is now, this will cause the 'Q' twist matrices to ALWAYS be written
+                if grain == 'Q':# and _type == 'twist': # We run into problems if we're doing twist matrices for the Q grain - As is now, this will cause the 'Q' twist matrices to ALWAYS be written
                     unique = True
                 elif data[0][0] == grain and (data[0][4:8] == _type or data[0][4:9] == _type) and data[3] == ('%' + "%2.4f"%_z1) and data[4] == "%2.4f"%_x and data[5] == "%2.4f"%_z2:
                     unique = False
@@ -390,6 +390,7 @@ else:
         print("ERROR: Argument 1 must by a 3 digit number like \'100\'.  Line 390")
         exit()
 
+    _misorientation = deg2rad(_misorientation) # Change input to radians
     axis = [None]*3
     gbnorm = [None]*3
     j = 0
@@ -403,8 +404,8 @@ else:
             gbnorm[i] = int(_gbnorm[j:j + 2])
             j = j + 2
     _type = defineMisorientation(axis, gbnorm) # Determine the type of misorientation from the axis and gb normal.
-
-    print("These grains have a %s boundary"%(_type))
+    if not quiet:
+        print("These grains have a %s boundary"%(_type))
 #------------------------------------------------------------------------------#
 #-------------------------------The Actual Calculations------------------------#
 #------------------------------------------------------------------------------#
@@ -417,17 +418,21 @@ else:
     _z2 = [None]*2
     at1 = [None]*2
     at2 = [None]*2
-    q[0] = [cos((_misorientation/2)/2), sin((_misorientation/2)/2)*axis[0], sin((_misorientation/2)/2)*axis[1], sin((_misorientation/2)/2)*axis[2]]
-    q[1] = [cos((-_misorientation/2)/2), sin((-_misorientation/2)/2)*axis[0], sin((-_misorientation/2)/2)*axis[1], sin((-_misorientation/2)/2)*axis[2]]
+    q[0] = [cos(_misorientation/2/2), sin(_misorientation/2/2)*axis[0], sin(_misorientation/2/2)*axis[1], sin(_misorientation/2/2)*axis[2]]
+    q[1] = [cos(-_misorientation/2/2), sin(-_misorientation/2/2)*axis[0], sin(-_misorientation/2/2)*axis[1], sin(-_misorientation/2/2)*axis[2]]
 
     # Conversion to Euler angles using the method in the MTEX MATLAB code
     for i in range(0, len(q)):
         at1[i] = atan2(q[i][3],q[i][0])
         at2[i] = atan2(q[i][1],q[i][2])
 
-        _z1[i] = at1[i] - at2[i] + pi / 2.0
+        _z1[i] = at1[i] - at2[i]
         _x[i] = 2*atan2(sqrt(q[i][1]**2 + q[i][2]**2), sqrt(q[i][0]**2 + q[i][3]**2))
-        _z2[i] = at1[i] + at2[i] + 3 * pi / 2.0
+        _z2[i] = at1[i] + at2[i]
+
+        _z1[i] = _z1[i]%(2*pi)
+        _x[i] = _x[i]%(2*pi)
+        _z2[i] = _z2[i]%(2*pi)
 
 #---------------------------------------------------------------------------------------------------#
     # Using the Rodrigues Rotation Formula, defined as R = I + sin(theta) * K + (1 - cos(theta))*K^2
@@ -435,7 +440,7 @@ else:
     # k coming from the vector being rotated about.  Theta is specified by the misorientation.
     if useRRF:
         K = array([[0, -axis[2], axis[1]],[axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
-        theta = [deg2rad(-_misorientation / 2), deg2rad(_misorientation / 2)]
+        theta = [-_misorientation / 2, _misorientation / 2]
 
         for i in range(0, len(theta)):
             R = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[i]) * K + (1 - cos(theta[i])) * matMult(K,K)

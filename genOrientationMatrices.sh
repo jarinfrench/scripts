@@ -20,17 +20,29 @@ AXIS=`echo $FN | grep -o "1[01][01]"` # Pulls out the axis from the input file n
 TYPE=`echo $FN | grep -o "T[a-z]\{3,4\}"` # Pulls out the misorientation type from the file name
 
 # Because we want this automated, we are just going to assume a grain boundary normal
-if [ $TYPE = "[Tt]wist" ]; then
-  NORM = "-100"
+re='[Tt]wist'
+if [[ $TYPE =~ $re ]]; then
+  NORM=$AXIS
 fi
 
-if [ $TYPE = "[Tt]ilt" ]; then
-  NORM = "010"
+re='[Tt]ilt'
+if [[ $TYPE =~ $re ]]; then
+  if [[ $AXIS =~ "100" ]]; then
+    NORM="010"
+  fi
+  if [[ $AXIS =~ "110" ]]; then
+    NORM="1-10"
+  fi
+  if [[ $AXIS =~ "111" ]]; then
+    NORM="1-10"
+  fi
 fi
 
 # Otherwise we can't run the program properly
 if [ -z ${NORM+x} ]; then
   echo "Type not recognized"
+  echo $NORM
+  echo $TYPE
   exit 2
 fi
 
