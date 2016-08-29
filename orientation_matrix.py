@@ -4,18 +4,18 @@
 # for any of the high-symmetry axes.
 # Arguments:
 #
-#   _axis: axis of orientation (needs to be either 100, 110, or 111) (type: int or list)
+#   _axis: The axis of orientation (type: int)
 #   _misorientation: The angle of misorientation (type: float)
-#   _type: Type of misorientation (twist or tilt) (type: string)
+#   _gbnorm: The grain boundary normal of the two grains (type: int)
 #            --------OR--------
-#    (with option -e or --euler-angles)
+#    (with option -e or --euler)
 #   _z1: The first rotation angle  (Z ) (type: float)
 #   _x:  The second rotation angle (X') (type: float)
 #   _z2: The third rotation angle  (Z") (type: float)
 #
 # If the option -e or --euler-angles is entered, the calculation skips to simply
 # output the orientation matrices.  Otherwise, the Euler angles are calculated from
-# the axis, orientation, and misorientation type, and then the orientation matrix is
+# the axis, orientation, and grain boundary normal, and then the orientation matrix is
 # created through the use of the Rodrigues Rotation Formula, which is:
 # R = I + sin(theta) * K + (1 - cos(theta))*K^2
 # where I is the identity matrix, theta is the misorientation angle, and K is
@@ -23,19 +23,19 @@
 # K = 0  -kz  ky
 #     kz  0  -kx
 #    -ky  kx  0
-# Where the vector k is the unit vector defining the axis of rotation, or using
+# where the vector k is the unit vector defining the axis of rotation, or using
 # a set of predefined rotations for each axis (default is the predefined rotations).
 # The Euler angles are calculated in this case simply for the file to be written
 # to.  If the user does not specify to save, then the angles are not used for
 # anything.
 #
 # Options:
-# -e --euler-angles <_z1> <_x> <_z2>    Returns the  Bunge orientation matrix
+# -e --euler <_z1> <_x> <_z2>           Returns the  Bunge orientation matrix
 #                                       based on the euler angles provided.
-# -m --misorientation <_axis> <_misorientation> <_type>
-#                                       Returns the Bunge orientation matrix after
-#                                       calculating the Euler angles from the
-#                                       information provided (default behavior)
+#
+# -f --file <filename>                  Reads the file filename and uses the
+#                                       Euler angles from them to calculate the
+#                                       orientation matrix.
 #
 # --rrf                                 Calculates the matrices using the Rodrigues
 #                                       Rotation Formula
@@ -60,7 +60,7 @@
 
 from __future__ import division,print_function # To avoid numerical problems with division, and for ease of printing
 from sys import argv # for CLI arguments
-from math import cos,sin,pi # Trig functions
+from math import cos,sin,pi, acos, asin, atan2, sqrt # Trig functions
 from numbers import Number # For checking input parameters
 from os.path import exists # For checking existence of a file
 from numpy import array, linalg
@@ -75,14 +75,14 @@ def displayHelp():
     for any of the high-symmetry axes.
     Arguments:
 
-       _axis: axis of orientation (needs to be either 100, 110, or 111) (type: int or list)
-       _misorientation: The angle of misorientation (type: float)
-       _type: Type of misorientation (twist or tilt) (type: string)
-                  --------OR--------
-        (with option -e or --euler-angles)
-       _z1: The first rotation angle  (Z ) (type: float)
-       _x:  The second rotation angle (X') (type: float)
-       _z2: The third rotation angle  (Z") (type: float)
+      _axis: The axis of orientation (type: int or list)
+      _misorientation: The angle of misorientation (type: float)
+      _gbnorm: The grain boundary normal of the two grains (type: int or list)
+                --------OR--------
+      (with option -e or --euler)
+      _z1: The first rotation angle  (Z ) (type: float)
+      _x:  The second rotation angle (X') (type: float)
+      _z2: The third rotation angle  (Z") (type: float)
 
     If the option -e or --euler-angles is entered, the calculation skips to simply
     output the orientation matrices.  Otherwise, the Euler angles are calculated from
@@ -101,27 +101,27 @@ def displayHelp():
     anything.
 
     Options:
-    -e --euler-angles <_z1> <_x> <_z2>  Returns the  Bunge orientation matrix
-                                        based on the euler angles provided.
-    -m --misorientation <_axis> <_misorientation> <_type>
-                                        Returns the Bunge orientation matrix after
-                                        calculating the Euler angles from the
-                                        information provided (default behavior)
+    -e --euler <_z1> <_x> <_z2>           Returns the  Bunge orientation matrix
+                                          based on the euler angles provided.
 
-    --rrf                               Calculates the matrices using the Rodrigues
-                                        Rotation Formula
+    -f --file <filename>                  Reads the file filename and uses the
+                                          Euler angles from them to calculate the
+                                          orientation matrix.
 
-    -a --angles                         Displays the Euler angles.  Can be used
-                                        in conjunctions with -q or --quiet to
-                                        display only the Euler angles.
+    --rrf                                 Calculates the matrices using the Rodrigues
+                                          Rotation Formula
 
-    -s --save                           Saves the resultant orientation matrix to
-                                        a database (orientation_matrix_database.m)
-                                        with the accompanying Euler angles.
+    -a --angles                           Displays the Euler angles.  Can be used
+                                          in conjunctions with -q or --quiet to
+                                          display only the Euler angles.
 
-    -q --quiet                          Suppresses output of the orientation matrices
+    -s --save                             Saves the resultant orientation matrix to
+                                          a database (orientation_matrix_database.m)
+                                          with the accompanying Euler angles.
 
-    --help                              Display this help info
+    -q --quiet                            Suppresses output of the orientation matrices
+
+    --help                                Display this help info
 
     Output:
     For an Euler angle set, the ouput is simply its orientation matrix.
@@ -131,29 +131,12 @@ def displayHelp():
     ''')
     return
 
-def calcRotMat(_z1,_x,_z2): # Calculates the Bunge orientation matrix.  Arguments are first z rotation, x rotation, and second z rotation
-    c1 = cos(_z1)
-    c2 = cos(_x)
-    c3 = cos(_z2)
-    s1 = sin(_z1)
-    s2 = sin(_x)
-    s3 = sin(_z2)
-
-    rot_mat = array([[c1*c3 - c2*s1*s3, -c1*s3 - c2*c3*s1,  s1*s2],
-                     [c3*s1 + c1*c2*s3,  c1*c2*c3 - s1*s3, -c1*s2],
-                     [s2*s3           ,  c3*s2           ,  c2  ]])
-    return rot_mat
-
 def displayAngles(z1, x, z2): # Displays an Euler angle set (Bunge convention)
     print("Euler angles:")
     print("Z\t\tX\t\tZ")
     print("----------------------------------------")
     print("%2.4f\t%2.4f\t\t%2.4f\n\n"%(rad2deg(z1),rad2deg(x),rad2deg(z2)))
     return
-
-def matMult(m1,m2): # Multiplies two matrices together
-    result = m1.dot(m2)
-    return result
 
 def check4RRF(args): # Check the args for the rrf command
     if "--rrf" in args:
@@ -174,7 +157,49 @@ def check4Euler(args): # Check the args for the -a or --angles command
     else:
         return False, args
 
-def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles to a file
+# This function determines the type of misorientation: twist, tilt, or mixed
+def defineMisorientation(axis,gbnorm):
+    # Make sure axis and gbnorm are arrays:
+    axis = array(axis)
+    gbnorm = array(gbnorm)
+
+    # Make sure the vectors are normalized
+    axis_norm = axis / linalg.norm(axis)
+    gbnorm_norm = gbnorm / linalg.norm(gbnorm)
+
+    # Now take the dot product
+    dotp = axis_norm.dot(gbnorm_norm.T)
+
+    if dotp == 0.0:
+        return 'tilt'
+
+    elif dotp == 1.0:
+        return 'twist'
+
+    else:
+        return 'mixed'
+
+
+# Calculates the Bunge orientation matrix.  Arguments are first z rotation, x rotation, and second z rotation
+def calcRotMat(_z1,_x,_z2):
+    c1 = cos(_z1)
+    c2 = cos(_x)
+    c3 = cos(_z2)
+    s1 = sin(_z1)
+    s2 = sin(_x)
+    s3 = sin(_z2)
+
+    rot_mat = array([[c1*c3 - c2*s1*s3, -c1*s3 - c2*c3*s1,  s1*s2],
+                     [c3*s1 + c1*c2*s3,  c1*c2*c3 - s1*s3, -c1*s2],
+                     [s2*s3           ,  c3*s2           ,  c2  ]])
+    return rot_mat
+
+def matMult(m1,m2): # Multiplies two matrices together
+    result = m1.dot(m2)
+    return result
+
+# Write the matrix and angles to a file
+def writeMat(m, z1, x, z2, grain, axis):
     # This is to avoid issues with duplicates
     if _z1 == 0:
         _z1 = abs(_z1)
@@ -277,14 +302,16 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
             tex_file.close()
     return
 
-save, argv = check4Save(argv) # Save the file?  Delete the save argument
-quiet, argv = check4Quiet(argv) # Checks for suppressing output
-useRRF, argv = check4RRF(argv) # Checks for using the RRF method
-dispEuler, argv = check4Euler(argv) # Checks for displaying the Euler angles
-# Error checking for input arguments
 if "--help" in argv: # Help info
     displayHelp()
     exit()
+
+save, argv = check4Save(argv) # Save the file?  Delete the save argument
+quiet, argv = check4Quiet(argv) # Checks for suppressing output. Delete the quiet argument.
+useRRF, argv = check4RRF(argv) # Checks for using the RRF method. Delete the rrf argument.
+dispEuler, argv = check4Euler(argv) # Checks for displaying the Euler angles.  Delete the angle argument
+
+# If the arguments come from a file...
 if "-f" in argv or "--file" in argv: #input arguments come from file
     try:
         try:
@@ -321,7 +348,6 @@ if "-f" in argv or "--file" in argv: #input arguments come from file
                 displayMat(orientation_matrix)
             if save:
                 writeMat(orientation_matrix, _z1, _x, _z2,'P', _axis, _type)
-
 # Input is a set of euler angles
 elif "-e" in argv or "--euler-angles" in argv:
     try:
@@ -344,111 +370,63 @@ elif "-e" in argv or "--euler-angles" in argv:
     if not quiet:
         displayMat(orientation_matrix)
     if save:
-        writeMat(orientation_matrix, _z1, _x, _z2, 'P', _axis, _type) # TODO: make these different from the P and Q matrices!
+        writeMat(orientation_matrix, _z1, _x, _z2, 'P', _axis, _type)
 
-    exit()
 else:
     if len(argv) < 4:
         print("ERROR: Not enough command line arguments.")
         print("Input either an axis, misorientation, and misorientation type, or a ZXZ Euler angle set with the option -e or --euler-angles.")
         displayHelp()
         exit()
-    _axis = int(argv[1])
-    _misorientation = float(argv[2])
-    _type = argv[3]
-
-    # Additional input error checking
-    if len(str(_axis)) > 3: # axis length greater than 3
-        print("ERROR: Argument 1 must by a 3 digit number like \'100\'")
-        exit()
-
-    if not _axis in {100, 110, 111}: # TODO: determine from ANY axis
-        print("ERROR: Unrecognized axis.  Please enter \'100\', \'110\', or \'111\'")
-        exit()
-
     try:
-        _misorientation = float(_misorientation)
+        _axis = int(argv[1])
+        _misorientation = float(argv[2])
+        _gbnorm = int(argv[3])
     except:
-        print("ERROR: Argument 2 must be a number")
+        print("ERROR: Command line argument(s) is (are) not of correct type.  Please enter an int for argument 1, a float for argument 2, and an int for argument 3")
         exit()
 
-    _type = _type.lower() # makes the string all lower case
-    if not _type in ['twist', 'tilt']: # type is not twist or tilt
-        print("ERROR: Argument 3 must be either \'twist\' or \'tilt\'")
+    if not len(str(_axis)) == 3 or not len(str(_gbnorm)) == 3: # axis length greater than 3
+        print("ERROR: Arguments 1 and 3 must by a 3 digit number like \'100\'")
         exit()
 
+    axis = [None]*3
+    gbnorm = [None]*3
+    for i in range(0, len(str(_axis))):
+        axis[i] = int(str(_axis)[i])
+        gbnorm[i] = int(str(_gbnorm)[i])
+    _type = defineMisorientation(axis, gbnorm) # Determine the type of misorientation from the axis and gb normal.
 #------------------------------------------------------------------------------#
 #-------------------------------The Actual Calculations------------------------#
 #------------------------------------------------------------------------------#
+    # First convert to a quaternion
+
+    axis = axis / linalg.norm(axis)
+    q = [None]*2
+    _z1 = [None]*2
     _x = [None]*2
-    # First, check to see if twist or tilt
-    assert _axis in {100, 110, 111}, "ERROR: Unrecognized axis."
-    if _type == 'tilt': # Assuming symmetric tilt ONLY
-        if _axis == 100:
-            _z1   = 0.00
-            _x[0] = _misorientation / 2.0
-            _x[1] = - _misorientation / 2.0
-            _z2   = 0.00
+    _z2 = [None]*2
+    at1 = [None]*2
+    at2 = [None]*2
+    q[0] = [cos((_misorientation/2)/2), sin((_misorientation/2)/2)*axis[0], sin((_misorientation/2)/2)*axis[1], sin((_misorientation/2)/2)*axis[2]]
+    q[1] = [cos((-_misorientation/2)/2), sin((-_misorientation/2)/2)*axis[0], sin((-_misorientation/2)/2)*axis[1], sin((-_misorientation/2)/2)*axis[2]]
 
-        elif _axis == 110:
-            _z1   = 45.00
-            _x[0] = _misorientation / 2.0
-            _x[1] = - _misorientation / 2.0
-            _z2   = 0.00
+    # Conversion to Euler angles using the method in the MTEX MATLAB code
+    for i in range(0, len(q)):
+        at1[i] = atan2(q[i][3],q[i][0])
+        at2[i] = atan2(q[i][1],q[i][2])
 
-        elif _axis == 111:
-            _z1   = 290.104
-            _x[0] = 37.9381 + _misorientation / 2.0
-            _x[1] = 37.9381 - _misorientation / 2.0
-            _z2   = 110.104
-
-    elif _type == 'twist': # NOTE: for twist misorientations, the second grain _does_not_move_!!!
-        if _axis == 100:
-            _z1   = 0.00
-            _x[0] = _misorientation
-            _x[1] = 0.00
-            _z2   = 0.00
-
-        elif _axis == 110:
-            _z1   = 45.0
-            _x[0] = _misorientation
-            _x[1] = 0.00
-            _z2   = 0.0
-
-        elif _axis == 111: # Except in the case of the <111> twist.
-            # For this special case we assume the misorientation is the same as
-            # for the tilt.  Once the orientation matrix is calculated, we then
-            # rotate THAT matrix by the rotation necessary to get from the <111>
-            # axis to the <100> axis.
-            # EDIT 23 Aug 2016: It now follows the same pattern, but uses a different formula to calculate the orientation matrix
-            _z1   = 290.104
-            _x[0] = 37.9381 + _misorientation
-            _x[1] = 0.0
-            _z2   = 110.104
-
-    else:
-        print("ERROR: Unrecognized boundary type")
-        exit()
-
-    _z1   = deg2rad(_z1)
-    _x[0] = deg2rad(_x[0])
-    _x[1] = deg2rad(_x[1])
-    _z2   = deg2rad(_z2)
+        _z1[i] = at1[i] - at2[i] + pi / 2.0
+        _x[i] = 2*atan2(sqrt(q[i][1]**2 + q[i][2]**2), sqrt(q[i][0]**2 + q[i][3]**2))
+        _z2[i] = at1[i] + at2[i] + 3 * pi / 2.0
 
 #---------------------------------------------------------------------------------------------------#
     # Using the Rodrigues Rotation Formula, defined as R = I + sin(theta) * K + (1 - cos(theta))*K^2
     # with K = [0 -k_z, k_y; k_z, 0, -k_x; -k_y, k_x, 0], and the components of
     # k coming from the vector being rotated about.  Theta is specified by the misorientation.
     if useRRF:
-        k = [None]*3
-        for i in range(0,len(str(_axis))):
-            k[i] = float(str(_axis)[i])
-        k = k / linalg.norm(k)
-        K = array([[0, -k[2], k[1]],[k[2], 0, -k[0]], [-k[1], k[0], 0]])
-        if _type == 'twist':
-            theta = [deg2rad(_misorientation), 0]
-        else:
-            theta = [deg2rad(-_misorientation / 2), deg2rad(_misorientation / 2)]
+        K = array([[0, -axis[2], axis[1]],[axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
+        theta = [deg2rad(-_misorientation / 2), deg2rad(_misorientation / 2)]
 
         for i in range(0, len(theta)):
             R = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[i]) * K + (1 - cos(theta[i])) * matMult(K,K)
@@ -458,28 +436,28 @@ else:
                 displayMat(orientation_matrix)
 
             if dispEuler:
-                displayAngles(_z1, _x[i], _z2)
+                displayAngles(_z1[i], _x[i], _z2[i])
 
             if save:
                 assert i < 2, "ERROR: Too many values for the second Euler angle."
                 if i == 0:
-                    writeMat(orientation_matrix, _z1, _x[i], _z2, 'P', _axis, _type)
+                    writeMat(orientation_matrix, _z1[i], _x[i], _z2[i], 'P', _axis, _type)
                 else:
-                    writeMat(orientation_matrix, _z1, _x[i], _z2, 'Q', _axis, _type)
+                    writeMat(orientation_matrix, _z1[i], _x[i], _z2[i], 'Q', _axis, _type)
 #----------------------------------------------------------------------------------------------------#
     else:
         for i in range(0,len(_x)):
-            orientation_matrix = calcRotMat(_z1, _x[i], _z2)
+            orientation_matrix = calcRotMat(_z1[i], _x[i], _z2[i])
 
             if not quiet:
                 displayMat(orientation_matrix)
 
             if dispEuler:
-                displayAngles(_z1, _x[i], _z2)
+                displayAngles(_z1[i], _x[i], _z2[i])
 
             if save:
                 assert i < 2, "ERROR: Too many values for the second Euler angle."
                 if i == 0:
-                    writeMat(orientation_matrix, _z1, _x[i], _z2, 'P', _axis, _type)
+                    writeMat(orientation_matrix, _z1[i], _x[i], _z2[i], 'P', _axis, _type)
                 else:
-                    writeMat(orientation_matrix, _z1, _x[i], _z2, 'Q', _axis, _type)
+                    writeMat(orientation_matrix, _z1[i], _x[i], _z2[i], 'Q', _axis, _type)
