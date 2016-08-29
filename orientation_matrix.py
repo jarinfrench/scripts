@@ -23,12 +23,11 @@
 # K = 0  -kz  ky
 #     kz  0  -kx
 #    -ky  kx  0
-# Where the vector k is the unit vector defining the axis of rotation.
+# Where the vector k is the unit vector defining the axis of rotation, or using
+# a set of predefined rotations for each axis (default is the predefined rotations).
 # The Euler angles are calculated in this case simply for the file to be written
 # to.  If the user does not specify to save, then the angles are not used for
 # anything.
-# Alternatively, if the user does want to use the Euler angles to calculate the
-# orientation matrices, edit the code.  (TODO: make this option available via command line).
 #
 # Options:
 # -e --euler-angles <_z1> <_x> <_z2>    Returns the  Bunge orientation matrix
@@ -38,8 +37,15 @@
 #                                       calculating the Euler angles from the
 #                                       information provided (default behavior)
 #
+# --rrf                                 Calculates the matrices using the Rodrigues
+#                                       Rotation Formula
+#
+# -a --angles                           Displays the Euler angles.  Can be used
+#                                       in conjunctions with -q or --quiet to
+#                                       display only the Euler angles.
+#
 # -s --save                             Saves the resultant orientation matrix to
-#                                       a database (orientation_matrix_database.tex)
+#                                       a database (orientation_matrix_database.m)
 #                                       with the accompanying Euler angles.
 #
 # -q --quiet                            Suppresses output of the orientation matrices
@@ -49,7 +55,7 @@
 # Output:
 # For an Euler angle set, the ouput is simply its orientation matrix.
 # For the misorientations, the first matrix is the 'P' orientation matrix, and
-# the second matrix is the 'Q' orientation matrix (see Bulatov et al. Acta Mater
+# the second matrix is the 'Q' orientation matrix (see Bulatov et al., Acta Mater
 # 65 (2014) 161-175).
 
 from __future__ import division,print_function # To avoid numerical problems with division, and for ease of printing
@@ -87,13 +93,11 @@ def displayHelp():
     K = 0  -kz  ky
         kz  0  -kx
        -ky  kx  0
-    Where the vector k is the unit vector defining the axis of rotation.
+    Where the vector k is the unit vector defining the axis of rotation, or using
+    a set of predefined rotations for each axis (default is the predefined rotations).
     The Euler angles are calculated in this case simply for the file to be written
     to.  If the user does not specify to save, then the angles are not used for
     anything.
-    Alternatively, if the user does want to use the Euler angles to calculate the
-    orientation matrices, edit the code.  (Future updates may have this simply be
-    an option available via command line).
 
     Options:
     -e --euler-angles <_z1> <_x> <_z2>  Returns the  Bunge orientation matrix
@@ -103,8 +107,15 @@ def displayHelp():
                                         calculating the Euler angles from the
                                         information provided (default behavior)
 
+    --rrf                               Calculates the matrices using the Rodrigues
+                                        Rotation Formula
+
+    -a --angles                         Displays the Euler angles.  Can be used
+                                        in conjunctions with -q or --quiet to
+                                        display only the Euler angles.
+
     -s --save                           Saves the resultant orientation matrix to
-                                        a database (orientation_matrix_database.tex)
+                                        a database (orientation_matrix_database.m)
                                         with the accompanying Euler angles.
 
     -q --quiet                          Suppresses output of the orientation matrices
@@ -135,12 +146,22 @@ def calcRotMat(_z1,_x,_z2): # Calculates the Bunge orientation matrix.  Argument
 def deg2rad(x): # Converts degrees to radians.  Argument is in degrees
     return x * pi / 180.0
 
+def rad2deg(x): # Converts radians to degrees.
+    return x * 180.0 / pi
+
 def displayMat(m): # Displays the matrix
     for i in range(0, len(m)):
         for j in range(0,len(m[i])):
             print("%2.6f\t"%(m[i][j]),end="")
         print("\n")
     print("\n")
+    return
+
+def displayAngles(z1, x, z2): # Displays an Euler angle set (Bunge convention)
+    print("Euler angles:")
+    print("Z\t\tX\t\tZ")
+    print("----------------------------------------")
+    print("%2.4f\t%2.4f\t\t%2.4f\n\n"%(rad2deg(z1),rad2deg(x),rad2deg(z2)))
     return
 
 def matMult(m1,m2): # Multiplies two matrices together
@@ -169,6 +190,25 @@ def check4Quiet(args): # Check the args for a quiet command
     else:
         return False, args
 
+def check4RRF(args): # Check the args for the rrf command
+    if "--rrf" in args:
+        index = args.index("--rrf")
+        del args[index]
+        return True, args
+    else:
+        return False, args
+
+def check4Euler(args): # Check the args for the -a or --angles command
+    if "-a" in args or "--angles" in args:
+        try:
+            index = args.index("-a")
+        except:
+            index = args.index("--angles")
+        del args[index]
+        return True, args
+    else:
+        return False, args
+
 def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles to a file
     # This is to avoid issues with duplicates
     if _z1 == 0:
@@ -179,10 +219,11 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
         _z2 = abs(_z2)
 
     lastVal = 1
-    #tex_filename = "orientation_matrix_database_ints.tex"
-    tex_filename = "orientation_matrix_database_ints_rrf.tex"
-    #var_name = "%s%d%s"%(grain, axis, _type)
-    var_name = "%s%d%srrf"%(grain, axis, _type)
+    #tex_filename = "orientation_matrix_database_ints.m"
+    #tex_filename = "orientation_matrix_database_ints_rrf.m"
+    tex_filename = "orientation_matrix_database.m"
+    var_name = "%s%d%s"%(grain, axis, _type)
+    #var_name = "%s%d%srrf"%(grain, axis, _type)
     if not exists(tex_filename):
         tex_file = open(tex_filename, "a")
         tex_file.write("%Database for orientation matrices for specified Euler Angles\n")
@@ -209,48 +250,48 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
                     try:
                         try:
                             if data[0][0] == 'P': # Handles anything 3 digits long
-                                #lastVal = int(data[0][14:17]) - 1
-                                lastVal = int(data[0][17:20]) - 1
+                                lastVal = int(data[0][14:17]) - 1
+                                #lastVal = int(data[0][17:20]) - 1
                             else:
-                                #lastVal = int(data[0][14:17])
-                                lastVal = int(data[0][17:20])
+                                lastVal = int(data[0][14:17])
+                                #lastVal = int(data[0][17:20])
                         except:
                             if data[0][0] == 'P': # Handles anything 2 digits long
-                                #lastVal = int(data[0][14:16]) - 1
-                                lastVal = int(data[0][17:19]) - 1
+                                lastVal = int(data[0][14:16]) - 1
+                                #lastVal = int(data[0][17:19]) - 1
                             else: # data[0][0] == 'Q'
-                                #lastVal = int(data[0][14:16])
-                                lastVal = int(data[0][17:19])
+                                lastVal = int(data[0][14:16])
+                                #lastVal = int(data[0][17:19])
                     except:
                         if data[0][0] == 'P': # One digit case
-                            #lastVal = int(data[0][14]) - 1
-                            lastVal = int(data[0][17]) - 1
+                            lastVal = int(data[0][14]) - 1
+                            #lastVal = int(data[0][17]) - 1
                         else: # data[0][0] == 'Q'
-                            #lastVal = int(data[0][14])
-                            lastVal = int(data[0][17])
+                            lastVal = int(data[0][14])
+                            #lastVal = int(data[0][17])
                 elif data[0][5] == 'i': # P or Q1xxtilt(i)
                     try:
                         try:
                             if data[0][0] == 'P':
-                                #lastVal = int(data[0][13:16]) - 1
-                                lastVal = int(data[0][16:19]) - 1
+                                lastVal = int(data[0][13:16]) - 1
+                                #lastVal = int(data[0][16:19]) - 1
                             else:
-                                #lastVal = int(data[0][13:16])
-                                lastVal = int(data[0][16:19])
+                                lastVal = int(data[0][13:16])
+                                #lastVal = int(data[0][16:19])
                         except:
                             if data[0][0] == 'P':
-                                #lastVal = int(data[0][13:15]) - 1
-                                lastVal = int(data[0][16:18]) - 1
+                                lastVal = int(data[0][13:15]) - 1
+                                #lastVal = int(data[0][16:18]) - 1
                             else: # data[0][0] == 'Q'
-                                #lastVal = int(data[0][13:15])
-                                lastVal = int(data[0][16:18])
+                                lastVal = int(data[0][13:15])
+                                #lastVal = int(data[0][16:18])
                     except:
                         if data[0][0] == 'P':
-                            #lastVal = int(data[0][13]) - 1
-                            lastVal = int(data[0][16]) - 1
+                            lastVal = int(data[0][13]) - 1
+                            #lastVal = int(data[0][16]) - 1
                         else: # data[0][0] == 'Q'
-                            #lastVal = int(data[0][13])
-                            lastVal = int(data[0][16])
+                            lastVal = int(data[0][13])
+                            #lastVal = int(data[0][16])
                 else:
                     print("Error: Unknown last index")
                     exit()
@@ -269,9 +310,12 @@ def writeMat(m, _z1, _x, _z2, grain, axis, _type): # Write the matrix and angles
             tex_file.write("%2.6f  %2.6f  %2.6f];\n"%(m[2][0], m[2][1], m[2][2]))
             tex_file.write("%-------------------------------------------------------------------\n")
             tex_file.close()
+    return
 
 save, argv = check4Save(argv) # Save the file?  Delete the save argument
 quiet, argv = check4Quiet(argv) # Checks for suppressing output
+useRRF, argv = check4RRF(argv) # Checks for using the RRF method
+dispEuler, argv = check4Euler(argv) # Checks for displaying the Euler angles
 # Error checking for input arguments
 if "--help" in argv: # Help info
     displayHelp()
@@ -425,33 +469,52 @@ else:
     _x[0] = deg2rad(_x[0])
     _x[1] = deg2rad(_x[1])
     _z2   = deg2rad(_z2)
-#    for i in range(0,len(_x)):
-#        orientation_matrix = calcRotMat(_z1, _x[i], _z2)
+
 #---------------------------------------------------------------------------------------------------#
     # Using the Rodrigues Rotation Formula, defined as R = I + sin(theta) * K + (1 - cos(theta))*K^2
     # with K = [0 -k_z, k_y; k_z, 0, -k_x; -k_y, k_x, 0], and the components of
     # k coming from the vector being rotated about.  Theta is specified by the misorientation.
-    k = [None]*3
-    for i in range(0,len(str(_axis))):
-        k[i] = float(str(_axis)[i])
-    k = k / linalg.norm(k)
-    K = array([[0, -k[2], k[1]],[k[2], 0, -k[0]], [-k[1], k[0], 0]])
-    if _type == 'twist':
-        theta = [deg2rad(_misorientation), 0]
-    else:
-        theta = [deg2rad(_misorientation / 2), deg2rad(-_misorientation / 2)]
+    if useRRF:
+        k = [None]*3
+        for i in range(0,len(str(_axis))):
+            k[i] = float(str(_axis)[i])
+        k = k / linalg.norm(k)
+        K = array([[0, -k[2], k[1]],[k[2], 0, -k[0]], [-k[1], k[0], 0]])
+        if _type == 'twist':
+            theta = [deg2rad(_misorientation), 0]
+        else:
+            theta = [deg2rad(-_misorientation / 2), deg2rad(_misorientation / 2)]
 
-    for i in range(0, len(theta)):
-        R = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[i]) * K + (1 - cos(theta[i])) * matMult(K,K)
-        orientation_matrix = R
+        for i in range(0, len(theta)):
+            R = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[i]) * K + (1 - cos(theta[i])) * matMult(K,K)
+            orientation_matrix = R
+
+            if not quiet:
+                displayMat(orientation_matrix)
+
+            if dispEuler:
+                displayAngles(_z1, _x[i], _z2)
+
+            if save:
+                assert i < 2, "ERROR: Too many values for the second Euler angle."
+                if i == 0:
+                    writeMat(orientation_matrix, _z1, _x[i], _z2, 'P', _axis, _type)
+                else:
+                    writeMat(orientation_matrix, _z1, _x[i], _z2, 'Q', _axis, _type)
 #----------------------------------------------------------------------------------------------------#
+    else:
+        for i in range(0,len(_x)):
+            orientation_matrix = calcRotMat(_z1, _x[i], _z2)
 
-        if not quiet:
-            displayMat(orientation_matrix)
+            if not quiet:
+                displayMat(orientation_matrix)
 
-        if save:
-            assert i < 2, "ERROR: Too many values for the second Euler angle."
-            if i == 0:
-                writeMat(orientation_matrix, _z1, _x[i], _z2, 'P', _axis, _type)
-            else:
-                writeMat(orientation_matrix, _z1, _x[i], _z2, 'Q', _axis, _type)
+            if dispEuler:
+                displayAngles(_z1, _x[i], _z2)
+
+            if save:
+                assert i < 2, "ERROR: Too many values for the second Euler angle."
+                if i == 0:
+                    writeMat(orientation_matrix, _z1, _x[i], _z2, 'P', _axis, _type)
+                else:
+                    writeMat(orientation_matrix, _z1, _x[i], _z2, 'Q', _axis, _type)
