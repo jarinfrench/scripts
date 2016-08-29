@@ -148,12 +148,12 @@ quiet, argv = check4Quiet(argv) # Checks for suppressing output
 
 if len(argv) != 4: # if not all three values given
     if len(argv) != 3: # Check for _rotation_axis and _mis_type, otherwise
-        print("ERROR: Incorrect number of command line arguments.")
+        print("ERROR: Incorrect number of command line arguments. Line 151")
         displayHelp()
         exit()
     else: # len(argv) == 3
         script, _rotation_axis, _mis_type = argv
-        assert _mis_type in {'twist', 'tilt'}, "ERROR: Misorientation type not recognized"
+        assert _mis_type in {'twist', 'tilt'}, "ERROR: Misorientation type not recognized. Line 156"
         if _mis_type == 'twist':
             _gbnormal = [0, 1, 0]
         else:
@@ -161,7 +161,7 @@ if len(argv) != 4: # if not all three values given
 else: # len(argv) == 4
     script, _rotation_axis, _mis_type, _gbnormal = argv
 if not type(_gbnormal) in {int, list, str}:
-    print("ERROR: Grain boundary normal type is incorrect.  Please enter an int, a list, or a string")
+    print("ERROR: Grain boundary normal type is incorrect.  Please enter an int, a list, or a string. Line 164")
     print("You entered %s with type %s"%(str(_gbnormal), type(_gbnormal)))
     exit()
 else:
@@ -170,14 +170,14 @@ else:
     elif type(_gbnormal) == int:
         _gbnormal = '0' + '0' + '0' + str(_gbnormal)
         _gbnormal =_gbnormal[-3:] # gets the last three characters
-        assert _gbnormal != '000', "ERROR: invalid boundary normal."
+        assert _gbnormal != '000', "ERROR: invalid boundary normal. Line 173"
     else: # type(_gbnormal) == list
         _gbnormal = ''.join(str(i) for i in _gbnormal)
 
-    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _gbnormal into a string."
+    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _gbnormal into a string. Line 177"
 
 if not type(_rotation_axis) in {int, list, str}:
-    print("ERROR: Grain boundary rotation axis type is incorrect.  Please enter an int, a list, or a string")
+    print("ERROR: Grain boundary rotation axis type is incorrect.  Please enter an int, a list, or a string. Line 180")
     print("You entered %s with type %s"%(str(_rotation_axis), type(_rotation_axis)))
     exit()
 else: # Convert anything besides a string into a string
@@ -186,11 +186,11 @@ else: # Convert anything besides a string into a string
     elif type(_rotation_axis) == int:
         _rotation_axis = '0' + '0' + '0' + str(_rotation_axis)
         _rotation_axis = _rotation_axis[-3:] # Get the last three characters
-        assert _rotation_axis != '000', "ERROR: invalid rotation axis."
+        assert _rotation_axis != '000', "ERROR: invalid rotation axis. Line 189"
     else: # type(_rotation_axis) == list
         _rotation_axis = ''.join(str(i) for i in _rotation_axis)
 
-    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _rotation_axis into a string."
+    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _rotation_axis into a string. Line 193"
 
 # Now that the input is taken care of, do the work
 axis = array([[1, 0, 0]]) # This is the axis that we rotate the grain boundary normal to

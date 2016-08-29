@@ -173,7 +173,7 @@ def defineMisorientation(axis,gbnorm):
     if dotp == 0.0:
         return 'tilt'
 
-    elif dotp == 1.0:
+    elif dotp == 1.0 or dotp == -1.0:
         return 'twist'
 
     else:
@@ -403,6 +403,8 @@ else:
             gbnorm[i] = int(_gbnorm[j:j + 2])
             j = j + 2
     _type = defineMisorientation(axis, gbnorm) # Determine the type of misorientation from the axis and gb normal.
+
+    print("These grains have a %s boundary"%(_type))
 #------------------------------------------------------------------------------#
 #-------------------------------The Actual Calculations------------------------#
 #------------------------------------------------------------------------------#
