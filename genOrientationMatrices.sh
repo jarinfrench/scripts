@@ -10,7 +10,7 @@
 
 if [ "$#" -ne 1 ]; then
   echo "Illegal number of parameters"
-  exit
+  exit 1
 fi
 
 FN=$1 # This takes the first argument from the command line - this is assumed to be a filename of the format 100Tilt
@@ -19,13 +19,28 @@ echo "Determining the axis and type of misorientation..."
 AXIS=`echo $FN | grep -o "1[01][01]"` # Pulls out the axis from the input file name
 TYPE=`echo $FN | grep -o "T[a-z]\{3,4\}"` # Pulls out the misorientation type from the file name
 
+# Because we want this automated, we are just going to assume a grain boundary normal
+if [ $TYPE = "[Tt]wist" ]; then
+  NORM = "-100"
+fi
+
+if [ $TYPE = "[Tt]ilt" ]; then
+  NORM = "010"
+fi
+
+# Otherwise we can't run the program properly
+if [ -z ${NORM+x} ]; then
+  echo "Type not recognized"
+  exit 2
+fi
+
 echo "Reading the file..."
 IFS=","
 [ ! -f $FN ] && { echo "$FN file not found"; exit 99; }
-echo "Running the command: ~/projects/scripts/orientation_matrix.py $AXIS <angle> $TYPE -s -q"
+echo "Running the command: ~/projects/scripts/orientation_matrix.py $AXIS <angle> $NORM -s -q"
 while read -r angle en; do # read the file with comma separated values
 
-  ~/projects/scripts/orientation_matrix.py $AXIS $angle $TYPE -s -q
+  ~/projects/scripts/orientation_matrix.py $AXIS $angle $NORM -s -q
 done < "$FN"
 
 IFS=$OLDIFS
