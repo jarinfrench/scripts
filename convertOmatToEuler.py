@@ -22,6 +22,7 @@ from __future__ import print_function, division
 from math import sin, cos, acos, atan2, pi
 from numpy import array, where, linalg
 from sys import argv
+from myModules import *
 
 # Helper functions
 def displayHelp():
@@ -45,23 +46,6 @@ def displayHelp():
       the Bunge convention of crystallographic angles (ZXZ).
     ''')
     return
-
-def deg2rad(x): # Converts degrees to radians.  Argument is in degrees
-    return x * pi / 180.0
-
-def rad2deg(x): # Converts radians to degrees.  Argument is in radians
-    return x * 180.0 / pi
-
-def check4Quiet(args): # Check the args for a quiet command
-    if "-q" in args or "--quiet" in args: # We don't want terminal output
-        try:
-            index = args.index("-q")
-        except:
-            index = args.index("--quiet")
-        del args[index]
-        return True, args
-    else:
-        return False, args
 
 quiet, argv = check4Quiet(argv) # Checks for suppressing output
 

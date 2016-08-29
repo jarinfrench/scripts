@@ -64,6 +64,7 @@ from math import cos,sin,pi # Trig functions
 from numbers import Number # For checking input parameters
 from os.path import exists # For checking existence of a file
 from numpy import array, linalg
+from myModules import * # imports my functions from the file myModules.py
 
 orientation_matrix = []
 
@@ -138,24 +139,10 @@ def calcRotMat(_z1,_x,_z2): # Calculates the Bunge orientation matrix.  Argument
     s2 = sin(_x)
     s3 = sin(_z2)
 
-    rot_mat = array([[ c1*c3 - c2*s1*s3,  c3*s1 + c1*c2*s3,  s2*s3],
-                     [-c1*s3 - c2*c3*s1,  c1*c2*c3 - s1*s3,  c3*s2],
-                     [ s1*s2           , -c1*s2           ,  c2  ]])
+    rot_mat = array([[c1*c3 - c2*s1*s3, -c1*s3 - c2*c3*s1,  s1*s2],
+                     [c3*s1 + c1*c2*s3,  c1*c2*c3 - s1*s3, -c1*s2],
+                     [s2*s3           ,  c3*s2           ,  c2  ]])
     return rot_mat
-
-def deg2rad(x): # Converts degrees to radians.  Argument is in degrees
-    return x * pi / 180.0
-
-def rad2deg(x): # Converts radians to degrees.
-    return x * 180.0 / pi
-
-def displayMat(m): # Displays the matrix
-    for i in range(0, len(m)):
-        for j in range(0,len(m[i])):
-            print("%2.6f\t"%(m[i][j]),end="")
-        print("\n")
-    print("\n")
-    return
 
 def displayAngles(z1, x, z2): # Displays an Euler angle set (Bunge convention)
     print("Euler angles:")
@@ -167,28 +154,6 @@ def displayAngles(z1, x, z2): # Displays an Euler angle set (Bunge convention)
 def matMult(m1,m2): # Multiplies two matrices together
     result = m1.dot(m2)
     return result
-
-def check4Save(args): # Check the args for a save command
-    if "-s" in args or "--save" in args: # We want to save the file
-        try:
-            index = args.index("-s")
-        except:
-            index = args.index("--save")
-        del args[index]
-        return True, args
-    else:
-        return False, args
-
-def check4Quiet(args): # Check the args for a quiet command
-    if "-q" in args or "--quiet" in args: # We don't want terminal output
-        try:
-            index = args.index("-q")
-        except:
-            index = args.index("--quiet")
-        del args[index]
-        return True, args
-    else:
-        return False, args
 
 def check4RRF(args): # Check the args for the rrf command
     if "--rrf" in args:

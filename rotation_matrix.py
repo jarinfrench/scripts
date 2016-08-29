@@ -29,6 +29,7 @@ from sys import argv # for CLI arguments
 from numpy import array,linalg # for matrix operations
 from os.path import exists # For checking existence of a file
 from itertools import takewhile,repeat
+from myModules import * # For using my user-defined functions
 
 # Helper functions
 def displayHelp():
@@ -92,36 +93,6 @@ def rotVec1ToVec2(vec1, vec2):
     rot2_to_z = rotVecToZ(vec2)
     return (rot2_to_z.T).dot(rot1_to_z)
 
-def displayMat(m): # Displays the matrix
-    for i in range(0, len(m)):
-        for j in range(0,len(m[i])):
-            print("%2.6f\t"%(m[i][j]),end="")
-        print("\n")
-    print("\n")
-    return
-
-def check4Save(args): # Check the args for a save command
-    if "-s" in args or "--save" in args: # We want to save the file
-        try:
-            index = args.index("-s")
-        except:
-            index = args.index("--save")
-        del args[index]
-        return True, args
-    else:
-        return False, args
-
-def check4Quiet(args): # Check the args for a quiet command
-    if "-q" in args or "--quiet" in args: # We don't want terminal output
-        try:
-            index = args.index("-q")
-        except:
-            index = args.index("--quiet")
-        del args[index]
-        return True, args
-    else:
-        return False, args
-
 def writeMat(m, _axis, _type, gbnormal): # Write the matrix and angles to a file
     tex_filename = "rotation_matrix_database.tex"
     normName = _axis + _type + gbnormal
@@ -166,12 +137,6 @@ def writeMat(m, _axis, _type, gbnormal): # Write the matrix and angles to a file
                 tex_file.write("%2.4f  %2.4f  %2.4f];\n"%(m[2][0], m[2][1], m[2][2]))
                 tex_file.write("%----------------------------------------------------------------\n")
                 tex_file.close()
-
-
-def rawbigcount(filename): # Counts the number of lines in a file
-    f = open(filename, 'rb')
-    bufgen = takewhile(lambda x: x, (f.read(1024*1024) for _ in repeat(None)))
-    return sum( buf.count(b'\n') for buf in bufgen if buf )
 
 # Check what we were given...
 if "--help" in argv: # Help info
