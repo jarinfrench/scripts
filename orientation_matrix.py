@@ -283,7 +283,7 @@ def writeMat(m, z1, x, z2, grain, axis):
                             lastVal = int(data[0][13])
                             #lastVal = int(data[0][16])
                 else:
-                    print("Error: Unknown last index")
+                    print("Error: Unknown last index. Line 286")
                     exit()
 
                 if grain == 'Q' and _type == 'twist': # We run into problems if we're doing twist matrices for the Q grain - As is now, this will cause the 'Q' twist matrices to ALWAYS be written
@@ -319,13 +319,13 @@ if "-f" in argv or "--file" in argv: #input arguments come from file
         except:
             index = argv.index("--file")
     except:
-        print("ERROR: Unable to find filename")
+        print("ERROR: Unable to find filename. Line 322")
         exit()
     filename = argv[index + 1]
     try:
         f1 = open(filename, 'r')
     except:
-        print("ERROR: Unable to read file", filename)
+        print("ERROR: Unable to read file. Line 328", filename)
 
     while True: # Read the file line by line.
         line = f1.readline()
@@ -356,7 +356,7 @@ elif "-e" in argv or "--euler-angles" in argv:
         except:
             index = argv.index("--euler-angles")
     except:
-        print("ERROR: Unable to read Euler angles")
+        print("ERROR: Unable to read Euler angles. Line 359")
         exit()
     _z1 = float(argv[index + 1])
     _x =  float(argv[index + 2])
@@ -374,27 +374,34 @@ elif "-e" in argv or "--euler-angles" in argv:
 
 else:
     if len(argv) < 4:
-        print("ERROR: Not enough command line arguments.")
+        print("ERROR: Not enough command line arguments. Line 377")
         print("Input either an axis, misorientation, and misorientation type, or a ZXZ Euler angle set with the option -e or --euler-angles.")
         displayHelp()
         exit()
     try:
         _axis = int(argv[1])
         _misorientation = float(argv[2])
-        _gbnorm = int(argv[3])
+        _gbnorm = argv[3]
     except:
-        print("ERROR: Command line argument(s) is (are) not of correct type.  Please enter an int for argument 1, a float for argument 2, and an int for argument 3")
+        print("ERROR: Command line argument(s) is (are) not of correct type.  Please enter an int for argument 1, a float for argument 2, and an int for argument 3. Line 386")
         exit()
 
-    if not len(str(_axis)) == 3 or not len(str(_gbnorm)) == 3: # axis length greater than 3
-        print("ERROR: Arguments 1 and 3 must by a 3 digit number like \'100\'")
+    if not len(str(_axis)) == 3: # axis length greater than 3
+        print("ERROR: Argument 1 must by a 3 digit number like \'100\'.  Line 390")
         exit()
 
     axis = [None]*3
     gbnorm = [None]*3
+    j = 0
     for i in range(0, len(str(_axis))):
         axis[i] = int(str(_axis)[i])
-        gbnorm[i] = int(str(_gbnorm)[i])
+        try:
+            gbnorm[i] = int(_gbnorm[j])
+            j = j+1
+        except:
+            #print(_gbnormal[i:i+2])
+            gbnorm[i] = int(_gbnorm[j:j + 2])
+            j = j + 2
     _type = defineMisorientation(axis, gbnorm) # Determine the type of misorientation from the axis and gb normal.
 #------------------------------------------------------------------------------#
 #-------------------------------The Actual Calculations------------------------#
@@ -439,7 +446,7 @@ else:
                 displayAngles(_z1[i], _x[i], _z2[i])
 
             if save:
-                assert i < 2, "ERROR: Too many values for the second Euler angle."
+                assert i < 2, "ERROR: Too many values for the second Euler angle. Line 442"
                 if i == 0:
                     writeMat(orientation_matrix, _z1[i], _x[i], _z2[i], 'P', _axis, _type)
                 else:
@@ -456,7 +463,7 @@ else:
                 displayAngles(_z1[i], _x[i], _z2[i])
 
             if save:
-                assert i < 2, "ERROR: Too many values for the second Euler angle."
+                assert i < 2, "ERROR: Too many values for the second Euler angle. Line 459"
                 if i == 0:
                     writeMat(orientation_matrix, _z1[i], _x[i], _z2[i], 'P', _axis, _type)
                 else:
