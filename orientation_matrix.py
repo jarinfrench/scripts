@@ -1,4 +1,4 @@
-#! /opt/moose/miniconda/bin/python
+#! /usr/bin/env python
 
 # This script will calculate the orientation matrices for any given misorientation
 # for any of the high-symmetry axes.
@@ -130,6 +130,9 @@ def displayHelp():
 
 def displayAngles(z1, x, z2): # Displays an Euler angle set (Bunge convention)
     print("Euler angles:")
+    # This is the "new" way to format strings.  The 16 indicates the padding to
+    # be done before the next character.  The '<' character below says which side
+    # to pad (the right side).
     print("{:16}{:16}{:16}".format('Z', 'X', 'Z'))
     print("----------------------------------------")
     print("{:<16}{:<16}{:<16}\n".format(rad2deg(z1), rad2deg(x), rad2deg(z2)))
@@ -153,72 +156,6 @@ def check4Euler(args): # Check the args for the -a or --angles command
         return True, args
     else:
         return False, args
-
-# Calculates the Bunge orientation matrix.  Arguments are first z rotation, x rotation, and second z rotation
-def calcRotMat(_z1,_x,_z2):
-    c1 = cos(_z1)
-    c2 = cos(_x)
-    c3 = cos(_z2)
-    s1 = sin(_z1)
-    s2 = sin(_x)
-    s3 = sin(_z2)
-
-    rot_mat = array([[c1*c3 - c2*s1*s3, -c1*s3 - c2*c3*s1,  s1*s2],
-                     [c3*s1 + c1*c2*s3,  c1*c2*c3 - s1*s3, -c1*s2],
-                     [s2*s3           ,  c3*s2           ,  c2  ]])
-    return rot_mat
-
-# Calculates the Bunge Orientation matrix using the Rodrigues Rotation Formula
-# axis must be a 3D vector (of type list), and the misorientation must in radians!
-def calcRotMatRRF(axis, misorientation):
-    K = array([[0, -axis[2], axis[1]],[axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
-    theta = [-_misorientation / 2, _misorientation / 2]
-    R1 = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[0]) * K + (1 - cos(theta[0])) * K.dot(K)
-    R2 = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[1]) * K + (1 - cos(theta[1])) * K.dot(K)
-
-    return R1, R2
-
-# This function converts an axis-angle representation to a quaternion representation
-# Assumes that the misorientation is in radians.  Axis must be a 3D vector (list)
-def axis2quat(axis, angle):
-    axis = axis / linalg.norm(axis)
-    return [cos(angle / 2.0), axis[0] * sin(angle / 2.0), axis[1] * sin(angle / 2.0), axis[2] * sin(angle / 2.0)]
-
-# This function converts a quaternion to a matrix representation.
-def quat2mat(q):
-    e0 = q[0];
-    e1 = q[1];
-    e2 = q[2];
-    e3 = q[3];
-
-    m = array([[e0^2+e1^2-e2^2-e3^2, 2*(e1*e2-e0*e3)     , 2*(e1*e3+e0*e2)],
-               [2*(e1*e2+e0*e3)    , e0^2-e1^2+e2^2-e3^2 , 2*(e2*e3-e0*e1)],
-               [2*(e1*e3-e0*e2)    , 2*(e2*e3+e0*e1)     , e0^2-e1^2-e2^2+e3^2]])
-
-
-    return m/(e0^2+e1^2+e2^2+e3^2)
-
-# This function converts a quaternion to Euler angles
-def quat2euler(q):
-    chi = sqrt((q[0]**2 + q[3]**2)*(q[1]**2 + q[2]**2))
-
-    if chi == 0:
-        if q[1] == 0 and q[2] == 0:
-            Phi = 0
-            phi1 = atan2(2*q[0]*q[3], q[0]**2 - q[3]**2)
-            phi2 = 0
-        elif q[0] == 0 and q[3] == 0:
-            Phi = pi
-            phi1 = atan2(s*q[1]*q[2], q[1]**2 - q[2]**2)
-            phi2 = 0
-        else:
-            print("ERROR: Uncalculable Euler angles. Line 215")
-            exit()
-    else:
-        Phi = atan2(2 * chi, q[0]**2 + q[3]**2 - q[1]**2 - q[2]**2)
-        phi1 = atan2((q[0]*q[2] + q[1]*q[3]) / (2*chi), (q[0]*q[1] - q[2]*q[3]) / (2*chi))
-        phi2 = atan2((q[1]*q[3] - q[0]*q[2]) / (2*chi), (q[0]*q[1] + q[2]*q[3]) / (2*chi))
-    return phi1, Phi, phi2
 
 # Write the matrix and angles to a file
 def writeMat(m, _z1, _x, _z2, grain, axis):
@@ -252,7 +189,7 @@ def writeMat(m, _z1, _x, _z2, grain, axis):
             elif len(data) != 6:
                 continue
             else:
-                assert data[0][0] in {'P', 'Q'}, "Unknown orientation matrix type (should be \'P\' or \'Q\').  Line 255"
+                assert data[0][0] in {'P', 'Q'}, "Unknown orientation matrix type (should be \'P\' or \'Q\').  Line 192"
                 if not "%d"%(axis) in data[0][1:4]:
                     lastVal = 0
                 elif "%d"%(axis) in data[0][1:4]:
@@ -273,7 +210,7 @@ def writeMat(m, _z1, _x, _z2, grain, axis):
                         else: # data[0][0] == 'Q'
                             lastVal = int(data[0][9])
                 else:
-                    print("Error: Unknown last index. Line 276")
+                    print("Error: Unknown last index. Line 213")
                     exit()
 
                 if data[0][0] == grain and data[3] == ('%' + "%2.4f"%_z1) and data[4] == "%2.4f"%_x and data[5] == "%2.4f"%_z2:
@@ -308,13 +245,13 @@ if "-f" in argv or "--file" in argv: #input arguments come from file
         except:
             index = argv.index("--file")
     except:
-        print("ERROR: Unable to find filename. Line 311")
+        print("ERROR: Unable to find filename. Line 248")
         exit()
     filename = argv[index + 1]
     try:
         f1 = open(filename, 'r')
     except:
-        print("ERROR: Unable to read file. Line 317", filename)
+        print("ERROR: Unable to read file. Line 254", filename)
 
     while True: # Read the file line by line.
         line = f1.readline()
@@ -345,7 +282,7 @@ elif "-e" in argv or "--euler-angles" in argv:
         except:
             index = argv.index("--euler-angles")
     except:
-        print("ERROR: Unable to read Euler angles. Line 348")
+        print("ERROR: Unable to read Euler angles. Line 285")
         exit()
     _z1 = float(argv[index + 1])
     _x =  float(argv[index + 2])
@@ -363,7 +300,7 @@ elif "-e" in argv or "--euler-angles" in argv:
 
 else:
     if len(argv) < 3:
-        print("ERROR: Not enough command line arguments. Line 366")
+        print("ERROR: Not enough command line arguments. Line 303")
         print("Input either an axis, and a misorientation, or a ZXZ Euler angle set with the option -e or --euler-angles.")
         displayHelp()
         exit()
@@ -371,11 +308,14 @@ else:
         _axis = int(argv[1])
         _misorientation = float(argv[2])
     except:
-        print("ERROR: Command line argument(s) is (are) not of correct type.  Please enter an int for argument 1, a float for argument 2, and an int for argument 3. Line 374")
+        print('''
+        ERROR: Command line argument(s) is (are) not of correct type.
+        Please enter an int for argument 1, a float for argument 2, and an int for argument 3. Line 311
+          ''')
         exit()
 
     if not len(str(_axis)) == 3: # axis length greater than 3
-        print("ERROR: Argument 1 must by a 3 digit number like \'100\'.  Line 378")
+        print("ERROR: Argument 1 must by a 3 digit number like \'100\'.  Line 318")
         exit()
 
     _misorientation = deg2rad(_misorientation) # Change input to radians
@@ -416,9 +356,9 @@ else:
             if save:
                 assert i < 2, "ERROR: Too many Euler angles. Line 417"
                 if i == 0:
-                    writeMat(orientation_matrix, _z1[i], _x[i], _z2[i], 'P', _axis)
+                    writeMat(orientation_matrix1, _z1[i], _x[i], _z2[i], 'P', _axis)
                 else:
-                    writeMat(orientation_matrix, _z1[i], _x[i], _z2[i], 'Q', _axis)
+                    writeMat(orientation_matrix2, _z1[i], _x[i], _z2[i], 'Q', _axis)
 #----------------------------------------------------------------------------------------------------#
     else:
         for i in range(0,len(_z1)):
@@ -431,7 +371,7 @@ else:
                 displayAngles(_z1[i], _x[i], _z2[i])
 
             if save:
-                assert i < 2, "ERROR: Too many Euler angles. Line 434"
+                assert i < 2, "ERROR: Too many Euler angles. Line 374"
                 if i == 0:
                     writeMat(orientation_matrix, _z1[i], _x[i], _z2[i], 'P', _axis)
                 else:
