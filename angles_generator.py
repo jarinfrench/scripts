@@ -1,4 +1,3 @@
-
 def genAngleFile(f, maxAngle): #assumes f is a filename, not an open file
     f = open(f,"w")
     for i in range(0, maxAngle+1):

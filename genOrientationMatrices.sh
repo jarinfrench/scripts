@@ -15,7 +15,7 @@ fi
 
 FN=$1 # This takes the first argument from the command line - this is assumed to be a filename of the format 100Tilt
 
-echo "Determining the axis and type of misorientation..."
+echo "Determining the axis..."
 AXIS=`echo $FN | grep -o "1[01][01]"` # Pulls out the axis from the input file name
 
 echo "Reading the file..."
