@@ -1,8 +1,9 @@
 # This file contains all of the functions that I have found useful over time.
 # A short description of each function precedes the definition.
 from __future__ import division,print_function # makes division and printing easier
-from math import sin, cos, pi
+from math import sin, cos, pi, sqrt, atan2
 from itertools import takewhile,repeat
+from numpy import array, linalg
 
 # This function converts degrees to radians.  Argument is assumed to be in degrees
 def deg2rad(x):
