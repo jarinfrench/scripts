@@ -168,7 +168,7 @@ def writeMat(m, _z1, _x, _z2, grain, axis):
         _z2 = abs(_z2)
 
     lastVal = 1
-    tex_filename = "orientation_matrix_database_blah.m"
+    tex_filename = "orientation_matrix_database.m"
     var_name = "%s%d"%(grain, axis)
     if not exists(tex_filename):
         tex_file = open(tex_filename, "a")
