@@ -19,7 +19,7 @@ echo "Determining the axis..."
 AXIS=`echo $FN | grep -o "1[01][01]"` # Pulls out the axis from the input file name
 
 echo "Reading the file..."
-IFS=","
+IFS="," # separation character is the comma
 [ ! -f $FN ] && { echo "$FN file not found"; exit 99; }
 echo "Running the command: ~/projects/scripts/orientation_matrix.py $AXIS <angle> -s -q"
 while read -r angle en; do # read the file with comma separated values
@@ -27,4 +27,4 @@ while read -r angle en; do # read the file with comma separated values
   ~/projects/scripts/orientation_matrix.py $AXIS $angle -s -q
 done < "$FN"
 
-IFS=$OLDIFS
+IFS=$OLDIFS # go back to the old separation character

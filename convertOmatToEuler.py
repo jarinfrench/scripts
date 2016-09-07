@@ -20,7 +20,7 @@
 
 from __future__ import print_function, division
 from math import sin, cos, acos, atan2, pi
-from numpy import array, where, linalg
+from numpy import array, linalg
 from sys import argv
 from myModules import *
 
