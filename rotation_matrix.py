@@ -6,10 +6,8 @@
 #                       rotated. (type: int (100), list ([1, 0, 0]) or string ('100'))
 #
 #                       boundary normal to be determined. (type: string) TODO: determine if a mixed boundary is possible
-#    _gbnormal          This specifies the boundary plane normal.  If no option
-#                       for this is given, an assumed normal of (010) is used
-#                       for tilt boundaries, and an assumed normal of (-100) is
-#                       used for twist boundaries.
+#    _gbnormal          This specifies the boundary plane normal.
+#
 # Options:
 #    -s --save                           Saves the resultant rotation matrix to
 #                                        a database (rotation_matrix_database.m)
@@ -36,13 +34,10 @@ def displayHelp():
     This script will generate the rotation matrix for the given misorientation axis
     Input:
         _rotation_axis      This specifies the axis around which the grains are
-                            rotated. (type: int (100), list ([1, 0, 0]) or string ('100'))
+                            rotated. (type: int (100) or string ('100'))
 
-        _gbnormal           This specifies the boundary plane normal.  If no option
-                            for this is given, an assumed normal of (010) is used
-                            for tilt boundaries, and an assumed normal of (-100) is
-                            used for twist boundaries. (type: int (100), list
-                            ([1, 0, 0]) or string ('100'))
+        _gbnormal           This specifies the boundary plane normal.  (type:
+                            int (100)  or string ('100'))
     Options:
         -s --save           Saves the resultant rotation matrix to a database
                             (rotation_matrix_database.m) with the accompanying
@@ -55,6 +50,8 @@ def displayHelp():
     The output displayed will be the resultant rotation matrix for the given
     misorientation.
     ''')
+
+# This function is an adaptation from MOOSE RotationMatrix class.
 def rotVecToZ(vec): # Creates the rotation matrix to rotate vec to the z direction
     # REALLY make sure vec is normalized
     vec = vec / linalg.norm(vec)
@@ -147,7 +144,7 @@ save, argv = check4Save(argv)
 quiet, argv = check4Quiet(argv) # Checks for suppressing output
 
 if len(argv) != 3: # if not both values given
-    print("ERROR: Incorrect number of command line arguments. Line 151")
+    print("ERROR: Incorrect number of command line arguments. Line 150")
     displayHelp()
     exit()
 else: # len(argv) == 3
@@ -163,19 +160,19 @@ else:
         _gbnormal =_gbnormal[-3:] # gets the last three characters
         assert _gbnormal != '000', "ERROR: invalid boundary normal. Line 173"
 
-    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _gbnormal into a string. Line 177"
+    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _gbnormal into a string. Line 166"
 
 if not type(_rotation_axis) in {int, str}:
-    print("ERROR: Grain boundary rotation axis type is incorrect.  Please enter an int or a string. Line 180")
+    print("ERROR: Grain boundary rotation axis type is incorrect.  Please enter an int or a string. Line 169")
     print("You entered %s with type %s"%(str(_rotation_axis), type(_rotation_axis)))
     exit()
 else: # Convert anything besides a string into a string
     if type(_rotation_axis) == int:
         _rotation_axis = '0' + '0' + '0' + str(_rotation_axis)
         _rotation_axis = _rotation_axis[-3:] # Get the last three characters
-        assert _rotation_axis != '000', "ERROR: invalid rotation axis. Line 189"
+        assert _rotation_axis != '000', "ERROR: invalid rotation axis. Line 176"
 
-    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _rotation_axis into a string. Line 193"
+    assert(len(_rotation_axis) == 3), "ERROR: Something went wrong converting _rotation_axis into a string. Line 178"
 
 # Now that the input is taken care of, do the work
 axis = array([[1, 0, 0]]) # This is the axis that we rotate the grain boundary normal to
@@ -199,9 +196,9 @@ for i in range(0,len(gbnormal[0])):
 gbnorm = ''
 for i in range(0,len(gbnormal[0])):
     if gbnormal[0][i] < 0:
-        gbnorm = gbnorm + str(abs(gbnormal[0][i])) + 'bar'
+        gbnorm += str(abs(gbnormal[0][i])) + 'bar'
     else:
-        gbnorm = gbnorm + str(gbnormal[0][i])
+        gbnorm += str(gbnormal[0][i])
 gbnormal = gbnormal / linalg.norm(gbnormal) # Normalize the gbnormal vector.
 axis = axis / linalg.norm(axis) # Just to be sure...
 rotation_matrix = rotVec1ToVec2(gbnormal, axis)
