@@ -1,4 +1,4 @@
-#! /opt/moose/miniconda/bin/python
+#! /usr/bin/env python
 #
 # This script will generate a series of Euler Angle files for any arbitrary set
 # inputs:
@@ -19,7 +19,7 @@ def getMaxAngle():
         max_angle = int(input("Please enter the max angle: "))
     except:
         print("Please make sure to enter only numbers")
-        max_angle = -1
+        max_angle = -1 # we return -1 as an error code to run the while loop again
     return max_angle
 
 def getMisorientationType():
@@ -27,7 +27,7 @@ def getMisorientationType():
         _type = input("Please enter the type of misorientation (\"twist\" or \"tilt\"): ")
     except:
         printQuoteError()
-        _type = -1
+        _type = -1 # error code to run the while loop again
     return _type
 
 def getAxis():
@@ -35,7 +35,7 @@ def getAxis():
         _axis = int(input("Please enter the axis of rotation: "))
     except:
         print("Please make sure to enter only numbers")
-        _axis = -1
+        _axis = -1 # error code to run the while loop again
     return _axis
 
 def printQuoteError():
@@ -51,7 +51,7 @@ def promptChangeAngle():
         change_angle = input("Would you like to lower the angle to the symmetry limit? ")
     except:
         printQuoteError()
-        change_angle = -1
+        change_angle = -1 # error code to run the while loop again
     return change_angle
 
 def getTiltType():
@@ -59,10 +59,12 @@ def getTiltType():
         _tilt_type = input("Is this a symmetric tilt (symm) or an asymmetric tilt (asymm)? ")
     except:
         printQuoteError()
-        _tilt_type = -1
+        _tilt_type = -1 # error code to run the while loop again
     return _tilt_type
 
 def writeHeader(i, _axis, tex_file_base):
+    # This write the four-line header ignored by MOOSE objects that contains
+    # information about the angles.
     deg = float(i)
     tex_filename = tex_file_base + "%d.tex" % i
     tex_file = open(tex_filename, 'w')
@@ -71,22 +73,25 @@ def writeHeader(i, _axis, tex_file_base):
     tex_file.write("B 2\n")
     return tex_file
 
-# Input error checking - Look into using Python's built in methods?
+# Input error checking - TODO: Look into using Python's built in methods?
 if len(argv) != 4:
     print("WARNING: Not enough command line arguments.")
     _max_angle = 0
     _axis = 0
     _type = None
+    # A max angle of 0 won't print anything helpful.
     while _max_angle < 1:
         if _max_angle == -1:
             print("Please enter an integer between 1 and 360")
         _max_angle = getMaxAngle()
 
+    # Required to be a 3 digit number.
     while _axis < 1:
         if _axis == -1:
             print("Please enter an integer of length 3 (i.e. 100 or 111)")
         _axis = getAxis()
 
+    # This may be removed as the code evolves
     while not _type in {'twist','tilt'}:
         if _type == -1 or isinstance(_type, Number):
             print("Please type \"twist\" or \"tilt\"")
@@ -96,6 +101,7 @@ else:
 
 axis = [None]*3 # This takes the individual components of _axis as part of a vector
 
+# These statements just double check the work we did above.
 if len(str(_axis)) > 3: # axis length greater than 3
     print("ERROR: Argument 2 must by a 3 digit number like \'100\'")
     exit()
@@ -113,7 +119,8 @@ if _max_angle < 0: # max angle is negative
     exit()
 
 if not _type in ['twist', 'tilt']: # type is not twist or tilt
-    print("ERROR: _type must be either \'twist\' or \'tilt\'") # TODO: Is it possible to figure out a mixed boundary euler angle?
+    # TODO: Is it possible to figure out a mixed boundary euler angle?
+    print("ERROR: _type must be either \'twist\' or \'tilt\'")
     exit()
 
 # Warnings
@@ -128,6 +135,7 @@ if len(str(_axis)) < 3: # axis length less than 3
 if _max_angle > 360:
     largeAngleWarning()
     change_angle = None
+    # Checks if they typed in something that starts with y or n
     while not change_angle.lower().startswith('y') or change_angle.lower().startswith('n'):
         if change_angle == -1:
             print("Please type \'y\' or \'n\'")
@@ -152,7 +160,7 @@ is_xx0 = (2 == len([value for value in axis if value != 0])) # same here, but ch
 is_xxx = (3 == len([value for value in axis if value != 0])) # ditto, but xxx
 
 # Normalize the axes <-- TODO: Needs work for anything besides the basic 100, 110, and 111 sets
-if is_x00:
+if is_x00: # No matter what number is in the x position, it can always be normalized to be 100
     axis[0] = 1
     is100 = True
 else:
@@ -178,11 +186,13 @@ if is_xxx:
 
 if not True in {is100, is110, is111}: # Not a basic axis set
     if not 0 in axis:
+        # This checks to see if the axis can be scaled down at all (i.e.
+        # 642 can become 321).  This is specific to an axis without 0's
         if axis[0] % axis[2] == 0 and axis[1] % axis[2] == 0:
             axis[0] = axis[0] / axis[2]
             axis[1] = axis[1] / axis[2]
             axis[2] = 1
-    else:
+    else: # Same thing, but for the xx0 axis
         if axis[0] % axis[1] == 0:
             axis[0] = axis[0] / axis[1]
             axis[1] = 1
@@ -191,6 +201,7 @@ if not True in {is100, is110, is111}: # Not a basic axis set
 _axis = int(str(int(axis[0])) + str(int(axis[1])) + str(int(axis[2])))
 
 # Determine the base file name.  Extra word if its a tilt boundary
+# NOTE: Asymmetric tilt may not be possible with this code.
 if _type == 'tilt':
     _tilt_type = None
     while not _tilt_type in {"symm", "asymm"}:
@@ -217,9 +228,6 @@ if _type == 'tilt':
     # Simple cases first
     # NOTE: The 'asymm' tilt is actually used for the twist rotations! Asymmetric
     # tilt is a 3D plot, and (so far) cannot be represented here
-    # NOTE: Perhaps the 'asymm' tilt can be represented by a factor between 0 and
-    # 1? This could weight the differences heavier to one side, instead of just
-    # having everything depend on the one grain.
     if is100:
         for i in range(0, _max_angle + 1):
             tex_file = writeHeader(i, _axis, tex_file_base)
@@ -292,10 +300,10 @@ if _type == 'tilt':
             tex_file.close()
 
     elif is_xxx:
-        print("Sorry, I haven't figured this out yet")
+        print("Sorry, this case has not yet been implemented")
         exit()
 
-    else:
+    else: # Just in case something weird happens
         print("ERROR: Unrecognized axis")
         exit()
 
@@ -323,7 +331,7 @@ elif _type == 'twist':
             tex_file = writeHeader(i, _axis, tex_file_base)
 
     elif is_xxx:
-        print("Sorry, I haven't figured this out yet")
+        print("Sorry, this case has not yet been implemented")
         exit()
 
     else:
