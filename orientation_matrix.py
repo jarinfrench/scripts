@@ -354,6 +354,10 @@ else:
     if useRRF:
         orientation_matrix1, orientation_matrix2 = calcRotMatRRF(axis, _misorientation)
 
+        # Normalize the matrices using their determinants
+        orientation_matrix1 = orientation_matrix1 / linalg.det(orientation_matrix1)
+        orientation_matrix2 = orientation_matrix2 / linalg.det(orientation_matrix2)
+
         if not quiet:
             displayMat(orientation_matrix1)
             displayMat(orientation_matrix2)
@@ -372,6 +376,9 @@ else:
     else:
         for i in range(0,len(_z1)):
             orientation_matrix = calcRotMat(_z1[i], _x[i], _z2[i])
+
+            # Normalize the matrix using the determinant
+            orientation_matrix = orientation_matrix / linalg.det(orientation_matrix)
 
             if not quiet: # Display the results
                 displayMat(orientation_matrix)
