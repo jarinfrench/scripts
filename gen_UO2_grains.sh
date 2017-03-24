@@ -9,18 +9,32 @@ read -e -p "Please enter the filename of the original UO2 matrix: " FN
 
 read -p "Please enter the radius of the rotated grain: " radius
 
-# Make sure we're in the correct directory
-cd ~/projects/school/Research/UO2
+read -p "Are you reading angles from a txt file? " angles
 
-for i in {1..60};
-do
-  if [ $i -eq 1 ]; then
-    echo "Rotating $i degree"
-  else
-    echo "Rotating $i degrees"
-  fi
-  ./rotate_and_remove $FN $radius $i
-done
+case $angles in
+  y|Y)
+    read -e -p "Please enter the filename of the angles txt file: " FN2
+    while read -r theta; do
+      echo "Rotating $theta degrees"
+      ./rotate_and_remove $FN $radius $theta
+    done < "$FN2"
+    ;;
+  n|N)
+    echo "Generating default layouts..."
+    for i in {1..60};
+    do
+      if [ $i -eq 1 ]; then
+        echo "Rotating $i degree"
+      else
+        echo "Rotating $i degrees"
+      fi
+      ./rotate_and_remove $FN $radius $i
+    done
+    ;;
+  *)
+    echo "Unrecognized option.  Please enter y|Y or n|N. Generating default layouts."
+    ;;
+esac
 
 # Now move all of the files with the removed atoms to the Removed directory,
 # and the atoms with just the rotated atoms to the rotated directory

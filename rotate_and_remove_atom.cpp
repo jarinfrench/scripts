@@ -41,8 +41,8 @@ int main(int argc, char **argv)
   string filename1, filename2, filename3, filename4, str; //filenames and line variable
   double r_grain, r_grain_m, r_grain_p; //radius of the grain, with buffer zone
   double r_grain_sq, r_grain_m_sq, r_grain_p_sq; // squared values for convenience
-  double theta; // angle of rotation
-  double costheta, sintheta; // better to calculate this once.
+  double theta, theta_conv; // angle of rotation
+  double costheta_conv, sintheta_conv; // better to calculate this once.
   double uu_rnn_cut_sq = UU_RNN_CUT * UU_RNN_CUT; //easier to do it once
   double uo_rnn_cut_sq = UO_RNN_CUT * UO_RNN_CUT;
   double oo_rnn_cut_sq = OO_RNN_CUT * OO_RNN_CUT;
@@ -104,9 +104,9 @@ int main(int argc, char **argv)
       << "degree_r" << r_grain << "A_marked_rcut" << UU_RNN_CUT << ".dat";
   filename3 = fn3.str();
 
-  theta *= PI / 180.0; // convert theta to radians
-  costheta = cos(theta); // just calculate this once!
-  sintheta = sin(theta);
+  theta_conv = theta * PI / 180.0; // convert theta_conv to radians
+  costheta_conv = cos(theta_conv); // just calculate this once!
+  sintheta_conv = sin(theta_conv);
 
   ifstream fin(filename1.c_str()); // only reading this file
   if (fin.fail())
@@ -209,14 +209,14 @@ int main(int argc, char **argv)
     y1 = y - Ly / 2.0;
     z1 = z - Lz / 2.0;
 
-    // If we are smaller than the radius, rotate the atom by theta around the
+    // If we are smaller than the radius, rotate the atom by theta_conv around the
     // z axis.
     // TODO: make this an option to do twist or tilt boundaries for 100, 110, and 111 axes
     if ((x1 * x1 + y1 * y1) <= (r_grain_sq))
     {
       // This is <100> Twist
-      temp_x = x1 * costheta - y1 * sintheta;
-      temp_y = x1 * sintheta + y1 * costheta;
+      temp_x = x1 * costheta_conv - y1 * sintheta_conv;
+      temp_y = x1 * sintheta_conv + y1 * costheta_conv;
       x1 = temp_x;
       y1 = temp_y;
     }
@@ -452,7 +452,7 @@ int main(int argc, char **argv)
     return -2;
   }
 
-  fn4 << filename1.substr(0,filename1.find("N")).c_str() << anInt(theta*180 / PI)
+  fn4 << filename1.substr(0,filename1.find("N")).c_str() << theta
       << "degree_r" << r_grain
       //<< "A_removed.dat";
       << "A_removed_rcut" << UU_RNN_CUT << ".dat";
