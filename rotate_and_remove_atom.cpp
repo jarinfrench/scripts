@@ -15,7 +15,7 @@ using namespace std;
 
 #define PI 3.14159265
 #define SKIN 16.0 //skin depth (just under 3a0, a0 = 5.453)
-#define UU_RNN_CUT 2.5 // Cutoff value for U-U atoms too close
+#define UU_RNN_CUT 2.0 // Cutoff value for U-U atoms too close
 #define UO_RNN_CUT 4.0 // Cutoff value for U-O atoms too close
 #define OO_RNN_CUT 0.63801 // Cutoff value for O-O atoms too close
 
@@ -95,13 +95,13 @@ int main(int argc, char **argv)
 
   ostringstream fn2, fn3, fn4; // String streams for easy file naming
   fn2 << filename1.substr(0,filename1.find(".")).c_str() << "_" << theta
-      //<< "degree_r" << r_grain << "A_rotated.dat";
-      << "degree_r" << r_grain << "A_rotated_rcut" << UU_RNN_CUT << ".dat";
+      << "degree_r" << r_grain << "A_rotated.dat";
+      //<< "degree_r" << r_grain << "A_rotated_rcut" << UU_RNN_CUT << ".dat";
   filename2 = fn2.str();
 
   fn3 << filename1.substr(0,filename1.find(".")).c_str() << "_" << theta
-      //<< "degree_r" << r_grain << "A_marked.dat";
-      << "degree_r" << r_grain << "A_marked_rcut" << UU_RNN_CUT << ".dat";
+      << "degree_r" << r_grain << "A_marked.dat";
+      //<< "degree_r" << r_grain << "A_marked_rcut" << UU_RNN_CUT << ".dat";
   filename3 = fn3.str();
 
   theta_conv = theta * PI / 180.0; // convert theta_conv to radians
@@ -454,8 +454,8 @@ int main(int argc, char **argv)
 
   fn4 << filename1.substr(0,filename1.find("N")).c_str() << theta
       << "degree_r" << r_grain
-      //<< "A_removed.dat";
-      << "A_removed_rcut" << UU_RNN_CUT << ".dat";
+      << "A_removed.dat";
+      //<< "A_removed_rcut" << UU_RNN_CUT << ".dat";
   filename4 = fn4.str();
 
   ofstream fout3(filename4.c_str());
