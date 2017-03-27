@@ -13,7 +13,9 @@ using namespace std;
 // For UO2, charge style, the charge must be specified
 // The sequence is atom-ID atom-type q x y z
 
-#define PI 3.14159265
+#define PI 3.14159265358979
+#define SQRT2 1.4142135623731
+#define SQRT3 1.73205080756888
 #define SKIN 16.0 //skin depth (just under 3a0, a0 = 5.453)
 #define UU_RNN_CUT 2.0 // Cutoff value for U-U atoms too close
 #define UO_RNN_CUT 4.0 // Cutoff value for U-O atoms too close
@@ -39,13 +41,15 @@ int main(int argc, char **argv)
 {
   // External values
   string filename1, filename2, filename3, filename4, str; //filenames and line variable
+  int axis;
   double r_grain, r_grain_m, r_grain_p; //radius of the grain, with buffer zone
   double r_grain_sq, r_grain_m_sq, r_grain_p_sq; // squared values for convenience
   double theta, theta_conv; // angle of rotation
-  double costheta_conv, sintheta_conv; // better to calculate this once.
+  double costheta, sintheta; // better to calculate this once.
   double uu_rnn_cut_sq = UU_RNN_CUT * UU_RNN_CUT; //easier to do it once
   double uo_rnn_cut_sq = UO_RNN_CUT * UO_RNN_CUT;
   double oo_rnn_cut_sq = OO_RNN_CUT * OO_RNN_CUT;
+
   double scale_factor_a, scale_factor_b, scale_factor_c; // dimensional scaling values
   double Lx, Ly, Lz; // box size
   int ntotal, n_atom_id; // total number of atoms that have been read/written
@@ -57,13 +61,13 @@ int main(int argc, char **argv)
   double xlow, xhigh, ylow, yhigh, zlow, zhigh; // atom bounds
   int atom_id, atom_type; // id number and type number
   double atom_charge, x, y, z; // charge and position values
-  double x1, y1, z1, temp_x, temp_y, x2, y2, z2; // Store the original value and manipulate!
+  double x1, y1, z1, temp_x, temp_y, temp_z, x2, y2, z2; // Store the original value and manipulate!
 
   // Containers
   vector <Atom> atoms_checked, atoms; // contains the atoms we look at, and the entire set.
   vector <pair<int, double> > distances; // vector of id and distance.
 
-  if (argc != 4) // check command line arguments
+  if (argc != 5) // check command line arguments
   {
     // filename
     cout << "Please input the filename in LAAMPS's format at 0K:\n";
@@ -78,12 +82,26 @@ int main(int argc, char **argv)
     cin  >> theta;
     if (abs(theta) > 180.0)
       cout << "Caution!  The rotation angle is greater than 180 degrees!\n";
+
+    cout << "Please enter the rotation axis in the format 100|110|111: ";
+    cin  >> axis;
+    if (axis != 100 || axis != 110 || axis != 111)
+    {
+      cout << "Error entering rotation axis.  Please enter either 100, 110, or 111\n";
+      return -8;
+    }
   }
   else
   {
     filename1 = argv[1];
     r_grain = strtod(argv[2], NULL);
     theta = strtod(argv[3], NULL);
+    istringstream iss (argv[4]);
+    if (!(iss >> axis))
+    {
+      cout << "Error converting input " << axis << " to integer.\n";
+      return -9;
+    }
   }
 
   r_grain_m = r_grain - SKIN;
@@ -94,19 +112,21 @@ int main(int argc, char **argv)
 
 
   ostringstream fn2, fn3, fn4; // String streams for easy file naming
-  fn2 << filename1.substr(0,filename1.find(".")).c_str() << "_" << theta
+  fn2 << filename1.substr(0,filename1.find(".")).c_str() << "_" << axis
+      << "_" << theta
       << "degree_r" << r_grain << "A_rotated.dat";
       //<< "degree_r" << r_grain << "A_rotated_rcut" << UU_RNN_CUT << ".dat";
   filename2 = fn2.str();
 
-  fn3 << filename1.substr(0,filename1.find(".")).c_str() << "_" << theta
+  fn3 << filename1.substr(0,filename1.find(".")).c_str() << "_" << axis
+      << "_" << theta
       << "degree_r" << r_grain << "A_marked.dat";
       //<< "degree_r" << r_grain << "A_marked_rcut" << UU_RNN_CUT << ".dat";
   filename3 = fn3.str();
 
   theta_conv = theta * PI / 180.0; // convert theta_conv to radians
-  costheta_conv = cos(theta_conv); // just calculate this once!
-  sintheta_conv = sin(theta_conv);
+  costheta = cos(theta_conv); // just calculate this once!
+  sintheta = sin(theta_conv);
 
   ifstream fin(filename1.c_str()); // only reading this file
   if (fin.fail())
@@ -211,14 +231,51 @@ int main(int argc, char **argv)
 
     // If we are smaller than the radius, rotate the atom by theta_conv around the
     // z axis.
-    // TODO: make this an option to do twist or tilt boundaries for 100, 110, and 111 axes
+    // TODO: make this an option to do twist or tilt boundaries
+
     if ((x1 * x1 + y1 * y1) <= (r_grain_sq))
     {
-      // This is <100> Twist
-      temp_x = x1 * costheta_conv - y1 * sintheta_conv;
-      temp_y = x1 * sintheta_conv + y1 * costheta_conv;
-      x1 = temp_x;
-      y1 = temp_y;
+      switch (axis)
+      {
+        case 100 : // Case 100 tilt
+        {
+          temp_x = x1 * costheta - y1 * sintheta;
+          temp_y = x1 * sintheta + y1 * costheta;
+          x1 = temp_x;
+          y1 = temp_y;
+          break;
+        }
+
+        case 110 : // Case 110 tilt
+        {
+          temp_x = y1 / 2.0 * (1.0 - costheta) + x1 / 2.0 * (1.0 + costheta) + z1 * sintheta / SQRT2;
+          temp_y = x1 / 2.0 * (1.0 - costheta) + y1 / 2.0 * (1 + costheta) - z1 * sintheta / SQRT2;
+          temp_z = z1 * costheta - x1 * sintheta / SQRT2 + y1 * sintheta / SQRT2;
+          x1 = temp_x;
+          y1 = temp_y;
+          z1 = temp_z;
+          break;
+        }
+
+        case 111 : //case 111 tilt
+        {
+          x2 = x1 + y1 + z1; //easier to store it all here once
+          temp_x = 1.0 / 3.0 * (x2 + (2.0 * x1 - y1 - z1) * costheta + SQRT3 * (-y1 + z1) * sintheta);
+          temp_y = 1.0 / 3.0 * (x2 - (x1 - 2.0 * y1 + z1) * costheta + SQRT3 * (x1 - z1) * sintheta);
+          temp_z = 1.0 / 3.0 * (x2 - (x1 + y1 - 2.0 * z1) * costheta + SQRT3 * (-x1 + y1) * sintheta);
+          x1 = temp_x;
+          y1 = temp_y;
+          z1 = temp_z;
+          break;
+        }
+
+        default:
+        {
+          cout << "Error: Axis " << axis << " not implemented yet.\n";
+          return -9;
+        }
+      }
+
     }
 
     if (x1 * x1 + y1 * y1 > r_grain_m_sq &&
@@ -452,8 +509,8 @@ int main(int argc, char **argv)
     return -2;
   }
 
-  fn4 << filename1.substr(0,filename1.find("N")).c_str() << theta
-      << "degree_r" << r_grain
+  fn4 << filename1.substr(0,filename1.find("N")).c_str() << axis
+      << "_" << theta << "degree_r" << r_grain
       << "A_removed.dat";
       //<< "A_removed_rcut" << UU_RNN_CUT << ".dat";
   filename4 = fn4.str();
