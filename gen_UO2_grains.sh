@@ -9,6 +9,19 @@ read -e -p "Please enter the filename of the original UO2 matrix: " FN
 
 read -p "Please enter the radius of the rotated grain: " radius
 
+read -p "Please enter the axis of rotation: " axis
+
+if [ $axis -eq 111 ]; then
+  range=120
+elif [ $axis -eq 110 ]; then
+  range=180
+elif [ $axis -eq 100 ]; then
+  range=90
+else
+  echo "Invalid rotation axis."
+  exit -1
+fi
+
 read -p "Are you reading angles from a txt file? " angles
 
 case $angles in
@@ -16,29 +29,19 @@ case $angles in
     read -e -p "Please enter the filename of the angles txt file: " FN2
     while read -r theta; do
       echo "Rotating $theta degrees"
-      echo "  r_cut = 2.0"
-      ./rotate_and_remove_rcut2 $FN $radius $theta
-      echo "  r_cut = 2.5"
-      ./rotate_and_remove_rcut2.5 $FN $radius $theta
-      echo "  r_cut = 3.0"
-      ./rotate_and_remove_rcut3 $FN $radius $theta
+      ./rotate_and_remove $FN $radius $theta
     done < "$FN2"
     ;;
   n|N)
     echo "Generating default layouts..."
-    for i in {1..60};
+    for i in $(seq 1 $range);
     do
       if [ $i -eq 1 ]; then
         echo "Rotating $i degree"
       else
         echo "Rotating $i degrees"
       fi
-      echo "  r_cut = 2.0"
-      ./rotate_and_remove_rcut2 $FN $radius $i
-      echo "  r_cut = 2.5"
-      ./rotate_and_remove_rcut2.5 $FN $radius $i
-      echo "  r_cut = 3.0"
-      ./rotate_and_remove_rcut3 $FN $radius $i
+      ./rotate_and_remove $FN $radius $i $axis
     done
     ;;
   *)
