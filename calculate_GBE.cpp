@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  filename2 = filename1.substr(0,filename1.find("_total")) + "_individual_energy.txt";
+  filename2 = filename1.substr(0,filename1.find("_total")) + "_individual_energy.csv";
   ofstream fout(filename2.c_str());
   if (fout.fail())
   {
@@ -42,17 +42,19 @@ int main(int argc, char **argv)
 
   bot = 4 * PI * r_grain * Lz; // twice the area of the grain boundary
   fin >> theta >> e_single >> N0;
+  fout << theta << "," << setprecision(15) << 0.0 << endl;
   while (fin >> theta >> eGB >> N)
   {
     if (fin.fail())
       cout << "Read error.\n";
 
     gbe = (eGB - (e_single / N0) * N) / bot * eV2J;
-    fout << theta << " " << setprecision(15) << gbe << endl;
+    fout << theta << "," << setprecision(15) << gbe << endl;
   }
 
   fin.close();
   fout.close();
+  fout2.close();
 
   return 0;
 }
