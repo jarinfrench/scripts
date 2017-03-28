@@ -348,7 +348,7 @@ int main(int argc, char **argv)
             // The -1 is here because the id's start at 1, and c++ indices start at 0
             atoms[atoms_checked[i].getId() - 1].setMark(1);
             ++n_U_removed;
-            break; // since we've removed this atom, move on.
+            break; // since we've removed this atom, move on to the next one.
           }
         }
       }
@@ -433,7 +433,7 @@ int main(int argc, char **argv)
 
           drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
 
-          if (drij_sq < oo_rnn_cut_sq)
+          if (drij_sq < oo_rnn_cut_sq) // We probably only want to remove one of them, and then find the UO pair that goes with the O removed.
           {
             // We will remove both of these
             atoms_checked[i].setMark(1);
@@ -461,7 +461,7 @@ int main(int argc, char **argv)
                 rzij = rzij - anInt(rzij / Lz) * Lz;
 
                 drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-                if (drij_sq < uo_rnn_cut_sq)
+                if (drij_sq < uo_rnn_cut_sq) // This may not work because there may not be a U atom that is within the cutoff distance for both O atoms - needs to be rewritten
                 {
                   rxij = x2 - atoms_checked[k].getX();
                   ryij = y2 - atoms_checked[k].getY();
