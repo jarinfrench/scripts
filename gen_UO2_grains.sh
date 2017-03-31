@@ -45,7 +45,7 @@ case $angles in
     done
     ;;
   *)
-    echo "Unrecognized option.  Please enter y|Y or n|N. Generating default layouts."
+    echo "Unrecognized option.  Please enter y|Y or n|N."
     ;;
 esac
 

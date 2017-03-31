@@ -235,47 +235,10 @@ int main(int argc, char **argv)
 
     if ((x1 * x1 + y1 * y1) <= (r_grain_sq))
     {
-      switch (axis)
-      {
-        case 100 : // Case 100 tilt
-        {
-          temp_x = x1 * costheta - y1 * sintheta;
-          temp_y = x1 * sintheta + y1 * costheta;
-          x1 = temp_x;
-          y1 = temp_y;
-          break;
-        }
-
-        case 110 : // Case 110 tilt
-        {
-          temp_x = y1 / 2.0 * (1.0 - costheta) + x1 / 2.0 * (1.0 + costheta) + z1 * sintheta / SQRT2;
-          temp_y = x1 / 2.0 * (1.0 - costheta) + y1 / 2.0 * (1 + costheta) - z1 * sintheta / SQRT2;
-          temp_z = z1 * costheta - x1 * sintheta / SQRT2 + y1 * sintheta / SQRT2;
-          x1 = temp_x;
-          y1 = temp_y;
-          z1 = temp_z;
-          break;
-        }
-
-        case 111 : //case 111 tilt
-        {
-          x2 = x1 + y1 + z1; //easier to store it all here once
-          temp_x = 1.0 / 3.0 * (x2 + (2.0 * x1 - y1 - z1) * costheta + SQRT3 * (-y1 + z1) * sintheta);
-          temp_y = 1.0 / 3.0 * (x2 - (x1 - 2.0 * y1 + z1) * costheta + SQRT3 * (x1 - z1) * sintheta);
-          temp_z = 1.0 / 3.0 * (x2 - (x1 + y1 - 2.0 * z1) * costheta + SQRT3 * (-x1 + y1) * sintheta);
-          x1 = temp_x;
-          y1 = temp_y;
-          z1 = temp_z;
-          break;
-        }
-
-        default:
-        {
-          cout << "Error: Axis " << axis << " not implemented yet.\n";
-          return -9;
-        }
-      }
-
+      temp_x = x1 * costheta - y1 * sintheta;
+      temp_y = x1 * sintheta + y1 * costheta;
+      x1 = temp_x;
+      y1 = temp_y;
     }
 
     if (x1 * x1 + y1 * y1 > r_grain_m_sq &&
