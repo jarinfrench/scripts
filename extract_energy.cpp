@@ -17,15 +17,20 @@ int main(int argc, char **argv)
   double theta;
 
   // Get the filename
-  if (argc != 2)
+  if (argc != 3)
   {
     cout << "Please enter the filename that contains the energy from the simulation: ";
     cin  >> filename1;
+
+    cout << "Please enter the filename to write to: ";
+    cin  >> filename2;
   }
   else
+  {
     filename1 = argv[1];
+    filename2 = argv[2];
+  }
 
-  filename2 = "100Twist_total_energy.txt"; // the file we will write to.
   str2 = "  Energy initial, next-to-last, final =";
   str3 = "ERROR: Lost atoms: ";
 
