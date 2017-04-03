@@ -473,7 +473,11 @@ int main(int argc, char **argv)
   }
 
   fn4 << filename1.substr(0,filename1.find("N")).c_str()
-      << axis << "_" << theta << "degree_r" << r_grain
+      << axis << "_";
+  fn4.precision(2);
+  fn4 << fixed << theta << "degree_r";
+  fn4.precision(0);
+  fn4 << r_grain
       << "A_removed.dat";
       //<< "A_removed_rcut" << UU_RNN_CUT << ".dat";
   filename4 = fn4.str();
