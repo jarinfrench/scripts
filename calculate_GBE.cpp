@@ -54,7 +54,6 @@ int main(int argc, char **argv)
 
   fin.close();
   fout.close();
-  fout2.close();
 
   return 0;
 }

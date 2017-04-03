@@ -129,6 +129,7 @@ int main(int argc, char **argv)
             atoms_checked[j].setMark(1);
             atoms[atoms_checked[j].getId() - 1].setMark(1);
             ++n_O_too_close;
+          }
         }
       }
     }
