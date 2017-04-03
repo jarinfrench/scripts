@@ -106,7 +106,7 @@ int main(int argc, char **argv)
   }
 
   // Warning for when we don't have the usual axes.
-  if (axis != 100 || axis != 110 or axis != 111)
+  if (axis != 100 && axis != 110 && axis != 111)
   {
     cout << "Warning: axis " << axis << " not expected.\n";
   }

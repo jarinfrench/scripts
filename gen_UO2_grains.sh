@@ -9,7 +9,7 @@ read -e -p "Please enter the filename of the original UO2 matrix: " FN
 
 read -p "Please enter the radius of the rotated grain: " radius
 
-read -p "Please enter the axis of rotation: " axis
+axis=`echo $FN | grep -o "1[01][01]"`
 
 if [ $axis -eq 111 ]; then
   range=120
@@ -41,7 +41,7 @@ case $angles in
       else
         echo "Rotating $i degrees"
       fi
-      ./rotate_and_remove $FN $radius $i $axis
+      ./rotate_and_remove $FN $radius $i
     done
     ;;
   *)

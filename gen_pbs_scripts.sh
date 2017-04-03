@@ -1,7 +1,19 @@
 #! /bin/bash
 
-read -p "What is the cutoff radius used? " rcut
+#read -p "What is the cutoff radius used? " rcut
+read -p "What is the rotation axis? " axis
 read -p "Generate scripts from a txt file? " usefile
+
+if [ $axis -eq 111 ]; then
+  range=120
+elif [ $axis -eq 110 ]; then
+  range=180
+elif [ $axis -eq 100 ]; then
+  range=90
+else
+  echo "Invalid rotation axis."
+  exit -1
+fi
 
 case $usefile in
   y|Y)
@@ -28,18 +40,18 @@ case $usefile in
 
     cd $``PBS_O_WORKDIR
 
-    mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < UO2_structure_minimize_${theta}degree_rcut${rcut}.in > minimize_${theta}degree_rcut${rcut}.txt
+    mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < UO2_structure_minimize_${axis}_${theta}degree.in > minimize_${axis}_${theta}degree.txt
 
-    exit;" >> lmp_minimize_${theta}degree_rcut${rcut}.pbs
+    exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
 
-      sed "24s[.*[read_data /home/jarinf/UO2_Circular_Grain/Atoms_removed/LAMMPS_UO2_SC_${theta}degree_r100A_removed_rcut${rcut}.dat[" UO2_structure_minimization.in > UO2_structure_minimize_${theta}degree_rcut${rcut}.in
-      sed -i "136s[.*[dump atompos3 all custom 10000 dump3.pos.${theta}degree_rcut${rcut}.*.dat id type q x y z c_pe_layer1[" UO2_structure_minimize_${theta}degree_rcut${rcut}.in
+      sed "24s[.*[read_data /home/jarinf/UO2_Circular_Grain/Atoms_removed/LAMMPS_UO2_SC_${axis}_${theta}degree_r100A_removed.dat[" UO2_structure_minimization.in > UO2_structure_minimize_${axis}_${theta}degree.in
+      sed -i "136s[.*[dump atompos3 all custom 10000 dump3.pos.${axis}.${theta}degree.*.dat id type q x y z c_pe_layer1[" UO2_structure_minimize_${axis}_${theta}degree.in
     done < "$FN"
     ;;
   n|N)
     echo "Generating the default files..."
     # generates the pbs scripts with the accompanying LAMMPS input files
-    for i in {1..60}
+    for i in $(seq 1 $range);
     do
       echo "#!/bin/bash
 
@@ -62,12 +74,12 @@ module load gcc openmpi
 
 cd $``PBS_O_WORKDIR
 
-mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < UO2_structure_minimize_${i}degree_rcut${rcut}.in > minimize_${i}degree_rcut${rcut}.txt
+mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < UO2_structure_minimize_${axis}_${i}degree.in > minimize_${axis}_${i}degree.txt
 
-exit;" >> lmp_minimize_${i}degree_rcut${rcut}.pbs
+exit;" >> lmp_minimize_${axis}_${i}degree.pbs
 
-      sed "24s[.*[read_data /home/jarinf/UO2_Circular_Grain/Atoms_removed/LAMMPS_UO2_SC_${i}degree_r100A_removed_rcut${rcut}.dat[" UO2_structure_minimization.in > UO2_structure_minimize_${i}degree_rcut${rcut}.in
-      sed -i "136s[.*[dump atompos3 all custom 10000 dump3.pos.${i}degree_rcut${rcut}.*.dat id type q x y z c_pe_layer1[" UO2_structure_minimize_${i}degree_rcut${rcut}.in
+      sed "24s[.*[read_data /home/jarinf/UO2_Circular_Grain/Atoms_removed/LAMMPS_UO2_SC_${axis}_${i}degree_r100A_removed.dat[" UO2_structure_minimization.in > UO2_structure_minimize_${axis}_${i}degree.in
+      sed -i "136s[.*[dump atompos3 all custom 10000 dump3.pos.${axis}.${i}degree.*.dat id type q x y z c_pe_layer1[" UO2_structure_minimize_${axis}_${i}degree.in
     done
     ;;
   *)
