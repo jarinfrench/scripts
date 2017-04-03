@@ -23,7 +23,7 @@ int main(int argc, char** argv)
     filename1 = argv[1];
   }
 
-  filename2 = filename1.substr(0, filename1.find(".")) + "_converted.dat";
+  filename2 = filename1.substr(0, filename1.find(".")) + ".dat";
 
   ifstream fin(filename1.c_str());
   if (fin.fail())

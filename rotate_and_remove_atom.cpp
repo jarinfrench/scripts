@@ -67,9 +67,10 @@ int main(int argc, char **argv)
   vector <Atom> atoms_checked, atoms; // contains the atoms we look at, and the entire set.
   vector <pair<int, double> > distances; // vector of id and distance.
 
-  if (argc != 5) // check command line arguments
+  if (argc != 4) // check command line arguments
   {
     // filename
+    // Format of filename should be LAMMPS_UO2_SC_N######_{axis}.dat
     cout << "Please input the filename in LAAMPS's format at 0K:\n";
     cin  >> filename1;
 
@@ -82,26 +83,13 @@ int main(int argc, char **argv)
     cin  >> theta;
     if (abs(theta) > 180.0)
       cout << "Caution!  The rotation angle is greater than 180 degrees!\n";
-
-    cout << "Please enter the rotation axis in the format 100|110|111: ";
-    cin  >> axis;
-    if (axis != 100 || axis != 110 || axis != 111)
-    {
-      cout << "Error entering rotation axis.  Please enter either 100, 110, or 111\n";
-      return -8;
-    }
   }
   else
   {
     filename1 = argv[1];
     r_grain = strtod(argv[2], NULL);
     theta = strtod(argv[3], NULL);
-    istringstream iss (argv[4]);
-    if (!(iss >> axis))
-    {
-      cout << "Error converting input " << axis << " to integer.\n";
-      return -9;
-    }
+
   }
 
   r_grain_m = r_grain - SKIN;
@@ -110,15 +98,27 @@ int main(int argc, char **argv)
   r_grain_p_sq = r_grain_p * r_grain_p; // so just calculate once
   r_grain_sq = r_grain * r_grain;
 
+  istringstream iss (filename1.substr(filename1.find(".") - 3, 3));
+  if (!(iss >> axis))
+  {
+    cout << "Error determining rotation axis.\n";
+    return 9;
+  }
+
+  // Warning for when we don't have the usual axes.
+  if (axis != 100 || axis != 110 or axis != 111)
+  {
+    cout << "Warning: axis " << axis << " not expected.\n";
+  }
 
   ostringstream fn2, fn3, fn4; // String streams for easy file naming
-  fn2 << filename1.substr(0,filename1.find(".")).c_str() << "_" << axis
+  fn2 << filename1.substr(0,filename1.find(".")).c_str()
       << "_" << theta
       << "degree_r" << r_grain << "A_rotated.dat";
       //<< "degree_r" << r_grain << "A_rotated_rcut" << UU_RNN_CUT << ".dat";
   filename2 = fn2.str();
 
-  fn3 << filename1.substr(0,filename1.find(".")).c_str() << "_" << axis
+  fn3 << filename1.substr(0,filename1.find(".")).c_str()
       << "_" << theta
       << "degree_r" << r_grain << "A_marked.dat";
       //<< "degree_r" << r_grain << "A_marked_rcut" << UU_RNN_CUT << ".dat";
@@ -472,8 +472,8 @@ int main(int argc, char **argv)
     return -2;
   }
 
-  fn4 << filename1.substr(0,filename1.find("N")).c_str() << axis
-      << "_" << theta << "degree_r" << r_grain
+  fn4 << filename1.substr(0,filename1.find("N")).c_str()
+      << axis << "_" << theta << "degree_r" << r_grain
       << "A_removed.dat";
       //<< "A_removed_rcut" << UU_RNN_CUT << ".dat";
   filename4 = fn4.str();
