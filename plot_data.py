@@ -15,9 +15,9 @@ from sys import argv
 #    x_label = argv[2]
 #    y_label = argv[3]
 
-fin = open("100Twist_individual_energy_rcut2.txt")
-fin2 = open("100Twist_individual_energy_rcut2.5.txt")
-fin3 = open("100Twist_individual_energy_rcut3.txt")
+fin = open("100Tilt_individual_energy_rcut2.txt")
+fin2 = open("100Tilt_individual_energy_rcut2.5.txt")
+fin3 = open("100Tilt_individual_energy_rcut3.txt")
 x_data = [0.0]
 x2 = [0.0]
 x3 = [0.0]
