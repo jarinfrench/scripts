@@ -13,7 +13,7 @@ for i in "${!targets[@]}"; do
   fi
 done
 #echo "Running command: ./extract_energy ${targets[$j]} $FN"
-./extract_energy ${targets[$j]} $FN# gets the base value for a single grain
+./extract_energy ${targets[$j]} $FN # gets the base value for a single grain
 
 # Extract the energy for each value.
 for i in "${targets[@]}"

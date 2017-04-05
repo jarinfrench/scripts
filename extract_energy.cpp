@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     filename2 = argv[2];
   }
 
-  str2 = "  Energy initial, next-to-last, final =";
+  str2 = "  Energy initial, next-to-last, final = ";
   str3 = "ERROR: Lost atoms: ";
 
   stringstream th; // this defaults to theta being 0 if it can't find a value
