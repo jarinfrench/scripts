@@ -30,12 +30,13 @@ int main(int argc, char **argv)
     filename1 = argv[1];
     filename2 = argv[2];
   }
-
+  
   str2 = "  Energy initial, next-to-last, final = ";
   str3 = "ERROR: Lost atoms: ";
 
   stringstream th; // this defaults to theta being 0 if it can't find a value
-  th << filename1.substr(filename1.find("_") + 1, filename1.find("degree") - filename1.find("_") - 1);
+
+  th << filename1.substr(filename1.find("_", 9) + 1, filename1.find("degree") - filename1.find("_") - 1);
   th >> theta;
 
   ifstream fin(filename1.c_str());

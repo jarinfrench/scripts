@@ -32,6 +32,14 @@ int main(int argc, char **argv)
     return -1;
   }
 
+  // Prompt for the grain radius
+  cout << "Please enter the grain radius used for these simulations: ";
+  cin  >> r_grain;
+
+  //Prompt for the grain thickness
+  cout << "Please enter the grain thickness (Lz) in angstroms: ";
+  cin  >> Lz;
+
   filename2 = filename1.substr(0,filename1.find("_total")) + "_individual_energy.csv";
   ofstream fout(filename2.c_str());
   if (fout.fail())
