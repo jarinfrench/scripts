@@ -3,6 +3,7 @@
 from __future__ import division, print_function
 import matplotlib.pyplot as plt
 from sys import argv
+import csv
 
 # Simple python script to create a plot of two-dimensional data.
 
@@ -19,9 +20,9 @@ x_data = [0.0]
 y_data = [0.0]
 
 fin = open(filename)
+reader = csv.reader(fin)
 
-while True:
-    data = fin.readline().split()
+for data in reader:
     if not (data):
         break
     elif len(data) > 2:
@@ -40,7 +41,7 @@ y_data = [y for x,y in xy1]
 # Plot the results
 plt.plot(x_data, y_data, 'bo-')
 plt.xlabel("Angle (degrees)")
-plt.ylabel(r"Energy (J/$m^2$)")
-plt.xlim(0, max(x_data)*1.1)
+plt.ylabel(r"Energy (J/m$^2$)")
+plt.xlim(0, max(x_data))
 plt.title("Grain Boundary Energy")
 plt.show()
