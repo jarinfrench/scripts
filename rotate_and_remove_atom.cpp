@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
@@ -55,6 +56,7 @@ int main(int argc, char **argv)
   int ntotal, n_atom_id; // total number of atoms that have been read/written
   double rxij, ryij, rzij, drij_sq; //positional differences, total distance^2
   int n_U_removed = 0, n_O_removed = 0; // Counters for U and O removal.
+  bool decimal; // boolean value to include decimal or not
 
   // Values from file
   int N, ntypes; // number of atoms, and number of atom types
@@ -83,13 +85,26 @@ int main(int argc, char **argv)
     cin  >> theta;
     if (abs(theta) > 180.0)
       cout << "Caution!  The rotation angle is greater than 180 degrees!\n";
+    if (theta - (int)theta == 0)
+      decimal = false;
+    else
+      decimal = true;
   }
   else
   {
     filename1 = argv[1];
     r_grain = strtod(argv[2], NULL);
     theta = strtod(argv[3], NULL);
-
+    for (int i = 0; i < strlen(argv[3]); ++i)
+    {
+      if (argv[3][i] == '.')
+      {
+        decimal = true;
+        break;
+      }
+      else
+        decimal = false;
+    }
   }
 
   r_grain_m = r_grain - SKIN;
@@ -474,7 +489,10 @@ int main(int argc, char **argv)
 
   fn4 << filename1.substr(0,filename1.find("N")).c_str()
       << axis << "_";
-  fn4.precision(2);
+  if (decimal) // Input is checked to determine if we print the decimal or not in the filename
+    fn4.precision(2);
+  else
+    fn4.precision(0);
   fn4 << fixed << theta << "degree_r";
   fn4.precision(0);
   fn4 << r_grain
