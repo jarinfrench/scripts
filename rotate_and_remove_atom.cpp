@@ -120,12 +120,6 @@ int main(int argc, char **argv)
     return 9;
   }
 
-  // Warning for when we don't have the usual axes.
-  if (axis != 100 && axis != 110 && axis != 111)
-  {
-    cout << "Warning: axis " << axis << " not expected.\n";
-  }
-
   ostringstream fn2, fn3, fn4; // String streams for easy file naming
   fn2 << filename1.substr(0,filename1.find(".")).c_str()
       << "_" << theta
