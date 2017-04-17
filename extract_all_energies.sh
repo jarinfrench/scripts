@@ -2,7 +2,7 @@
 
 # extract the .txt files
 targets=($(ls | grep ^minimize_))
-value='minimize_no_GB.txt' # holds the default values
+value=($(ls | grep -E "(^minimize_[0-3]*_no_GB)"))
 
 read -p "Please enter the filename to be written to: " FN
 
@@ -12,8 +12,14 @@ for i in "${!targets[@]}"; do
     j=$i;
   fi
 done
-#echo "Running command: ./extract_energy ${targets[$j]} $FN"
-./extract_energy ${targets[$j]} $FN # gets the base value for a single grain
+
+if [ -z ${j+x} ]; then
+  echo "Error finding initial energy configuration."
+  exit 2
+else
+  #echo "Running command: ./extract_energy ${targets[$j]} $FN"
+  ./extract_energy ${targets[$j]} $FN # gets the base value for a single grain
+fi
 
 # Extract the energy for each value.
 for i in "${targets[@]}"
