@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     filename1 = argv[1];
     filename2 = argv[2];
   }
-  
+
   str2 = "  Energy initial, next-to-last, final = ";
   str3 = "ERROR: Lost atoms: ";
 
@@ -92,7 +92,6 @@ int main(int argc, char **argv)
   fout << theta << " " << setprecision(15)
        << *min_element(energies.begin(), energies.end()) << " "
        << N << endl;
-
 
   fin.close();
   fout.close();

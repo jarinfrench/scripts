@@ -12,10 +12,10 @@ int main(int argc, char **argv)
 {
   string filename1, filename2;
   int N0, N; // number of atoms for single grain, rotated grain
-  double eGB, e_single, theta; // energy for rotated grain, single grain
-  double r_grain = 100; //radius of the grain in angstroms
-  double Lz = 27.2651; // thickness of the grain in angstroms
-  double gbe, bot;
+  double eGB, e_single, theta; // energy for rotated grain, single grain, angle of rotation
+  double r_grain; //radius of the grain in angstroms
+  double Lz; // thickness of the grain in angstroms
+  double gbe, bot; // grain boundary energy, denominator term to calculate gbe
 
   if (argc != 2)
   {
