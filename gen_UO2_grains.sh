@@ -9,7 +9,7 @@ read -e -p "Please enter the filename of the original UO2 matrix: " FN
 
 read -p "Please enter the radius of the rotated grain: " radius
 
-axis=`echo $FN | grep -o "1[01][01]"`
+axis=`echo $FN | grep -o "1[0-3][0-3]"`
 
 if [ $axis -eq 111 ]; then
   range=120
@@ -18,8 +18,9 @@ elif [ $axis -eq 110 ]; then
 elif [ $axis -eq 100 ]; then
   range=90
 else
-  echo "Invalid rotation axis."
-  exit -1
+  #echo "Invalid rotation axis."
+  #exit -1
+  range=360 # This may not be how high we need to go - TODO: determine this!
 fi
 
 read -p "Are you reading angles from a txt file? " angles
@@ -29,7 +30,9 @@ case $angles in
     read -e -p "Please enter the filename of the angles txt file: " FN2
     while read -r theta; do
       echo "Rotating $theta degrees"
-      ./rotate_and_remove $FN $radius $theta
+      # note that this version of the executable creates a filename with 2
+      # decimal points of precision for theta. (i.e. 90.00degree instead of 90degree)
+      ./rotate_and_remove_v2 $FN $radius $theta
     done < "$FN2"
     ;;
   n|N)
