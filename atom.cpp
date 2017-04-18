@@ -1,7 +1,9 @@
 #include "atom.h"
 
+// Default constructor sets everything to 0
 Atom::Atom() : id(0), type(0), charge(0.0), x(0.0), y(0.0), z(0.0), mark(0) {}
 
+// This constructor sets everything as specified, and sets the mark to "unmarked"
 Atom::Atom(int id, int type, double charge, double x, double y, double z)
 {
   this->id = id;
@@ -11,14 +13,6 @@ Atom::Atom(int id, int type, double charge, double x, double y, double z)
   this->y = y;
   this->z = z;
   mark = 0;
-}
-
-int Atom::checkMark(int mark)
-{
-  if (this->mark >= 1)
-    return 1;
-  else //(this->mark <= 0)
-    return 0;
 }
 
 /*bool Atom::operator==(const Atom& rhs) const

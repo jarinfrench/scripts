@@ -1,3 +1,13 @@
+/******************************************************************************
+* This script requires as input the LAMMPS-formatted file for a single crystal
+* at 0K, the grain radius, and the rotation angle (in degrees).  Prompts will be
+* given if all three are not specified at the command line.  The atoms within
+* the radius are rotated, and then the distances between atoms are checked.
+* If the atoms are too close (as specified by the #define terms), one is removed,
+* being sure to maintain charge neutrality (one U for every 2 O removed).  Note
+* that this script is specifically for UO2.  Changes can be made for other systems.
+******************************************************************************/
+
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -14,7 +24,7 @@ using namespace std;
 // For UO2, charge style, the charge must be specified
 // The sequence is atom-ID atom-type q x y z
 
-#define PI 3.14159265358979
+#define PI 3.14159265358979 // easier and faster to simply store these values here.
 #define SQRT2 1.4142135623731
 #define SQRT3 1.73205080756888
 #define SKIN 16.0 //skin depth (just under 3a0, a0 = 5.453)
@@ -32,7 +42,8 @@ double anInt(double x)
   return (double)(temp);
 }
 
-// Comparison function for comparing the only the second values in a pair
+// Comparison function for comparing only the second values in a pair
+// Useful later in the program.
 bool pairCmp(pair<int, double> &a, pair<int, double> &b)
 {
   return (a.second < b.second);
@@ -93,26 +104,32 @@ int main(int argc, char **argv)
   else
   {
     filename1 = argv[1];
+    // the NULL is required to make this work.  see documentation for why.
     r_grain = strtod(argv[2], NULL);
     theta = strtod(argv[3], NULL);
-    for (int i = 0; i < strlen(argv[3]); ++i)
+    for (int i = 0; i < strlen(argv[3]); ++i) // check if a decimal point exists in argument 3
     {
       if (argv[3][i] == '.')
       {
-        decimal = true;
+        decimal = true; // it exists!
         break;
       }
       else
-        decimal = false;
+        decimal = false; // it doesn't exist
     }
   }
 
+  // Some values we will use a lot of
   r_grain_m = r_grain - SKIN;
   r_grain_p = r_grain + SKIN;
   r_grain_m_sq = r_grain_m * r_grain_m; // we use the squared values a lot,
   r_grain_p_sq = r_grain_p * r_grain_p; // so just calculate once
   r_grain_sq = r_grain * r_grain;
 
+  // String streams make things easy.  This particular line requires that the
+  // filename be formatted such that before the file extension, the axis is
+  // specified.  This means that the file must be of the format:
+  // LAMMPS_UO2_SC_N######_{axis}.dat
   istringstream iss (filename1.substr(filename1.find(".") - 3, 3));
   if (!(iss >> axis))
   {
@@ -124,6 +141,7 @@ int main(int argc, char **argv)
   fn2 << filename1.substr(0,filename1.find(".")).c_str()
       << "_" << theta
       << "degree_r" << r_grain << "A_rotated.dat";
+      // This next line was used in determining the ideal cutoff distance.
       //<< "degree_r" << r_grain << "A_rotated_rcut" << UU_RNN_CUT << ".dat";
   filename2 = fn2.str();
 
@@ -133,6 +151,7 @@ int main(int argc, char **argv)
       //<< "degree_r" << r_grain << "A_marked_rcut" << UU_RNN_CUT << ".dat";
   filename3 = fn3.str();
 
+  // We use theta_conv to do the calculations, theta is meant to just look pretty.
   theta_conv = theta * PI / 180.0; // convert theta_conv to radians
   costheta = cos(theta_conv); // just calculate this once!
   sintheta = sin(theta_conv);
@@ -152,6 +171,7 @@ int main(int argc, char **argv)
     return -1;
   } // End error check
 
+  // Read and create the header of the dat file
   getline(fin, str);
   fout << "These UO2 coordinates are shifted: [ID type charge x y z]\n";
   fout << "\n";
@@ -213,10 +233,10 @@ int main(int argc, char **argv)
 
   fout << "\nAtoms\n\n"; // We now want to write the atoms down
 
-  ntotal = 0; // Number of atoms so far
+  ntotal = 0; // Number of atoms read so far
   n_atom_id = 0; // number written so far
 
-  while (fin >> atom_id >> atom_type >> atom_charge >> x >> y >> z)
+  while (fin >> atom_id >> atom_type >> atom_charge >> x >> y >> z) // read the data
   {
     // Check for reading errors
     if (fin.fail())
@@ -461,7 +481,7 @@ int main(int argc, char **argv)
         }
       }
     }
-  }
+  } // ^^ This amount of nesting is BAD
 
   cout << n_U_removed << " U atoms will be removed.\n";
   cout << n_O_removed << " O atoms will be removed.\n";
@@ -538,7 +558,10 @@ int main(int argc, char **argv)
          << N - n_U_removed - n_O_removed << endl;
     return -6;
   }
+
+  // Close the file streams
   fout2.close();
   fout3.close();
+  
   return 0;
 }

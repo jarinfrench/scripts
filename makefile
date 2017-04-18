@@ -22,4 +22,4 @@ xyz2dat : xyz2dat.cpp
 	g++ -O3 -o xyz2dat xyz2dat.cpp
 
 clean :
-	rm calculate_GBE checked_distances extract_energy parse_lammps rotate_and_remove xyz2dat
+	rm calculate_GBE checked_distances extract_energy parse_dump rotate_and_remove xyz2dat

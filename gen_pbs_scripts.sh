@@ -1,16 +1,21 @@
 #! /bin/bash
 
+# This script generates the pbs scripts and input files for minimizing UO2 structures.
+
 #read -p "What is the cutoff radius used? " rcut
 read -p "What is the rotation axis? " axis
 read -p "What is the grain radius? " radius
 
-if [ $axis -eq 111 ]; then
+if [ $axis -eq 111 ]; then # three-fold symmetry with the 111 axis
   range=120
-elif [ $axis -eq 110 ]; then
+elif [ $axis -eq 110 ]; then # two-fold symmetry with the 110 axis
   range=180
-elif [ $axis -eq 100 ]; then
+elif [ $axis -eq 100 ]; then # four-fold symmetry with the 100 axis
   range=90
 else
+  # This may be too high, but remains to be determined.  See the rotate_box.py
+  # script in the /projects/school/Research/UO2 directory to check the
+  # particular axis being rotated about.
   range=360
 fi
 
@@ -44,8 +49,8 @@ exit;" >> lmp_minimize_${axis}_no_GB.pbs
 sed "24s[.*[read_data /home/jarinf/UO2_Circular_Grain/Atoms_removed/${axis}Tilt/${oFN}[" UO2_structure_minimization.in > UO2_structure_minimize_${axis}_no_GB.in
 sed -i "136s[.*[dump atompos3 all custom 10000 dump3.pos.${axis}.no_GB.*.dat id type q x y z c_pe_layer1[" UO2_structure_minimize_${axis}_no_GB.in
 
-# NOTE: the directory location of the removed atoms files may change!
-
+# Sometimes we have a file with specific angles we want to check.  This handles
+# that case.
 read -p "Generate scripts from a txt file? " usefile
 case $usefile in
   y|Y)
@@ -118,5 +123,7 @@ exit;" >> lmp_minimize_${axis}_${i}degree.pbs
     echo "Unrecognized option.  Please enter y|Y or n|N."
 esac
 
+# move the files to the correct directory.  Assumes that you are in a directory
+# that has as subdirectories the axis rotated about.
 mv lmp_minimize_${axis}_* ${axis}/
 mv UO2_structure_minimize_${axis}* ${axis}/

@@ -1,3 +1,8 @@
+/******************************************************************************
+* This script converts a file in the format .xyz to the .dat format.  Note that
+* if copying data from GBStudio, the output format MUST be xmol, otherwise there
+* will be extra information that this script will not handle properly.
+******************************************************************************/
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -23,7 +28,7 @@ int main(int argc, char** argv)
     filename1 = argv[1];
   }
 
-  filename2 = "temp.dat";
+  filename2 = "temp.dat"; // temporary filename until we determine what it needs to be
   filename3 = filename1.substr(0, filename1.find(".")) + ".dat";
 
   ifstream fin(filename1.c_str());
@@ -59,24 +64,26 @@ int main(int argc, char** argv)
   fout << "\nAtoms\n\n";
 
   n_atoms = 0;
-  while (fin >> atom_type >> x >> y >> z)
+  while (fin >> atom_type >> x >> y >> z) // Read in the data
   {
-    if (atom_type == 'U')
+    if (atom_type == 'U') // Given a U atom, write the correct type and charge
     {
       type = 1;
       charge = 2.4;
     }
-    else if (atom_type = 'O')
+    else if (atom_type = 'O') // Same with the O atom
     {
       type = 2;
       charge = -1.2;
     }
-    else
+    else // We are only dealing with U and O, so if we have something else, there's a problem
     {
       cout << "Unrecognized atom type.\n";
       return 2;
     }
 
+    // This just double checks that our bounds are set correctly.  If not, they
+    // will be correct later.
     if (x < xlow)
     {
       temp = -xhigh;
@@ -101,6 +108,7 @@ int main(int argc, char** argv)
 
   }
 
+  // Close the file streams
   fin.close();
   fout.close();
   if (n_atoms != N)
@@ -126,6 +134,7 @@ int main(int argc, char** argv)
     }
     fout << fixed;
 
+    // We need to re-write everything to the new file.
     getline(fin, str); // Comment line
     fout << str << "\n\n";
     getline(fin,str); // blank line
@@ -148,9 +157,11 @@ int main(int argc, char** argv)
     {
       cout << "Error deleting temp file \"temp.dat\"\n";
     }
+    // Close the file streams
     fin.close();
     fout.close();
   }
+  // If the bounds haven't changed, just rename the file (a LOT easier!)
   else // rename the temp file.
   {
     rename(filename2.c_str(), filename3.c_str());
