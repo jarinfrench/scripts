@@ -2,7 +2,6 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <vector>
 #include <map>
 #include <algorithm>
 
@@ -35,7 +34,6 @@ int main(int argc, char** argv)
   int N = -1, n_labels = 0;; // Number of atoms, number of labels
   map <string, int> labels;
   map <int, string> flipped_labels;
-  vector <vector <double> > data; // The actual data from the file.
   bool written_labels = false; // boolean determining if we've written the labels
   if (argc == 1)
   {
