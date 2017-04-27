@@ -62,7 +62,7 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  bot = 4 * PI * r_grain * Lz; // twice the area of the grain boundary
+  bot = 2 * PI * r_grain * Lz; // area of the grain boundary
   // This assumes that the first line contains the original, single grain
   fin >> theta >> e_single >> N0;
   fout << theta << "," << setprecision(15) << 0.0 << endl;
