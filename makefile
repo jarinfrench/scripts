@@ -1,4 +1,4 @@
-all : rotate_and_remove calculate_GBE check_distances extract_energy parse_dump xyz2dat
+all : rotate_and_remove calculate_GBE check_distances extract_energy parse_dump parse_lammps_output xyz2dat
 
 rotate_and_remove : rotate_and_remove_atom.cpp atom.o
 	g++ -O3 -o rotate_and_remove rotate_and_remove_atom.cpp atom.o
@@ -17,6 +17,9 @@ extract_energy : extract_energy.cpp
 
 parse_dump : parse_lammps_dump.cpp
 	g++ -O3 -o parse_dump parse_lammps_dump.cpp
+
+parse_lammps_output : parse_lammps_output.cpp
+	g++ -O3 -o parse_lammps_output parse_lammps_output.cpp
 
 xyz2dat : xyz2dat.cpp
 	g++ -O3 -o xyz2dat xyz2dat.cpp
