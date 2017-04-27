@@ -90,12 +90,14 @@ plotted = input("Use tuple format (ex: [[x_data,y_data], [x_data2,y_data2]]): ")
 for i in range(len(plotted)):
     x = plotted[i][0] - 1
     y = plotted[i][1] - 1
-    title_label = labels[x] + " vs " + labels[y]
+    title_label_main = labels[y] + " vs " + labels[x]
+    title_label_right = "LAMMPS version: " + version + "; N = " + str(N)
     x_label = labels[x]
     y_label = labels[y]
     plt.figure(i+1)
     plt.plot(data[x], data[y])
-    plt.title(title_label)
+    plt.title(title_label_main)
+    plt.title(title_label_right, loc='right', fontsize=6)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
 
