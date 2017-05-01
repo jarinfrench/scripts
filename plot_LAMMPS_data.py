@@ -16,6 +16,27 @@ def list_duplicates(seq):
         tally[item].append(i)
     return ((key,locs) for key,locs in tally.items() if len(locs) > 1)
 
+def depth(data):
+    try:
+        depth = len(data) # depth is the length of the list
+    except:
+        depth = 1 # or it's one if it's an integer or float
+    return depth
+
+def determine_label(label_set, label_dict, unit_dict):
+    l = []
+    for i in range(depth(label_set)):
+        if label_set[i] in label_dict:
+            l.append(unit_dict.get(label_dict.get(label_set[i])))
+    if not l or l.count(l[0]) == len(l):
+        if depth(l) == 1:
+            return l
+        else:
+            return l[0]
+    else:
+        return "Unknown Units"
+
+
 if len(argv) == 1:
     filename = input("Please enter the filename of the parsed output data in quotes: ")
 else:
@@ -54,6 +75,42 @@ if (line3[0] != "N ="):
 else:
     N = int(line3[1])
 
+line4 = next(reader) # get the units style
+
+# Double check for correctness
+if (line4[0] != "Unit style:"):
+    print("Unable to determine unit style.")
+    unit_style = "Unknown"
+else:
+    unit_style = line4[1]
+
+if unit_style == "metal":
+    unit_labels = {"mass": "g/mol", "distance": "Angstroms", "time": "ps",
+                   "energy": "eV", "velocity": "Angstroms/ps", "force": "eV/Angstrom",
+                   "torque": "eV", "temperature": "K", "pressure": "bars",
+                   "dynamic viscosity": "Poise", "charge": r"Multiples of e$^-1$ charge",
+                   "dipole": "charge*Angstroms", "electric field": "V/Angstrom",
+                   "density": r"g/cm$^3$", "none": " ", "cpu": "s"}
+elif unit_style == "si":
+    unit_labels = {"mass": "kg", "distance": "m", "time": "s",
+                   "energy":"J", "velocity": "m/s", "force": "N",
+                   "torque": "N*m", "temperature": "K", "pressure": r"N/m$^2$",
+                   "dynamic viscosity": r"N*s/m$^2$", "charge": "C",
+                   "dipole": "C*m", "electric field": "V/m",
+                   "density": r"kg/m$^3$", "none": " ", "cpu": "s"}
+else:
+    print("Please see the LAMMPS manual for relevant units.")
+    unit_labels = "Not implemented yet"
+
+# Map from labels to units.
+lammps_thermo = {"Step": "none", "Elapsed": "time", "Elaplong": "time",
+                 "Dt": "time", "Time": "time", "CPU": "cpu", "Atoms": "none",
+                 "Temp": "temperature", "Press": "pressure", "PotEng": "energy",
+                 "KinEng": "energy", "TotEng": "energy", "Enthalpy": "none",
+                 "Pxx": "pressure", "Pyy": "pressure", "Pzz": "pressure",
+                 "Pxy": "pressure", "Pxz": "pressure", "Pyz": "pressure",
+                 "Fmax": "force", "Fnorm": "force", "E_per_atom": "energy"}
+
 # Now we get the labels
 labels = next(reader)
 data = []
@@ -87,18 +144,76 @@ for i in range(len(labels)):
 print("Please enter the data you would like plotted against each other.")
 plotted = input("Use tuple format (ex: [[x_data,y_data], [x_data2,y_data2]]): ")
 
+data_len = []
+for i in range(len(plotted)): # now we find the lengths of each data set being plotted
+    data_len.append([i,[depth(plotted[i][0]), depth(plotted[i][1])]])
+
 for i in range(len(plotted)):
-    x = plotted[i][0] - 1
-    y = plotted[i][1] - 1
-    title_label_main = labels[y] + " vs " + labels[x]
+    try:
+        x = [j - 1 for j in plotted[i][0]] # index of x data and label
+    except:
+        x = plotted[i][0] - 1
+    try:
+        y = [j - 1 for j in plotted[i][1]] # index of y data and label
+    except:
+        y = plotted[i][1] - 1
+
+    if not depth(y) == 1:
+        title_label_main = "["
+        for j in range(len(y)):
+            title_label_main += labels[y[j]]
+            if not j + 1 == len(y):
+                title_label_main += ", "
+            else:
+                title_label_main += "] + vs "
+    else:
+        title_label_main = labels[y] + " vs "
+    if not depth(x) == 1:
+        title_label_main += "["
+        for j in range(len(x)):
+            title_label_main += labels[x[j]]
+            if not j + 1 == len(x):
+                title_label_main += ", "
+            else:
+                title_label_main += "]"
+    else:
+        title_label_main += labels[x]
+
     title_label_right = "LAMMPS version: " + version + "; N = " + str(N)
-    x_label = labels[x]
-    y_label = labels[y]
+    if depth(x) > 1:
+        labels_x = []
+        for j in range(len(x)):
+            labels_x .append(labels[x[j]])
+        x_label = determine_label(labels_x, lammps_thermo, unit_labels)
+    else:
+        x_label = labels[x] + " (" + determine_label([labels[x]], lammps_thermo, unit_labels)[0] + ")"
+
+    if depth(y) > 1:
+        labels_y = []
+        for j in range(len(y)):
+            labels_y .append(labels[y[j]])
+        y_label = determine_label(labels_y, lammps_thermo, unit_labels)
+    else:
+        y_label = labels[y] + " (" + determine_label([labels[y]], lammps_thermo, unit_labels)[0] + ")"
     plt.figure(i+1)
-    plt.plot(data[x], data[y])
-    plt.title(title_label_main)
-    plt.title(title_label_right, loc='right', fontsize=6)
+
+    if depth(x) > 1 and depth(y) > 1:
+        for j in range(depth(x)):
+            for m in range(depth(y)):
+                plt.plot(data[x[j]], data[y[m]], label = labels[y[m]])
+    elif depth(x) > 1 and depth(y) == 1:
+        for j in range(depth(x)):
+            plt.plot(data[x[j]], data[y], label = labels[y])
+    elif depth(x) == 1 and depth(y) > 1:
+        for j in range(depth(y)):
+            plt.plot(data[x], data[y[j]], label = labels[y[j]])
+    else:
+        plt.plot(data[x], data[y], label=labels[y])
+    plt.title(title_label_main + "\n")
+    plt.suptitle("\n\n" + title_label_right, fontsize=8)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
+    if depth(x) > 1 or depth(y) > 1:
+        plt.legend(loc='best')
 
 plt.show()
