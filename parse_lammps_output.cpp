@@ -29,6 +29,7 @@ int main(int argc, char** argv)
   string date1, date2, date3, date; // Different parts of the date
   string indicator; // line that specifies that we have important information coming up next.
   string indicator_end; // line that specifies the end of the important info.
+  string unit_indicator, unit_style; // line that specifies what unit style we are using
   double Lx = 0.0, Ly = 0.0, Lz = 0.0; // box size in each direction.
   double a1, a2, a3, a4, a5, a6; // dummy variables
   int N = -1, n_labels = 0;; // Number of atoms, number of labels
@@ -55,6 +56,7 @@ int main(int argc, char** argv)
 
   indicator = "Per MPI rank memory allocation";
   indicator_end = "Loop time of";
+  unit_indicator = "Unit style";
 
   // open up the filestreams
   ifstream fin(filename1.c_str());
@@ -98,7 +100,7 @@ int main(int argc, char** argv)
     {
       // This is a bit convoluted... here I am extracting the box sizes using
       // stringstreams.  The difficulty comes in that the expected line looks
-      // like (a1 a2 a3) to (a4 a5 a6), so I have to deal with the parenthesis.
+      // like (a1 a2 a3) to (a4 a5 a6), so I have to deal with the parentheses.
       // There is definitely a better way to do it, I'm just not focused on
       // what that way is right now.
       stringstream ss(str.substr(str.find("(")+1));
@@ -147,6 +149,17 @@ int main(int argc, char** argv)
   {
     cout << "Error: unable to determine number of atoms.\n";
     return 4;
+  }
+
+  while (getline(fin, str))
+  {
+    if (str.find(unit_indicator) != -1)
+    {
+      stringstream ss(str);
+      ss >> str2 >> str2 >> str2 >> unit_style;
+      fout << "\"Unit style:\"," << unit_style << endl;
+      break; // once we've found the unit style, we can move on
+    }
   }
 
   // Now we read through the file line by line until we reach an indicator,
