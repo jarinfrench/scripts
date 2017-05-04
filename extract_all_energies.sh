@@ -6,7 +6,7 @@
 
 # extract the .txt files
 targets=($(ls | grep ^minimize_))
-value=($(ls | grep -E "(^minimize_[0-3]*_no_GB)")) # This is the single grain value
+value=($(ls | grep -E "(^minimize[_0-3]*_no_GB)")) # This is the single grain value
 
 read -p "Please enter the filename to be written to: " FN
 
