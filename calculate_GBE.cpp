@@ -4,7 +4,7 @@
 * passed in via command line.  Note that this program expects a filename in the
 * format of 111Tilt_total_energies.csv
 * IMPORTANT PARAMETERS
-*   grain radius: the radius of the grain that was specified when rotating the grain
+*   grain radius: the radius of the grain that was specified when rotating the grain.
 *     note that this assumes a cylindrical grain.  Given in Angstroms.
 *   grain thickness: the thickness of the grain (determined by Lz).  This is given
 *     in Angstroms.
