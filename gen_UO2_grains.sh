@@ -31,7 +31,7 @@ case $angles in
     read -e -p "Please enter the filename of the angles txt file: " FN2
     while read -r theta; do
       echo "Rotating $theta degrees"
-      ./rotate_and_remove $FN $radius $theta
+      rotate_and_remove $FN $radius $theta
     done < "$FN2"
     ;;
   n|N)
@@ -43,7 +43,7 @@ case $angles in
       else
         echo "Rotating $i degrees"
       fi
-      ./rotate_and_remove $FN $radius $i
+      rotate_and_remove $FN $radius $i
     done
     ;;
   *)

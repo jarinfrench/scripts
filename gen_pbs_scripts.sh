@@ -19,7 +19,7 @@ else
   range=360
 fi
 
-read -e -p "Please enter the original file name: " oFN
+read -e -p "Please enter the unrotated LAMMPS file name: " oFN
 # Generate the no_gb files
 echo "#!/bin/bash
 
