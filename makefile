@@ -1,4 +1,4 @@
-all : rotate_and_remove calculate_GBE check_distances csv2tecplot extract_energy parse_lammps_dump parse_lammps_output xyz2dat
+all : rotate_and_remove calculate_GBE check_distances csv2tecplot extract_energy find_grains parse_lammps_dump parse_lammps_output xyz2dat
 
 rotate_and_remove : rotate_and_remove_atom.cpp atom.o
 	g++ -O3 -o rotate_and_remove rotate_and_remove_atom.cpp atom.o
@@ -17,6 +17,9 @@ csv2tecplot : csv2tecplot.cpp
 
 extract_energy : extract_energy.cpp
 	g++ -O3 -o extract_energy extract_energy.cpp
+
+find_grains : find_grains.cpp atom.cpp atom.o
+	g++ -O3 -o find_grains find_grains.cpp atom.o
 
 parse_lammps_dump : parse_lammps_dump.cpp
 	g++ -O3 -o parse_lammps_dump parse_lammps_dump.cpp
