@@ -2,7 +2,6 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
-#include <sstream>
 #include <vector>
 #include <map>
 #include <set>
@@ -16,9 +15,9 @@ using namespace std;
 #define PI 3.141592653589793
 
 // Cutoff distances
-#define UU_CUT 5.4 // actual value is 3.856
-#define UO_CUT 0.5 // actual value is 0.43301
-#define OO_CUT 3.5 // actual value is 2.7625
+#define UU_CUT 5.5 // actual value is 3.856
+#define UO_CUT 2.5 // actual value is 0.43301
+#define OO_CUT 3.7 // actual value is 2.7625
 
 // Calculate the rounded value of x
 double anInt(double x)
@@ -62,7 +61,7 @@ int main(int argc, char** argv)
 {
   string filename1, filename2, str; // filenames read from and written to, junk variable
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
-  int N, n_type; // number of atoms, atom types, grains in the data set
+  int N, n_type, n_atoms_read = 0; // number of atoms, atom types, number of atoms read
   vector <Atom> atoms; // all of the atoms from the file
   vector <int> temp_atoms; // Just the indices of the nn_atoms to atom i
   vector <pair<int, vector<int> > > nn_atoms; // nearest neighbors
@@ -123,18 +122,26 @@ int main(int argc, char** argv)
   {
     Atom temp(id, type, charge, x, y, z);
     atoms.push_back(temp);
+    ++n_atoms_read;
   }
 
-  // Now that we have the atoms safely stored, we can process them
+  if (n_atoms_read != N)
+  {
+    cout << "Error: number of atoms read does not match number of atoms in the simulation.\n"
+         << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
+    return 2;
+  }
+
+  // Now that we have the atoms safely stored, we can process them.  Restarting
+  // the counter to make sure we calculate the correct number of angles!
+  n_atoms_read = 0;
   cout << "Calculating nearest neighbors...\n";
-  cout << "[";
-  cout.flush();
+  cout << "[" << flush; // Progress bar
   for (int i = 0; i < atoms.size(); ++i)
   {
     if (i % (N / 100) == 0 )
     {
-      cout << ".";
-      cout.flush();
+      cout << "." << flush;
     }
     temp_atoms.clear();
 
@@ -206,68 +213,81 @@ int main(int argc, char** argv)
       cout << "Error determining nearest neighbors for atom " << atoms[i].getId() << endl;
     }
     nn_atoms.push_back(make_pair(atoms[i].getId(), temp_atoms));
+    ++n_atoms_read;
   }
+
+  if (n_atoms_read != N)
+  {
+    cout << "Error: number of nearest neigbor sets does not match number of atoms in the simulation.\n"
+         << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
+    return 3;
+  }
+
   cout << ".] COMPLETE\n";
+
+  // Now calculate the angles.  We only use the particle that is the farthest
+  // away in the x direction.  In the ideal case, this means that we are just shy
+  // of the second nearest neighbor for each atom (in a perfect lattice).
+  // Reset the counter again to make sure we get the right number of angles...
+  n_atoms_read = 0;
   cout << "Calculating angles...\n";
+  cout << "[" << flush;
   for (int i = 0; i < nn_atoms.size(); ++i)
   {
+    cout << "Index " << i << " is for atom id " << nn_atoms[i].first << endl;
+  }
+  for (int i = 0; i < nn_atoms.size(); ++i)
+  {
+    if (i % (N / 100) == 0 )
+    {
+      cout << "." << flush;
+    }
     // for each set, calculate the vector distance between the atom pairs
     // The -1 is here because the IDs are (assumed to be) indexed from 1, not 0
+    // We normalize everything to a single x-y plane, so the z distances are not
+    // calculated.
     x = atoms[(nn_atoms[i].first) - 1].getX();
     y = atoms[(nn_atoms[i].first) - 1].getY();
-    z = atoms[(nn_atoms[i].first) - 1].getZ();
+
     rxij = 0;
     for (int j = 0; j < nn_atoms[i].second.size(); ++j)
     {
       // Calculate the angle for this pair
       x1 = atoms[(nn_atoms[i].second)[j] - 1].getX();
       y1 = atoms[(nn_atoms[i].second)[j] - 1].getY();
-      z1 = atoms[(nn_atoms[i].second)[j] - 1].getZ();
 
-      if (((x1 - x) - anInt((x1 - x) / Lx) * Lx) < rxij) // we will only calculate the angle(s) of the farthest NN atom in the +x direction
-        continue;
-      else
+      // if our current distance is greater than (or equal to, just to double
+      // check) the last saved one, (re)do the calculation
+      if (((x1 - x) - anInt((x1 - x) / Lx) * Lx) >= rxij)
       {
-        // if our current distance is greater than (or equal to, just to double
-        // check) the last saved one, (re)do the calculation
-        if (((x1 - x) - anInt((x1 - x) / Lx) * Lx) >= rxij)
+        rxij = x1 - x;
+        ryij = y1 - y;
+
+        // Apply PBCs
+        rxij = rxij - anInt(rxij / Lx) * Lx;
+        ryij = ryij - anInt(ryij / Ly) * Ly;
+
+        magnitude = sqrt(rxij * rxij + ryij * ryij);
+        theta = acos(rxij / magnitude); // gives the result in radians
+
+        // Double check to see if we have already added in an angle for this atom
+        // Add it into the map if we don't already have it
+        if (angles.count(nn_atoms[i].first) == 0)
         {
-          rxij = x1 - x;
-          ryij = y1 - y;
-          rzij = z1 - z;
-
-          // Apply PBCs
-          rxij = rxij - anInt(rxij / Lx) * Lx;
-          ryij = ryij - anInt(ryij / Ly) * Ly;
-          rzij = rzij - anInt(rzij / Lz) * Lz;
-
-          magnitude = sqrt(rxij * rxij + ryij * ryij + rzij * rzij);
-          theta = acos(rxij / magnitude); // gives the result in radians
-
-          if (atoms[(nn_atoms[i].first) - 1].getType() == 1)
-          {
-            theta -= PI / 4.0;
-          } // May not need this...
-
-          /*if (rad2deg(abs(theta)) == 90)
-          {
-            theta -= PI / 2.0;
-          }*/
-
-          // Double check to see if we have already added in an angle for this atom
-          if (angles.find(nn_atoms[i].first) == angles.end())
-          {
-            // If not, add it in
-            angles.insert(make_pair(nn_atoms[i].first, abs((rad2deg(theta)  + 5.0 / 2.0) / 5.0) * 5.0));
-          }
-          else
-          {
-            // Otherwise, replace the value.
-            angles[nn_atoms[i].first] = abs((rad2deg(theta)  + 5.0 / 2.0) / 5.0) * 5.0;
-          }
+          ++n_atoms_read;
+          cout << "Initial angle written for atom " << nn_atoms[i].first << endl;
         }
+        angles[nn_atoms[i].first] = anInt(abs(rad2deg(theta)));
       }
     }
+  }
+  cout << ".] COMPLETE\n";
+
+  if (n_atoms_read != N)
+  {
+    cout << "Error: number of calculated angles does not match number of atoms in the simulation.\n"
+         << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
+    return 4;
   }
 
   // Determine the number of unique angles
@@ -278,21 +298,31 @@ int main(int argc, char** argv)
     unique_angles.insert(it->second);
   }
 
-  // count the occurence of each angle
+  // count the occurence of each angle, make sure we have the same number of
+  // angles that we have atoms!
+  n_atoms_read = 0;
   set <double>::iterator set_it = unique_angles.begin();
   for (int i = 0; i < unique_angles.size(); ++i)
   {
     counter = count(angles.begin(), angles.end(), Compare(*set_it));
+    n_atoms_read += counter;
     angles_count.push_back(counter);
-    //cout << count(angles.begin(), angles.end(), Compare(*set_it)) << " have angle " << setprecision(10) << *set_it << endl;
+    cout << count(angles.begin(), angles.end(), Compare(*set_it)) << " have angle " << setprecision(10) << *set_it << endl;
     ++set_it;
+  }
+
+  if (n_atoms_read != N)
+  {
+    cout << "Error: number of angles does not match number of atoms in the simulation.\n"
+         << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
+    return 5;
   }
   //sort(angles_count.rbegin(), angles_count.rend());
   //max1 = angles_count[0];
   //max2 = angles_count[1];
 
-  /*cout << "The index with the highest angle is " << distance(angles_count.begin(), max_element(angles_count.begin(), angles_count.end()))
-       << " which is " << *max_element(angles_count.begin(), angles_count.end()) << endl;*/
+  cout << "The index with the highest angle is " << distance(angles_count.begin(), max_element(angles_count.begin(), angles_count.end()))
+       << " which occurs " << *max_element(angles_count.begin(), angles_count.end()) << " times.\n";
   max1 = *max_element(angles_count.begin(), angles_count.end());
   max1_index = distance(angles_count.begin(), max_element(angles_count.begin(), angles_count.end()));
   set_it = unique_angles.begin();
@@ -305,8 +335,8 @@ int main(int argc, char** argv)
   nth_element(angles_count.begin(), angles_count.begin()+1, angles_count.end(), greater<int>());
   sorted_angles = angles_count;
   angles_count = temp;
-  /*cout << "The index with the second highest angle is " << distance(angles_count.begin(), find(angles_count.begin(), angles_count.end(), sorted_angles[1]))
-       << " which is " << *find(angles_count.begin(), angles_count.end(), sorted_angles[1]) << endl;*/
+  cout << "The index with the second highest angle is " << distance(angles_count.begin(), find(angles_count.begin(), angles_count.end(), sorted_angles[1]))
+       << " which occurs " << *find(angles_count.begin(), angles_count.end(), sorted_angles[1]) << " times.\n";
   max2 = *find(angles_count.begin(), angles_count.end(), sorted_angles[1]);
   max2_index = distance(angles_count.begin(), find(angles_count.begin(), angles_count.end(), sorted_angles[1]));
   set_it = unique_angles.begin();
@@ -331,12 +361,22 @@ int main(int argc, char** argv)
     }
   }
 
+  // Make sure we write the entire set of atoms
+  n_atoms_read = 0;
   cout << "Writing results...\n";
   for (int i = 0; i < atoms.size(); ++i)
   {
     fout << atoms[i].getId() << " " << atoms[i].getType() << " "
          << atoms[i].getCharge() << " " << atoms[i].getX() << " "
          << atoms[i].getY() << " " << atoms[i].getZ() << " " << atoms[i].getMark() << endl;
+    ++n_atoms_read;
+  }
+
+  if (n_atoms_read != N)
+  {
+    cout << "Error: number of atoms written does not match number of atoms in the simulation.\n"
+         << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
+    return 6;
   }
 
 
