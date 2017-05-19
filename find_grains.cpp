@@ -125,22 +125,23 @@ int main(int argc, char** argv)
       return 2;
     }
     // Read the atoms line by line, and put them into a vector for analysis.
-    Atom temp(id, type, charge, x, y, z);
-    atoms.push_back(temp);
-    ++n_atoms_read;
+    // We are only looking at U atoms, so we can ignore the O atoms
+    if (type == 1)
+    {
+      Atom temp(id, type, charge, x, y, z);
+      atoms.push_back(temp);
+      ++n_atoms_read;
+    }
   }
 
-  if (n_atoms_read != N)
+  if (n_atoms_read != N / 3.0)
   {
     cout << "Error: number of atoms read does not match number of atoms in the simulation.\n"
-         << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
+         << "N / 3 = " << N / 3.0 << " != n_atoms_read = " << n_atoms_read << endl;
     return 2;
   }
 
-  // Now that we have the atoms safely stored, we can process them.  Restarting
-  // the counter to make sure we calculate the correct number of angles!
-  n_atoms_read = 0;
-
+  // Now that we have the atoms safely stored, we can process them.
   for (int i = 0; i < atoms.size(); ++i)
   {
     x1 = atoms[i].getX();
@@ -148,6 +149,7 @@ int main(int argc, char** argv)
     z1 = atoms[i].getZ();
     if (atoms[i].getType() == 1) // looking at U atoms
     {
+      angles.clear(); // clear out the angles from the last atom
       for (int j = 0; j < atoms.size(); ++j)
       {
         // Look at all of the U atoms that are within UU_CUT
@@ -196,13 +198,13 @@ int main(int argc, char** argv)
       total = 0.0;
       for (int j = 0; j < angles.size(); ++j)
       {
-        sintheta = angles[j];
+        sintheta = sin(angles[j]);
         sintheta_sq = sintheta * sintheta;
         total += (3 - 2 * sintheta_sq) * (3 - 2 * sintheta_sq) * sintheta_sq;
       }
       total /= angles.size();
       symm_param.push_back(make_pair(atoms[i].getId(), total));
-      symm.push_back(anInt(total * 1000) / 1000.0);
+      symm.push_back(anInt(total * 1000) / 1000.0); // Rounds it to the nearest 1000th
     }
   }
 
@@ -211,16 +213,15 @@ int main(int argc, char** argv)
   sort(symm_param.begin(), symm_param.end(), pairSort); // sort it
   vector <pair <int, double> >::iterator it; // initialize an iterator
   it = unique(symm_param.begin(), symm_param.end(), pairCmp); // determine where the unique values stop
-  symm_param.resize(distance(symm_param.begin(), it)); // resize the sorted vector
+  symm_param.resize(distance(symm_param.begin(), it)); // resize the sorted unique vector
 
+  // Round it to the nearest 1000th
   for (int i = 0; i < symm_param.size(); ++i)
   {
     symm_param[i].second = anInt(symm_param[i].second * 1000) / 1000.0;
   }
   unique_param = symm_param;
   symm_param = temp;
-  // FIXME: There shouldn't be this many unique symmetry parameters
-  cout << "There are " << unique_param.size() << " unique symmetry parameters.\n";
 
   for (int i = 0; i < unique_param.size(); ++i)
   {
@@ -248,9 +249,24 @@ int main(int argc, char** argv)
   cout << "The max number of counts occurs at " << max1_index << " with a value of " << unique_param[max1_index].second << " occurring " << counts[max1_index] << " times\n"
        << "The second max number of counts occurs at " << max2_index << " with a value of " << unique_param[max2_index].second << " occurring " << counts[max2_index] << " times\n";
 
-  /*// Make sure we write the entire set of atoms
+  // Now we mark the atoms based its counts
+  for (int i = 0; i < symm_param.size(); ++i)
+  {
+    if (anInt(symm_param[i].second * 1000.0) / 1000.0 == unique_param[max1_index].second)
+    {
+      atoms[symm_param[i].first - 1].setMark(1);
+    }
+    else if (anInt(symm_param[i].second * 1000.0) / 1000.0 == unique_param[max2_index].second)
+    {
+      atoms[symm_param[i].first - 1].setMark(2);
+    }
+    else
+    {
+      atoms[symm_param[i].first - 1].setMark(3);
+    }
+  }
+  // Make sure we write the entire set of atoms
   n_atoms_read = 0;
-  cout << "Writing results...\n";
   for (int i = 0; i < atoms.size(); ++i)
   {
     fout << atoms[i].getId() << " " << atoms[i].getType() << " "
@@ -259,12 +275,12 @@ int main(int argc, char** argv)
     ++n_atoms_read;
   }
 
-  if (n_atoms_read != N)
+  if (n_atoms_read != N / 3.0)
   {
     cout << "Error: number of atoms written does not match number of atoms in the simulation.\n"
-         << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
+         << "N / 3 = " << N / 3.0 << " != n_atoms_read = " << n_atoms_read << endl;
     return 6;
-  }*/
+  }
 
 
   fin.close();
