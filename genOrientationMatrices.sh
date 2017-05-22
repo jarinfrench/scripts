@@ -11,6 +11,8 @@
 # Does not check for correct syntax.
 if [ "$#" -ne 1 ]; then
   echo "Illegal number of parameters"
+  echo "Please enter the CSV file containing the angle and relative energies."
+  echo "Note that the energies themselves do not affect calculations."
   exit 1
 fi
 
@@ -23,7 +25,7 @@ echo "Determining the axis..."
 # a series of numbers that match either 100, 110, or 111.  This also has an issue
 # where it will find a match for 101, but as long as the files are named correctly
 # it shouldn't be an issue.
-AXIS=`echo $FN | grep -o "1[01][01]"`
+AXIS=`echo $FN | grep -o "1[01][012]"`
 
 echo "Reading the file..."
 IFS="," # separation character is the comma
