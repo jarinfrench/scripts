@@ -3,6 +3,7 @@
 from __future__ import division, print_function
 import matplotlib.pyplot as plt
 from sys import argv
+from os.path import basename, splitext
 import csv
 
 # Simple python script to create a plot of two-dimensional data.
@@ -65,7 +66,7 @@ for i in range(len(filename)):
 
     x_max = max(max(x_data), x_max)
     # Plot the results
-    plt.plot(x_data, y_data, plot_style[i], label=filename[i])
+    plt.plot(x_data, y_data, plot_style[i], label=splitext(basename(filename[i]))[0])
 
 plt.xlabel("Angle (degrees)")
 plt.ylabel(r"Energy (J/m$^2$)")

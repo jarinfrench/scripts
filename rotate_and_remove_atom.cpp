@@ -74,7 +74,7 @@ int main(int argc, char **argv)
   double xlow, xhigh, ylow, yhigh, zlow, zhigh; // atom bounds
   int atom_id, atom_type; // id number and type number
   double atom_charge, x, y, z; // charge and position values
-  double x1, y1, z1, temp_x, temp_y, temp_z, x2, y2, z2; // Store the original value and manipulate!
+  double x1, y1, z1, temp_x, temp_y, x2, y2, z2; // Store the original value and manipulate!
 
   // Containers
   vector <Atom> atoms_checked, atoms; // contains the atoms we look at, and the entire set.
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
     // the NULL is required to make this work.  see documentation for why.
     r_grain = strtod(argv[2], NULL);
     theta = strtod(argv[3], NULL);
-    for (int i = 0; i < strlen(argv[3]); ++i) // check if a decimal point exists in argument 3
+    for (unsigned int i = 0; i < strlen(argv[3]); ++i) // check if a decimal point exists in argument 3
     {
       if (argv[3][i] == '.')
       {
@@ -310,7 +310,9 @@ int main(int argc, char **argv)
   *****************************************************************************/
   // Compare the distances of each atom
 
-  for (int i = 0; i < atoms_checked.size() - 1; ++i)
+  // NOTE: The following assumes that the atoms were read in order by their ID.
+  // If this is not the case, this will not work properly!
+  for (unsigned int i = 0; i < atoms_checked.size() - 1; ++i)
   {
     // Get the positions of atom i
     x1 = atoms_checked[i].getX();
@@ -319,7 +321,7 @@ int main(int argc, char **argv)
     // Checking U atoms for being too close
     if (atoms_checked[i].getType() == 1 && atoms_checked[i].getMark() == 0) // only checking unmarked U atoms
     {
-      for (int j = i + 1; j < atoms_checked.size(); ++j) // Don't double count!
+      for (unsigned int j = i + 1; j < atoms_checked.size(); ++j) // Don't double count!
       {
         if (atoms_checked[j].getType() == 1 && atoms_checked[j].getMark() == 0) // Only unmarked U atoms
         {
@@ -351,7 +353,7 @@ int main(int argc, char **argv)
     {
       distances.clear(); // Clear out the old values.
       // Check each O atom, and find the closest two and remove them
-      for (int j = 0; j < atoms_checked.size(); ++j)
+      for (unsigned int j = 0; j < atoms_checked.size(); ++j)
       {
         if (i == j)
           continue;
@@ -377,7 +379,7 @@ int main(int argc, char **argv)
       }
       // sort the distances using the comparison function written above.
       sort(distances.begin(), distances.end(), pairCmp);
-      for (int k = 0; k < distances.size(); ++k)
+      for (unsigned int k = 0; k < distances.size(); ++k)
       {
         atom_id = distances[k].first; // we use this a lot over the next lines
         // If the atom we are looking at is O and unmarked
@@ -400,7 +402,7 @@ int main(int argc, char **argv)
   }
 
   // Now, go through the list again, and remove the O atoms that are too close
-  for (int i = 0; i < atoms_checked.size() - 1; ++i)
+  for (unsigned int i = 0; i < atoms_checked.size() - 1; ++i)
   {
     if (atoms_checked[i].getType() == 2 && atoms_checked[i].getMark() == 0) // Looking at unmarked O atoms
     {
@@ -409,7 +411,7 @@ int main(int argc, char **argv)
       y1 = atoms_checked[i].getY();
       z1 = atoms_checked[i].getZ();
 
-      for (int j = i + 1; j < atoms_checked.size(); ++j)
+      for (unsigned int j = i + 1; j < atoms_checked.size(); ++j)
       {
         if (atoms_checked[j].getType() == 2 && atoms_checked[j].getMark() == 0) // Unmarked O atoms
         {
@@ -438,7 +440,7 @@ int main(int argc, char **argv)
             x2 = atoms_checked[j].getX();
             y2 = atoms_checked[j].getY();
             z2 = atoms_checked[j].getZ();
-            for (int k = 0; k < atoms_checked.size(); ++k)
+            for (unsigned int k = 0; k < atoms_checked.size(); ++k)
             {
               if (atoms_checked[k].getType() == 1 && atoms_checked[k].getMark() == 0) //unmarked U atoms
               {
@@ -535,7 +537,7 @@ int main(int argc, char **argv)
   // Now write the atoms to the files.  filename3 has all the atoms including
   // the rotated ones and the tag. filename4 has the correct number of atoms.
   ntotal = 0;
-  for (int i = 0; i < atoms.size(); ++i)
+  for (unsigned int i = 0; i < atoms.size(); ++i)
   {
     fout2 << atoms[i].getId() << " " << atoms[i].getType() << " "
           << atoms[i].getCharge() << " " << atoms[i].getX() << " "
@@ -562,6 +564,6 @@ int main(int argc, char **argv)
   // Close the file streams
   fout2.close();
   fout3.close();
-  
+
   return 0;
 }
