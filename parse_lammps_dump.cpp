@@ -34,12 +34,12 @@ int main(int argc, char **argv)
   }
 
   ostringstream fn2;
-  // The +4 moves the starting point to where the filename indicates the degree
-  // The format of the filename SHOULD be: dump3.pos.###degree.<step #>.dat
-  // The -10 comes from calculating the number of characters after the first
+  // The +8 moves the starting point to where the filename indicates the degree
+  // The format of the filename SHOULD be: dump3.pos.axis.###degree.<step #>.dat
+  // The -14 comes from calculating the number of characters after the first
   // number indicating the angle.  A hard coded value will not always get the
   // right amount of chars.
-  fn2 << "minimized_" << filename1.substr(filename1.find("pos") + 4, filename1.find(".dat") - 10 - filename1.find("pos"))
+  fn2 << "minimized_" << filename1.substr(filename1.find("pos") + 8, filename1.find(".dat") - 14 - filename1.find("pos"))
       << "_r" << r_grain << "A.dat";
   filename2 = fn2.str();
 
