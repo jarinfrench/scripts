@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -127,8 +128,10 @@ int main(int argc, char** argv)
     Lz = zhigh - zlow;
   }
 
-  while (fin >> id >> type >> charge >> x >> y >> z)
+  while (getline(fin,str))// >> id >> type >> charge >> x >> y >> z)
   {
+    istringstream ss(str);
+    ss >> id >> type >> charge >> x >> y >> z; // discards everything after the z
     if (type > n_type)
     {
       cout << "Error: unexpected atom type.\n"
@@ -285,13 +288,35 @@ int main(int argc, char** argv)
   // Make sure we write the entire set of atoms
   // This writes things in a tecplot-readable format.
   n_atoms_read = 0;
+  for (unsigned int i = 0; i < symm_param.size(); ++i)
+  {
+    fout << atoms[symm_param[i].first].getId() << " "
+         << atoms[symm_param[i].first].getType() << " "
+         << atoms[symm_param[i].first].getCharge() << " "
+         << atoms[symm_param[i].first].getX() << " "
+         << atoms[symm_param[i].first].getY() << " "
+         << atoms[symm_param[i].first].getZ() << " "
+         << atoms[symm_param[i].first].getMark() << " "
+         << symm_param[i].second << endl;
+    ++n_atoms_read;
+  }
+
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
-    fout << atoms[i].getId() << " " << atoms[i].getType() << " "
-         << atoms[i].getCharge() << " " << atoms[i].getX() << " "
-         << atoms[i].getY() << " " << atoms[i].getZ() << " "
-         << atoms[i].getMark() << endl;
-    ++n_atoms_read;
+    if (atoms[i].getType() == 1)
+      continue;
+    else // O atoms get assigned a value of 1 by default, which the U atoms will never get.
+    {
+      fout << atoms[i].getId() << " "
+           << atoms[i].getType() << " "
+           << atoms[i].getCharge() << " "
+           << atoms[i].getX() << " "
+           << atoms[i].getY() << " "
+           << atoms[i].getZ() << " "
+           << atoms[i].getMark() << " "
+           << 1 << endl;
+      ++n_atoms_read;
+    }
   }
 
   if (n_atoms_read != N)
