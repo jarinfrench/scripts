@@ -13,7 +13,7 @@ using namespace std;
 int main(int argc, char** argv)
 {
   string filename1, filename2, filename3, str;
-  int n_atoms, n_atom_types, N, type;
+  int n_atoms, N, type;
   double xlow, xhigh, ylow, yhigh, zlow, zhigh;
   double x, y, z, charge, temp = 1.0;
   char atom_type;
@@ -45,7 +45,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  fout << "This bulk UO2 coordinates format: [ID type Charge x y z]\n\n";
+  fout << "This bulk UO2 coordinates format: [ID type charge x y z]\n\n";
 
   fin >> N; // Number of atoms
   fout << N << "  atoms\n";
@@ -71,7 +71,7 @@ int main(int argc, char** argv)
       type = 1;
       charge = 2.4;
     }
-    else if (atom_type = 'O') // Same with the O atom
+    else if (atom_type == 'O') // Same with the O atom
     {
       type = 2;
       charge = -1.2;
