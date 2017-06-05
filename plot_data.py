@@ -10,13 +10,14 @@ import csv
 filename = []
 if len(argv) < 2:
     filename = input("Please enter the filename containing the data: ")
-    #x_label = input("Please enter the x-axis label: ")
-    #y_label = input("Please enter the y-axis label: ")
+
 else:
     for i in range(len(argv) - 1):
         filename.append(argv[i+1])
-    #x_label = argv[2]
-    #y_label = argv[3]
+
+x_label = raw_input("Please enter the x-axis label: ")
+y_label = raw_input("Please enter the y-axis label: ")
+plot_title = raw_input("Please enter the title of the plot: ")
 
 plot_style = ['bo-', 'go-', 'ro-', 'co-', 'mo-', 'yo-', 'ko-',
               'bv-', 'gv-', 'rv-', 'cv-', 'mv-', 'yv-', 'kv-',
@@ -42,6 +43,7 @@ plot_style = ['bo-', 'go-', 'ro-', 'co-', 'mo-', 'yo-', 'ko-',
               'b|-', 'g|-', 'r|-', 'c|-', 'm|-', 'y|-', 'k|-',
               'b_-', 'g_-', 'r_-', 'c_-', 'm_-', 'y_-', 'k_-']
 x_max = 0.0
+x_min = 0.0
 for i in range(len(filename)):
     x_data = [0.0]
     y_data = [0.0]
@@ -65,12 +67,14 @@ for i in range(len(filename)):
     y_data = [y for x,y in xy1]
 
     x_max = max(max(x_data), x_max)
+    x_min = min(min(x_data), x_min)
     # Plot the results
     plt.plot(x_data, y_data, plot_style[i], label=splitext(basename(filename[i]))[0])
 
-plt.xlabel("Angle (degrees)")
-plt.ylabel(r"Energy (J/m$^2$)")
-plt.xlim(0, x_max)
-plt.title("Grain Boundary Energy")
+plt.xlabel(x_label)
+plt.ylabel(y_label)
+#plt.ylabel(r"Energy (J/m$^2$)")
+plt.xlim(x_min, x_max)
+plt.title(plot_title)
 plt.legend(loc='best')
 plt.show()
