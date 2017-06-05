@@ -27,17 +27,6 @@ double anInt(double x)
   return (double)(temp);
 }
 
-// Conversion functions
-double deg2rad(double x)
-{
-  return x * PI / 180.0;
-}
-
-double rad2deg(double x)
-{
-  return x * 180.0 / PI;
-}
-
 // Comparison functions for sorting a vector of pairs
 bool pairCmp(pair<int, double> &a, pair<int, double> &b)
 {
@@ -64,7 +53,7 @@ int main(int argc, char** argv)
   double rxij, ryij, rzij, drij_sq, magnitude, theta;
   double uu_cut_sq = UU_CUT * UU_CUT;//, oo_cut_sq = OO_CUT * OO_CUT;
   double sintheta, sintheta_sq, total;
-  bool dump; // Determines if the file is a dump file or not.
+  bool dump = false; // Determines if the file is a dump file or not.
 
   if (argc == 2)
   {
@@ -83,7 +72,7 @@ int main(int argc, char** argv)
     filename2 = filename1.substr(0,filename1.find(".dat")) + "_interface.dat";
   }
 
-  if (filename1.find("dump"))
+  if (filename1.find("dump") == string::npos) // Check if dump is in the filename
   {
     dump = true;
   }
@@ -104,7 +93,7 @@ int main(int argc, char** argv)
   }
 
   // Pull out the relevant information from the heading
-  if (!dump)
+  if (dump)
   {
     // This is for a LAMMPS input file.
     getline(fin, str); // Gets the comment line;
@@ -206,12 +195,12 @@ int main(int argc, char** argv)
             // Calculate the symmetry parameter
             sintheta = sin(theta);
             sintheta_sq = sintheta * sintheta;
-            total += (3 - 2 * sintheta_sq) * (3 - 2 * sintheta_sq) * sintheta_sq;
+            total += (3 - 4 * sintheta_sq) * (3 - 4 * sintheta_sq) * sintheta_sq - sintheta_sq;
           }
         }
       }
       total /= counter;
-      total = anInt(total * 1000) / 1000.0; // Round to the nearest 1000th
+      total = anInt(total * 100.0) / 100.0; // Round
       symm_param.push_back(make_pair(i, total)); // Store them for analysis
       symm.push_back(total);
     }
@@ -232,7 +221,7 @@ int main(int argc, char** argv)
 
   symm_param = temp; // put the original values back
 
-  // Count the occurrence of each uniqe value
+  // Count the occurrence of each unique value
   counter = 0; // Resets our counter
   for (unsigned int i = 0; i < unique_param.size(); ++i)
   {
@@ -256,20 +245,25 @@ int main(int argc, char** argv)
   counts = count_temp;
   //max2 = *find(counts.begin(), counts.end(), sorted_counts[1]);
   max2_index = distance(counts.begin(), find(counts.begin(), counts.end(), sorted_counts[1]));
+  double max1 = unique_param[max1_index].second;
+  double max2 = unique_param[max2_index].second;
+
+  cout << "The highest occurring value is " << max1 << " and the second highest occurring value is " << max2 << endl;
 
   // Create a histogram of the number of counts for each value in unique_param
-  /*vector <pair <double, int> > hist;
+  vector <pair <double, int> > hist;
   ofstream fout2((filename1.substr(0,filename1.find(".dat")) + "_histogram.csv").c_str());
   if (fout2.fail())
   {
     cout << "Error opening file " << filename1.substr(0,filename1.find(".dat")) + "_histogram.csv" << endl;
+    cout << "Line 280\n";
     return 1;
   }
   for (unsigned int i = 0; i < unique_param.size(); ++i)
   {
     fout2 << unique_param[i].second << "," << counts[i] << endl;
   }
-  fout2.close();*/
+  fout2.close();
 
   // Calculate the cutoff distance - we are specifying that halfway between the
   // two most occurring values is the cutoff.
