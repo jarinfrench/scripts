@@ -35,11 +35,11 @@ int main(int argc, char **argv)
 
   ostringstream fn2;
   // The +8 moves the starting point to where the filename indicates the degree
-  // The format of the filename SHOULD be: dump3.pos.axis.###degree.<step #>.dat
+  // The format of the filename SHOULD be: dump3.pos.###degree.<step #>.dat
   // The -14 comes from calculating the number of characters after the first
   // number indicating the angle.  A hard coded value will not always get the
   // right amount of chars.
-  fn2 << "minimized_" << filename1.substr(filename1.find("pos") + 8, filename1.find(".dat") - 14 - filename1.find("pos"))
+  fn2 << "minimized_" << filename1.substr(filename1.find("pos") + 4, filename1.find(".dat") - 10 - filename1.find("pos"))
       << "_r" << r_grain << "A.dat";
   filename2 = fn2.str();
 
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 
   // Parse the data so that we can write the relevant data to filename2
   getline(fin, str); //Gets the first line (TIMESTEP)
-  fout << "These UO2 coordinates have been minimized: [ID type charge x y z]\n\n";
+  fout << "These UO2 coordinates have been annealed: [ID type charge x y z]\n\n";
 
   fin >> str; // This line should be the timestep ended on
   fin.ignore(); // This is important!  There is an extra newline character in the stream that will be the first thing read by getline!
@@ -81,10 +81,10 @@ int main(int argc, char **argv)
   fout << zlow << "\t" << zhigh << "\tzlo zhi\n";
 
   fin.ignore();
-  getline(fin, str); // Gets the line "ITEM: ATOMS id type q x y z c_pe_layer1"
+  getline(fin, str); // Gets the line "ITEM: ATOMS id type q x y z"
   fout << "\nAtoms\n\n"; // Now we can start reading the atoms
 
-  while (fin >> id >> type >> charge >> x >> y >> z >> str)
+  while (fin >> id >> type >> charge >> x >> y >> z)
   {
     if (fin.fail())
     {
