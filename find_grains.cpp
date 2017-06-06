@@ -54,7 +54,6 @@ int main(int argc, char** argv)
   double rxij, ryij, rzij, drij_sq, magnitude, theta;
   double uu_cut_sq = UU_CUT * UU_CUT;//, oo_cut_sq = OO_CUT * OO_CUT;
   double sintheta, sintheta_sq, total;
-  bool dump = false; // Determines if the file is a dump file or not.
 
   if (argc == 2)
   {
@@ -73,11 +72,6 @@ int main(int argc, char** argv)
     filename2 = filename1.substr(0,filename1.find(".dat")) + "_interface.dat";
   }
 
-  if (filename1.find("dump") == string::npos) // Check if dump is in the filename
-  {
-    dump = true;
-  }
-
   // Open up the files for reading and writing.
   ifstream fin(filename1.c_str());
   if (fin.fail())
@@ -94,44 +88,20 @@ int main(int argc, char** argv)
   }
 
   // Pull out the relevant information from the heading
-  if (dump)
-  {
-    // This is for a LAMMPS input file.
-    getline(fin, str); // Gets the comment line;
-    fin >> N >> str; // Gets the number of atoms
-    fin >> n_type >> str >> str; // gets the number of atom types
-    fin >> xlow >> xhigh >> str >> str;
-    fin >> ylow >> yhigh >> str >> str;
-    fin >> zlow >> zhigh >> str >> str;
-    fin >> str; // Gets the Atoms line
-    Lx = xhigh - xlow;
-    Ly = yhigh - ylow;
-    Lz = zhigh - zlow;
-  }
-  else
-  {
-    // This is for a LAMMPS dump file
-    getline(fin, str); // Gets ITEM: TIMESTEP
-    getline(fin, str); // Gets the timestep number
-    getline(fin, str); // Gets ITEM: NUMBER OF ATOMS
-    fin >> N;
-    fin.ignore();
-    getline(fin, str); //get ITEM: BOX BOUNDS
-    fin >> xlow >> xhigh;
-    fin >> ylow >> yhigh;
-    fin >> zlow >> zhigh;
-    fin.ignore();
-    getline(fin, str); // Gets ITEM: ATOMS <data types>
-    n_type = 2; // Assumes only two types of atoms: U and O
-    Lx = xhigh - xlow;
-    Ly = yhigh - ylow;
-    Lz = zhigh - zlow;
-  }
+  // This is for a LAMMPS input file.
+  getline(fin, str); // Gets the comment line;
+  fin >> N >> str; // Gets the number of atoms
+  fin >> n_type >> str >> str; // gets the number of atom types
+  fin >> xlow >> xhigh >> str >> str;
+  fin >> ylow >> yhigh >> str >> str;
+  fin >> zlow >> zhigh >> str >> str;
+  fin >> str; // Gets the Atoms line
+  Lx = xhigh - xlow;
+  Ly = yhigh - ylow;
+  Lz = zhigh - zlow;
 
-  while (getline(fin,str))// >> id >> type >> charge >> x >> y >> z)
+  while (fin >> id >> type >> charge >> x >> y >> z)
   {
-    istringstream ss(str);
-    ss >> id >> type >> charge >> x >> y >> z; // discards everything after the z
     if (type > n_type)
     {
       cout << "Error: unexpected atom type.\n"
