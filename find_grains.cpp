@@ -89,13 +89,30 @@ int main(int argc, char** argv)
 
   // Pull out the relevant information from the heading
   // This is for a LAMMPS input file.
-  getline(fin, str); // Gets the comment line;
+  /*getline(fin, str); // Gets the comment line;
   fin >> N >> str; // Gets the number of atoms
   fin >> n_type >> str >> str; // gets the number of atom types
   fin >> xlow >> xhigh >> str >> str;
   fin >> ylow >> yhigh >> str >> str;
   fin >> zlow >> zhigh >> str >> str;
   fin >> str; // Gets the Atoms line
+  Lx = xhigh - xlow;
+  Ly = yhigh - ylow;
+  Lz = zhigh - zlow;*/
+
+  // This is for a LAMMPS dump file
+  getline(fin, str); // Gets ITEM: TIMESTEP
+  getline(fin, str); // Gets the timestep number
+  getline(fin, str); // Gets ITEM: NUMBER OF ATOMS
+  fin >> N;
+  fin.ignore();
+  getline(fin, str); //get ITEM: BOX BOUNDS
+  fin >> xlow >> xhigh;
+  fin >> ylow >> yhigh;
+  fin >> zlow >> zhigh;
+  fin.ignore();
+  getline(fin, str); // Gets ITEM: ATOMS <data types>
+  n_type = 2; // Assumes only two types of atoms: U and O
   Lx = xhigh - xlow;
   Ly = yhigh - ylow;
   Lz = zhigh - zlow;
