@@ -13,11 +13,6 @@ using namespace std;
 
 #define PI 3.141592653589793
 
-// Cutoff distances
-#define UU_CUT 4.8496 // from Bai et al. Acta Materialia 85 (2015) 95-106: 0.866 * a0
-//#define UO_CUT 2.5 // actual value is 0.43301
-//#define OO_CUT 3.7 // actual value is 2.7625
-
 // Calculate the rounded value of x
 double anInt(double x)
 {
@@ -50,11 +45,9 @@ int main(int argc, char** argv)
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
   int id, type; // atom id, atom type
   double charge, x, y, z; // charge and position of atom
-
   int n_nn, n_atoms_per_cell;  //number of nearest neighbors, atoms per sub cell
   vector <double> r_nnx (12), r_nny (12), r_nnz (12), rxijk, ryijk, rzijk; // nearest neighbor fcc positions
-  vector <vector <double> > r_mkx (12, vector <double> (90)), r_mky (12, vector <double> (90)), r_mkz (12, vector <double> (90)); // ideal nearest neighbor positions
-  double rij, theta, xtemp, ytemp, costheta, sintheta, sintheta_sq, ornt_prt, magnitude; // 2*distance^2, angle, rotated x and y, cos and sin of theta, orientation parameter
+  double rij, xtemp, ytemp, costheta, sintheta; // 2*distance^2, rotated x and y, cos and sin of theta
   vector <double> symm; // Symmetry parameter
 
   vector <vector <int> > iatom; // Cell-linked list
@@ -62,6 +55,11 @@ int main(int argc, char** argv)
   vector <vector <vector <vector <int> > > > pcell; // atom index in each cell
   int ncellx, ncelly, ncellz, idx, idy, idz, n_icell; // Number of sub cells in each direction, cell number in each direction, atoms in cell i
   double lcellx, lcelly, lcellz; // length of sub cells in each direction
+
+  //Potentially unused variables
+  //vector <vector <double> > r_mkx (12, vector <double> (90)), r_mky (12, vector <double> (90)), r_mkz (12, vector <double> (90)); // ideal nearest neighbor positions
+  //double ornt_prt; // orientation parameter
+  //double theta, sintheta_sq, magnitude; // angle, square of sin theta, magnitude of vector
 
   if (argc != 2)
   {
@@ -100,6 +98,7 @@ int main(int argc, char** argv)
 
   rij = sqrt(rij);
   // Distances in terms of a0
+  cout << rij << " " << a0 << endl;
   for (unsigned int i = 0; i < r_nnx.size(); ++i)
   {
     r_nnx[i] /= rij;
@@ -108,7 +107,7 @@ int main(int argc, char** argv)
   }
 
   // Create an array for all the rotated positions for each angle between 0 and 89
-  for (unsigned int i = 0; i < 90; ++i)
+  /*for (unsigned int i = 0; i < 90; ++i)
   {
     for (unsigned int j = 0; j < 12; ++j)
     {
@@ -123,7 +122,7 @@ int main(int argc, char** argv)
       r_mky[j][i] = ytemp;
       r_mkz[j][i] = r_nnz[j];
     }
-  }
+  }*/
 
   // Now we will read each file listed
   for (int file = 0; file < nfiles; ++file)
