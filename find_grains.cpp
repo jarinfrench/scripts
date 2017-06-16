@@ -4,7 +4,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include <cmath> // for acos, sin
+#include <cmath> // for cos, sin
 #include <cstdlib>
 #include "atom.h"
 
@@ -13,8 +13,8 @@ using namespace std;
 #define PI 3.141592653589793
 
 // Cutoff distances
-#define UU_CUT 0.866//4.8496 // from Bai et al. Acta Materialia 85 (2015) 95-106: 0.866 * a0
-#define a0 5.453 // Also from Bai et al.  Typically is 5.453
+#define UU_CUT 0.866 // from Bai et al. Acta Materialia 85 (2015) 95-106: 0.866 * a0
+#define a0 5.6 // typically 5.453
 #define IDEAL 1.0 / 6.0
 
 // Calculate the rounded value of x
@@ -29,6 +29,8 @@ double anInt(double x)
 
 int main(int argc, char** argv)
 {
+  double coeffs [2] = {2,2};
+
   string filename1, filename2, str; // filenames read from and written to, junk variable
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
   int N, n_type, n_atoms_read = 0; // number of atoms, atom types, number of atoms read
@@ -40,6 +42,7 @@ int main(int argc, char** argv)
   double rxij, ryij, rzij, drij_sq;
   double uu_cut_sq = UU_CUT * UU_CUT;
   double theta, sintheta_sq, total = 0.0, xtemp, ytemp, sintheta, costheta, cutoff;
+  bool dump = true;
 
   // Variables used for the cell-linked list
   int n_atoms_per_cell;
@@ -52,7 +55,6 @@ int main(int argc, char** argv)
   if (argc == 2)
   {
     filename1 = argv[1];
-    filename2 = filename1.substr(0,filename1.find(".dat")) + "_interface.dat";
     cout << "Please enter the misorientation angle of the grain in degrees: ";
     cin  >> theta;
   }
@@ -65,10 +67,10 @@ int main(int argc, char** argv)
   {
     cout << "Please enter the data file to be read: ";
     cin  >> filename1;
-    filename2 = filename1.substr(0,filename1.find(".dat")) + "_interface.dat";
     cout << "Please enter the misorientation angle of the grain in degrees: ";
     cin  >> theta;
   }
+  filename2 = filename1.substr(0,filename1.find(".dat")) + "_interface.dat";
   sintheta = sin(theta * PI / 180.0);
   costheta = cos(theta * PI / 180.0);
 
@@ -83,7 +85,7 @@ int main(int argc, char** argv)
     xtemp = costheta * xx[i] - sintheta * yy[i];
     ytemp = sintheta * xx[i] + costheta * yy[i];
     sintheta_sq = 1 - ((xtemp * xtemp) / (xtemp * xtemp + ytemp * ytemp));
-    total += (2 - 2 * sintheta_sq) * (2 - 2 * sintheta_sq) * sintheta_sq;
+    total += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
   }
   total /= xx.size();
   cutoff = (IDEAL + total) / 2.0;
@@ -104,28 +106,42 @@ int main(int argc, char** argv)
   }
 
   // Pull out the relevant information from the heading
-  // This is for a LAMMPS input file
-  getline(fin, str); // gets comment line
-  fin >> N >> str; // number of atoms
-  fin >> n_type >> str >> str;
-  fin >> xlow >> xhigh >> str >> str;
-  fin >> ylow >> yhigh >> str >> str;
-  fin >> zlow >> zhigh >> str >> str;
-  fin >> str;
-
+    if (filename1.find("dump") == string::npos)
+  {
+    dump = false;
+  }
+  else
+  {
+    dump = true;
+  }
   // This is for a LAMMPS dump file
-  /*getline(fin, str); // Gets ITEM: TIMESTEP
-  getline(fin, str); // Gets the timestep number
-  getline(fin, str); // Gets ITEM: NUMBER OF ATOMS
-  fin >> N;
-  fin.ignore();
-  getline(fin, str); //get ITEM: BOX BOUNDS
-  fin >> xlow >> xhigh;
-  fin >> ylow >> yhigh;
-  fin >> zlow >> zhigh;
-  fin.ignore();
-  getline(fin, str); // Gets ITEM: ATOMS <data types>
-  n_type = 2; // Assumes only two types of atoms: U and O*/
+
+  if (dump)
+  {
+    getline(fin, str); // Gets ITEM: TIMESTEP
+    getline(fin, str); // Gets the timestep number
+    getline(fin, str); // Gets ITEM: NUMBER OF ATOMS
+    fin >> N;
+    fin.ignore();
+    getline(fin, str); //get ITEM: BOX BOUNDS
+    fin >> xlow >> xhigh;
+    fin >> ylow >> yhigh;
+    fin >> zlow >> zhigh;
+    fin.ignore();
+    getline(fin, str); // Gets ITEM: ATOMS <data types>
+    n_type = 2; // Assumes only two types of atoms: U and O
+  }
+  else
+  {
+    // This is for a LAMMPS input file
+    getline(fin, str); // gets comment line
+    fin >> N >> str; // number of atoms
+    fin >> n_type >> str >> str;
+    fin >> xlow >> xhigh >> str >> str;
+    fin >> ylow >> yhigh >> str >> str;
+    fin >> zlow >> zhigh >> str >> str;
+    fin >> str;
+  }
   // Convert the bounds in terms of a0
   xlow /= a0;
   xhigh /= a0;
@@ -156,6 +172,7 @@ int main(int argc, char** argv)
     atoms[atom_id - 1] = Atom(atom_id, type, charge, x, y, z);
     ++n_atoms_read;
   }
+  fin.close(); // Close the data file, we're done with it.
 
   // Compare to N
   if (n_atoms_read != N)
@@ -175,7 +192,7 @@ int main(int argc, char** argv)
 
   n_atoms_per_cell = max((int)(N / (double)(3 * ncellx * ncelly * ncellz)), 200);
 
-  // resizes the vectors to be the correct length for this dump file.
+  // resizes the vectors to be the correct length.
   // Defaults all values to 0
   icell.resize(ncellx, vector <vector <int> >
               (ncelly, vector <int>
@@ -317,15 +334,11 @@ int main(int argc, char** argv)
 
       // This uses the relation sin^2 = 1-cos^2, where cos = dot(A,B) / (|A|*|B|)
       sintheta_sq = 1 - (rxij * rxij) / drij_sq;
-      total += (2 - 2 * sintheta_sq) * (2 - 2 * sintheta_sq) * sintheta_sq;
+      total += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
     }
     total /= iatom[0][i];
     symm[i] = total; // Store them for analysis
-  }
 
-  // Now we mark the atoms based its counts
-  for (unsigned int i = 0; i < atoms.size(); ++i)
-  {
     if (atoms[i].getType() != 1)
     {
       continue;
@@ -359,6 +372,7 @@ int main(int argc, char** argv)
          << symm[i] << endl;
     ++n_atoms_read;
   }
+  fout.close(); // Close the output file
 
   if (n_atoms_read != N / 3.0)
   {
@@ -367,8 +381,5 @@ int main(int argc, char** argv)
     return 6;
   }
 
-
-  fin.close();
-  fout.close();
   return 0;
 }
