@@ -96,7 +96,7 @@ int main(int argc, char** argv)
 
   while (getline(fin, str))
   {
-    if (str.find("orthogonal box") != -1)
+    if (str.find("orthogonal box") != string::npos)
     {
       // This is a bit convoluted... here I am extracting the box sizes using
       // stringstreams.  The difficulty comes in that the expected line looks
@@ -116,7 +116,7 @@ int main(int argc, char** argv)
     }
   }
 
-  if (Lx == 0.0 && Ly == 0.0 & Lz == 0.0)
+  if ((Lx == 0.0) && (Ly == 0.0) & (Lz == 0.0))
   {
     cout << "Error: unable to determine box size.\n";
     return 3;
@@ -128,10 +128,10 @@ int main(int argc, char** argv)
   // the word "atoms", but does not contain the character sequence "..."
   while (getline(fin, str))
   {
-    if (str.find("atoms") != -1 && str.find("...") == -1)
+    if (str.find("atoms") != string::npos && str.find("...") == string::npos)
     {
       stringstream ss(str);
-      if (str.find("Created") == -1)
+      if (str.find("Created") == string::npos)
       {
         ss >> N >> str2;
       }
@@ -153,7 +153,7 @@ int main(int argc, char** argv)
 
   while (getline(fin, str))
   {
-    if (str.find(unit_indicator) != -1)
+    if (str.find(unit_indicator) != string::npos)
     {
       stringstream ss(str);
       ss >> str2 >> str2 >> str2 >> unit_style;
@@ -166,7 +166,7 @@ int main(int argc, char** argv)
   // which tells us that we have important information coming in.
   while (getline(fin, str))
   {
-    if (str.find(indicator) != -1) // found our indicator line
+    if (str.find(indicator) != string::npos) // found our indicator line
     {
       getline(fin, str); // get the line containing our data labels
       stringstream ss(str);
@@ -204,7 +204,7 @@ int main(int argc, char** argv)
       }
       while (getline(fin, str2))
       {
-        if (str2.find(indicator_end) != -1) // We reached the end of the data
+        if (str2.find(indicator_end) != string::npos) // We reached the end of the data
         {
           break;
         }

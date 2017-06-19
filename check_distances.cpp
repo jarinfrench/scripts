@@ -28,7 +28,7 @@ int main(int argc, char **argv)
   string filename, str; //file containing our atoms, and a string to contain lines
   int id, type; // atom id number and type number
   double r_grain, r_grain_m, r_grain_p; // rotated grain radius
-  double r_grain_sq, r_grain_m_sq, r_grain_p_sq; // squared values for distances
+  double r_grain_m_sq, r_grain_p_sq; // squared values for distances
   double charge, x, y, z; // atom charge value, and position
   double x1, y1, z1; // temp variables
   double rxij, ryij, rzij, drij_sq; // positional differences
@@ -37,10 +37,8 @@ int main(int argc, char **argv)
   vector<Atom> atoms_checked, atoms; //contains all of our atoms
   vector<pair<double, int> > distances; // distances and id of close U-O atoms
   double oo_rnn_cut_sq = OO_RNN_CUT * OO_RNN_CUT;
-  double uo_rnn_cut_sq = UO_RNN_CUT * UO_RNN_CUT;
   double uu_rnn_cut_sq = UU_RNN_CUT * UU_RNN_CUT;
   int n_O_too_close = 0, n_U_too_close = 0; //counter variable
-  int marker;
 
   if (argc != 3)
   {
@@ -59,7 +57,6 @@ int main(int argc, char **argv)
   r_grain_p = r_grain + NN_UU;
   r_grain_m_sq = r_grain_m * r_grain_m; // we use the squared values a lot,
   r_grain_p_sq = r_grain_p * r_grain_p; // so just calculate once
-  r_grain_sq = r_grain * r_grain;
 
   ifstream fin(filename.c_str());
   if (fin.fail())
@@ -103,14 +100,14 @@ int main(int argc, char **argv)
   }
 
   // for each atom in the subset, check how close the closest O atoms are
-  for (int i = 0; i < atoms_checked.size(); ++i)
+  for (unsigned int i = 0; i < atoms_checked.size(); ++i)
   {
     x1 = atoms_checked[i].getX();
     y1 = atoms_checked[i].getY();
     z1 = atoms_checked[i].getZ();
     if (atoms_checked[i].getType() == 2 && atoms_checked[i].getMark() == 0) // looking at unmarked oxygen
     {
-      for (int j = i + 1; j < atoms_checked.size(); ++j)
+      for (unsigned int j = i + 1; j < atoms_checked.size(); ++j)
       {
         if (atoms_checked[j].getType() == 2 && atoms_checked[j].getMark() == 0) // looking at unmarked oxygen
         {
@@ -136,7 +133,7 @@ int main(int argc, char **argv)
 
     else if (atoms_checked[i].getType() == 1 && atoms_checked[i].getMark() == 0) // looking at unmarked U
     {
-      for (int j = i + 1; j < atoms_checked.size(); ++j)
+      for (unsigned int j = i + 1; j < atoms_checked.size(); ++j)
       {
         if (atoms_checked[j].getType() == 1 && atoms_checked[j].getMark() == 0) // looking at unmarked U
         {
