@@ -17,6 +17,7 @@ int main(int argc, char** argv)
   double xlow, xhigh, ylow, yhigh, zlow, zhigh;
   double x, y, z, charge, temp = 1.0;
   char atom_type;
+  //string atom_type; // for multi character atom types
 
   if (argc == 1)
   {
@@ -46,11 +47,13 @@ int main(int argc, char** argv)
   }
 
   fout << "This bulk UO2 coordinates format: [ID type charge x y z]\n\n";
+  //fout << "This bulk Cu coordinates format: [ID type x y z]\n\n";
 
   fin >> N; // Number of atoms
   fout << N << "  atoms\n";
 
   fout << "2   atom types\n"; // This is assuming UO2
+  //fout << "1   atom types\n"; // This is assuming UO2
 
   fin >> xhigh >> yhigh >> zhigh >> str >> str >> str; // Boundaries
   xlow = 0.0;
@@ -66,6 +69,7 @@ int main(int argc, char** argv)
   n_atoms = 0;
   while (fin >> atom_type >> x >> y >> z) // Read in the data
   {
+    // Not needed for Cu
     if (atom_type == 'U') // Given a U atom, write the correct type and charge
     {
       type = 1;
@@ -102,7 +106,7 @@ int main(int argc, char** argv)
       zhigh = 0.0;
       zlow = temp;
     }
-    fout << setprecision(0) << ++n_atoms << " " << type << " "
+    fout << setprecision(0) << ++n_atoms << " " << type << " " // Note that type can be replaced by 1 for single type situtations
          << setprecision(1) << charge << " "
          << setprecision(6) << x << " " << y << " " << z << endl;
 
