@@ -17,7 +17,7 @@ separate out the position into its own class.
 calculate_GBE.cpp: From the file header: "This script reads a file as generated
 by extract_all_energies.sh, and calculates the per atom energy at the grain
 boundary.  The filename can be passed in via command line.  Note that this
-program expects a filename in the format of 111Tilt_total_energies.csv
+program expects a filename in the format of <description>_total_energies.csv
 IMPORTANT PARAMETERS
   grain radius: the radius of the grain that was specified when rotating the grain.
     note that this assumes a cylindrical grain.  Given in Angstroms.
