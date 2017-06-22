@@ -119,10 +119,8 @@ int main(int argc, char** argv)
 
   fin_input.ignore();
   // Now read through each set of files
-  for (int n = 0; n < n_files; ++n)
+  while (getline(fin_input, filename1))
   {
-    getline(fin_input, filename1);
-
     // Open up the files for reading and writing.
     ifstream fin(filename1.c_str());
     if (fin.fail())
@@ -437,6 +435,8 @@ int main(int argc, char** argv)
            << "N = " << N / 3.0 << " != n_atoms_read = " << n_atoms_read << endl;
       return 6;
     }
+
+    cout << "Processing of file \"" << filename1 << "\" completed.\n";
   }
 
   fin_input.close();
