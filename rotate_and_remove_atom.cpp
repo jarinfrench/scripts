@@ -83,7 +83,7 @@ int main(int argc, char **argv)
   vector <vector <int> > iatom; // Cell-linked list
   vector <vector <vector <int> > > icell; // cell index
   vector <vector <vector <vector <int> > > > pcell; // atom index in each cell
-  int ncellx, ncelly, ncellz, idx, idy, idz; // Number of sub cells in each direction, cell number in each direction, atoms in cell i
+  int ncellx, ncelly, ncellz, idx, idy, idz; // Number of sub cells in each direction, cell number in each direction
   double lcellx, lcelly, lcellz; // length of sub cells in each direction
 
   if (argc != 4) // check command line arguments
@@ -510,6 +510,7 @@ int main(int argc, char **argv)
     }
   }
 
+  // Now go through the list again and remove the O atoms that are too close
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
     if (atoms[i].getType() == 2 && atoms[i].getMark() == 0)
