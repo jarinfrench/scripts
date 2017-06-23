@@ -53,7 +53,7 @@ int main(int argc, char** argv)
   fout << N << "  atoms\n";
 
   fout << "2   atom types\n"; // This is assuming UO2
-  //fout << "1   atom types\n"; // This is assuming UO2
+  //fout << "1   atom types\n"; // This is assuming Cu
 
   fin >> xhigh >> yhigh >> zhigh >> str >> str >> str; // Boundaries
   xlow = 0.0;
