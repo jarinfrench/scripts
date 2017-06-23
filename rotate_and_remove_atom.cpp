@@ -25,8 +25,6 @@ using namespace std;
 // The sequence is atom-ID atom-type q x y z
 
 #define PI 3.14159265358979 // easier and faster to simply store these values here.
-#define SQRT2 1.4142135623731
-#define SQRT3 1.73205080756888
 #define SKIN 16.0 //skin depth (just under 3a0, a0 = 5.453)
 #define UU_RNN_CUT 2.0 // Cutoff value for U-U atoms too close
 #define UO_RNN_CUT 4.0 // Cutoff value for U-O atoms too close
@@ -54,8 +52,8 @@ int main(int argc, char **argv)
   // External values
   string filename1, filename2, filename3, filename4, str; //filenames and line variable
   int axis;
-  double r_grain, r_grain_m, r_grain_p; //radius of the grain, with buffer zone
-  double r_grain_sq, r_grain_m_sq, r_grain_p_sq; // squared values for convenience
+  double r_grain; //radius of the grain, with buffer zone
+  double r_grain_sq; // squared values for convenience
   double theta, theta_conv; // angle of rotation
   double costheta, sintheta; // better to calculate this once.
   double uu_rnn_cut_sq = UU_RNN_CUT * UU_RNN_CUT; //easier to do it once
@@ -77,8 +75,16 @@ int main(int argc, char **argv)
   double x1, y1, z1, temp_x, temp_y, x2, y2, z2; // Store the original value and manipulate!
 
   // Containers
-  vector <Atom> atoms_checked, atoms; // contains the atoms we look at, and the entire set.
+  vector <Atom> atoms; // contains the atoms we look at, and the entire set.
   vector <pair<int, double> > distances; // vector of id and distance.
+
+  // Variables used for the cell-linked list
+  int n_atoms_per_cell; // self-explanatory
+  vector <vector <int> > iatom; // Cell-linked list
+  vector <vector <vector <int> > > icell; // cell index
+  vector <vector <vector <vector <int> > > > pcell; // atom index in each cell
+  int ncellx, ncelly, ncellz, idx, idy, idz; // Number of sub cells in each direction, cell number in each direction, atoms in cell i
+  double lcellx, lcelly, lcellz; // length of sub cells in each direction
 
   if (argc != 4) // check command line arguments
   {
@@ -119,11 +125,7 @@ int main(int argc, char **argv)
     }
   }
 
-  // Some values we will use a lot of
-  r_grain_m = r_grain - SKIN;
-  r_grain_p = r_grain + SKIN;
-  r_grain_m_sq = r_grain_m * r_grain_m; // we use the squared values a lot,
-  r_grain_p_sq = r_grain_p * r_grain_p; // so just calculate once
+  // Calculate this once
   r_grain_sq = r_grain * r_grain;
 
   // String streams make things easy.  This particular line requires that the
@@ -235,6 +237,7 @@ int main(int argc, char **argv)
 
   ntotal = 0; // Number of atoms read so far
   n_atom_id = 0; // number written so far
+  atoms.resize(N, Atom());
 
   while (fin >> atom_id >> atom_type >> atom_charge >> x >> y >> z) // read the data
   {
@@ -270,12 +273,6 @@ int main(int argc, char **argv)
       y1 = temp_y;
     }
 
-    if (x1 * x1 + y1 * y1 > r_grain_m_sq &&
-        x1 * x1 + y1 * y1 < r_grain_p_sq) // If the atom is in our range of interest
-    {
-      Atom a(atom_id, atom_type, atom_charge, x1, y1, z1); // store checked atoms
-      atoms_checked.push_back(a);
-    }
     x1 += Lx / 2.0;
     y1 += Ly / 2.0;
     z1 += Lz / 2.0;
@@ -293,8 +290,7 @@ int main(int argc, char **argv)
     fout.precision(6);
     fout << x1 << " " << y1  << " " << z1 << endl;
 
-    Atom b(atom_id, atom_type, atom_charge, x1, y1, z1); // store all atoms
-    atoms.push_back(b);
+    atoms[atom_id - 1] = Atom(atom_id, atom_type, atom_charge, x1, y1, z1); // store all atoms
   }
 
   // Make sure we read all of the atoms
@@ -305,30 +301,150 @@ int main(int argc, char **argv)
   } // End error check
   fin.close(); // Done reading the file
 
+  // Generate the cell-linked list for fast calculations
+  // First generate the number of cells in each direction (minimum is 1)
+  ncellx = (int)(Lx / UO_RNN_CUT) + 1;
+  ncelly = (int)(Ly / UO_RNN_CUT) + 1;
+  ncellz = (int)(Lz / UO_RNN_CUT) + 1;
+  lcellx = Lx / ncellx; // Length of the cells in each direction
+  lcelly = Ly / ncelly;
+  lcellz = Lz / ncellz;
+
+  // Number of atoms per cell based on cell size, with a minimum allowed of 200
+  n_atoms_per_cell = max((int)(N / (double)(3 * ncellx * ncelly * ncellz)), 200);
+
+  // resizes the vectors to be the correct length. Saves on time.
+  // Defaults all values to 0
+  icell.resize(ncellx, vector <vector <int> > // x dimension
+              (ncelly, vector <int> // y dimension
+              (ncellz, 0))); // z dimension
+  pcell.resize(ncellx, vector <vector <vector <int> > > // x dimension
+              (ncelly, vector <vector <int> > // y dimension
+              (ncellz, vector <int> // z dimension
+              (n_atoms_per_cell, 0)))); // atom number in cell.
+  iatom.resize(n_atoms_per_cell, vector <int> (N,0)); // the actual list.
+
+  /****************************************************************************/
+  /**************************CREATE CELL-LINKED LIST***************************/
+  /****************************************************************************/
+  for (unsigned int i = 0; i < atoms.size(); ++i) // Look at each atom
+  {
+    //if (atoms[i].getType() != 1) continue; // Only want U atoms
+    // Assign this atom to a cell
+    // Rounds towards 0 with a type cast
+    idx = (int)(atoms[i].getX() / lcellx); // assign the x cell
+    idy = (int)(atoms[i].getY() / lcelly); // assign the y cell
+    idz = (int)(atoms[i].getZ() / lcellz); // assign the z cell
+    // Check if we went out of bounds
+    // C++ indexes from 0, so we have to subtract 1 from the maximum value to
+    // stay within our memory bounds
+    if (idx >= ncellx) idx = ncellx - 1;
+    if (idy >= ncelly) idy = ncelly - 1;
+    if (idz >= ncellz) idz = ncellz - 1;
+
+    ++icell[idx][idy][idz]; // increase the number of atoms in this cell
+    // assign the atom number to this index.
+    pcell[idx][idy][idz][icell[idx][idy][idz] - 1] = i;
+  }
+
+  for (int i = 0; i < ncellx; ++i) // For each x cell
+  {
+    for (int j = 0; j < ncelly; ++j) // For each y cell
+    {
+      for (int k = 0; k < ncellz; ++k) // For each z cell
+      {
+        for (int l = 0; l < icell[i][j][k]; ++l) // For each atom in this cell
+        {
+          int id = pcell[i][j][k][l]; // store this atom id
+          // Now we check each sub cell around the current one
+          for (int ii = -1; ii < 2; ++ii) // allowed values: -1, 0, and 1
+          {
+            for (int jj = -1; jj < 2; ++jj)
+            {
+              for (int kk = -1; kk < 2; ++kk)
+              {
+                int ia = i + ii; // min value: -1.  Max value: number of cells in dimension
+                int ja = j + jj;
+                int ka = k + kk;
+                // Check to make sure we are still in bounds
+                // C++ indexes from 0, so we accomodate.
+                if (ia >= ncellx) ia = 0;
+                if (ja >= ncelly) ja = 0;
+                if (ka >= ncellz) ka = 0;
+                if (ia < 0) ia = ncellx - 1;
+                if (ja < 0) ja = ncelly - 1;
+                if (ka < 0) ka = ncellz - 1;
+
+                // Now check each atom in this cell
+                for (int m = 0; m < icell[ia][ja][ka]; ++m)
+                {
+                  int jd = pcell[ia][ja][ka][m];
+                  // If jd <= id, we've already dealt with this interaction
+                  if (jd <= id)
+                  {
+                    continue;
+                  }
+
+                  // Now the actual calculations!
+                  rxij = atoms[id].getX() - atoms[jd].getX();
+                  ryij = atoms[id].getY() - atoms[jd].getY();
+                  rzij = atoms[id].getZ() - atoms[jd].getZ();
+
+                  // Apply PBCs
+                  rxij = rxij - anInt(rxij / Lx) * Lx;
+                  ryij = ryij - anInt(ryij / Ly) * Ly;
+                  rzij = rzij - anInt(rzij / Lz) * Lz;
+
+                  // Now calculate the distance
+                  drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+
+                  if (drij_sq > uo_rnn_cut_sq)
+                  {
+                    continue; // move to the next atom if we're too far away
+                  }
+
+                  if (drij_sq == 0.0) // This should never be hit, but just in case
+                  {
+                    continue; // This is the same atom!
+                  }
+
+                  // Create the neighbor list
+                  iatom[0][id] += 1; //for atom id
+                  iatom[(iatom[0][id])][id] = jd;
+                  iatom[0][jd] += 1; // for atom jd
+                  iatom[(iatom[0][jd])][jd] = id;
+                } // m
+              } //kk
+            } //jj
+          } //ii
+        } // l
+      } // k
+    } // j
+  } // i
+  /****************************************************************************/
+  /**********************END GENERATE CELL-LINKED LIST*************************/
+  /****************************************************************************/
+
   /*****************************************************************************
   ****************************ATOM REMOVAL**************************************
   *****************************************************************************/
   // Compare the distances of each atom
-
-  // NOTE: The following assumes that the atoms were read in order by their ID.
-  // If this is not the case, this will not work properly!
-  for (unsigned int i = 0; i < atoms_checked.size() - 1; ++i)
+  for (unsigned int i = 0; i < atoms.size(); ++i)
   {
-    // Get the positions of atom i
-    x1 = atoms_checked[i].getX();
-    y1 = atoms_checked[i].getY();
-    z1 = atoms_checked[i].getZ();
-    // Checking U atoms for being too close
-    if (atoms_checked[i].getType() == 1 && atoms_checked[i].getMark() == 0) // only checking unmarked U atoms
+    if (atoms[i].getType() == 1 && atoms[i].getMark() == 0) // unmarked U atoms
     {
-      for (unsigned int j = i + 1; j < atoms_checked.size(); ++j) // Don't double count!
+      x1 = atoms[i].getX();
+      y1 = atoms[i].getY();
+      z1 = atoms[i].getZ();
+      for (int l = 1; l <= iatom[0][i]; ++l)
       {
-        if (atoms_checked[j].getType() == 1 && atoms_checked[j].getMark() == 0) // Only unmarked U atoms
+        int id = iatom[l][i];
+        if (atoms[id].getType() == 1 && atoms[id].getMark() == 0) // Only unmarked U atoms
         {
           // Calculate the distance
-          rxij = x1 - atoms_checked[j].getX();
-          ryij = y1 - atoms_checked[j].getY();
-          rzij = z1 - atoms_checked[j].getZ();
+          rxij = x1 - atoms[id].getX();
+          ryij = y1 - atoms[id].getY();
+          rzij = z1 - atoms[id].getZ();
 
           // Apply PBCs
           rxij = rxij - anInt(rxij / Lx) * Lx;
@@ -336,34 +452,29 @@ int main(int argc, char **argv)
           rzij = rzij - anInt(rzij / Lz) * Lz;
 
           drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-          if (drij_sq < uu_rnn_cut_sq) // if the U atoms are too close
+          if (drij_sq < uu_rnn_cut_sq) // If the U atoms are too close
           {
-            atoms_checked[i].setMark(1);
-            // The -1 is here because the id's start at 1, and c++ indices start at 0
-            atoms[atoms_checked[i].getId() - 1].setMark(1);
+            atoms[i].setMark(1);
             ++n_U_removed;
-            break; // since we've removed this atom, move on to the next one.
+            break;
           }
         }
       }
     }
 
-    // If this atom is U and has been marked
-    if (atoms_checked[i].getType() == 1 && atoms_checked[i].getMark() == 1)
+    if (atoms[i].getType() == 1 && atoms[i].getMark() == 1)
     {
       distances.clear(); // Clear out the old values.
-      // Check each O atom, and find the closest two and remove them
-      for (unsigned int j = 0; j < atoms_checked.size(); ++j)
+      // Check each neighboring O atoms, and find the closest two and remove them
+      for (int l = 1; l <= iatom[0][i]; ++l)
       {
-        if (i == j)
-          continue;
-        // Only check unmarked O atoms
-        if (atoms_checked[j].getType() == 2 && atoms_checked[j].getMark() == 0)
+        int id = iatom[l][i];
+        if (atoms[id].getType() == 2 && atoms[id].getMark() == 0)
         {
           // Calculate the distance
-          rxij = x1 - atoms_checked[j].getX();
-          ryij = y1 - atoms_checked[j].getY();
-          rzij = z1 - atoms_checked[j].getZ();
+          rxij = x1 - atoms[id].getX();
+          ryij = y1 - atoms[id].getY();
+          rzij = z1 - atoms[id].getZ();
 
           // Apply PBCs
           rxij = rxij - anInt(rxij / Lx) * Lx;
@@ -371,9 +482,9 @@ int main(int argc, char **argv)
           rzij = rzij - anInt(rzij / Lz) * Lz;
 
           drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-          if (drij_sq < uo_rnn_cut_sq) // if smaller than the cutoff distance
+          if (drij_sq < uo_rnn_cut_sq)
           {
-            distances.push_back(make_pair(j, drij_sq));
+            distances.push_back(make_pair(id, drij_sq));
           }
         }
       }
@@ -383,13 +494,11 @@ int main(int argc, char **argv)
       {
         atom_id = distances[k].first; // we use this a lot over the next lines
         // If the atom we are looking at is O and unmarked
-        if (atoms_checked[atom_id].getType() == 2 &&
-            atoms_checked[atom_id].getMark() == 0)
+        if (atoms[atom_id].getType() == 2 &&
+            atoms[atom_id].getMark() == 0)
         {
           // mark this atom in BOTH lists
-          atoms_checked[atom_id].setMark(1);
-          // The -1 is here because the id's start at 1, and c++ indices start at 0
-          atoms[atoms_checked[atom_id].getId() - 1].setMark(1);
+          atoms[atom_id].setMark(1);
           ++n_O_removed; // increase the counter for O removed
 
           // if we have removed enough O atoms to maintain charge neutrality,
@@ -401,24 +510,25 @@ int main(int argc, char **argv)
     }
   }
 
-  // Now, go through the list again, and remove the O atoms that are too close
-  for (unsigned int i = 0; i < atoms_checked.size() - 1; ++i)
+  for (unsigned int i = 0; i < atoms.size(); ++i)
   {
-    if (atoms_checked[i].getType() == 2 && atoms_checked[i].getMark() == 0) // Looking at unmarked O atoms
+    if (atoms[i].getType() == 2 && atoms[i].getMark() == 0)
     {
       // Get the position of atom i
-      x1 = atoms_checked[i].getX();
-      y1 = atoms_checked[i].getY();
-      z1 = atoms_checked[i].getZ();
+      x1 = atoms[i].getX();
+      y1 = atoms[i].getY();
+      z1 = atoms[i].getZ();
 
-      for (unsigned int j = i + 1; j < atoms_checked.size(); ++j)
+      for (int l = 1; l < iatom[0][i]; ++l)
       {
-        if (atoms_checked[j].getType() == 2 && atoms_checked[j].getMark() == 0) // Unmarked O atoms
+        int id = iatom[l][i];
+
+        if (atoms[id].getType() == 2 && atoms[id].getMark() == 0) // Unmarked O atoms
         {
           // Calculate the distance
-          rxij = x1 - atoms_checked[j].getX();
-          ryij = y1 - atoms_checked[j].getY();
-          rzij = z1 - atoms_checked[j].getZ();
+          rxij = x1 - atoms[id].getX();
+          ryij = y1 - atoms[id].getY();
+          rzij = z1 - atoms[id].getZ();
 
           // Apply PBCs
           rxij = rxij - anInt(rxij / Lx) * Lx;
@@ -426,28 +536,26 @@ int main(int argc, char **argv)
           rzij = rzij - anInt(rzij / Lz) * Lz;
 
           drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-
-          if (drij_sq < oo_rnn_cut_sq) // We probably only want to remove one of them, and then find the UO pair that goes with the O removed.
+          if (drij_sq < oo_rnn_cut_sq)
           {
-            // We will remove both of these
-            atoms_checked[i].setMark(1);
-            atoms_checked[j].setMark(1);
-            atoms[atoms_checked[i].getId() - 1].setMark(1);
-            atoms[atoms_checked[j].getId() - 1].setMark(1);
+            atoms[i].setMark(1);
+            atoms[id].setMark(1);
             n_O_removed += 2;
 
             // Now go through and find the closest U atom to these two
-            x2 = atoms_checked[j].getX();
-            y2 = atoms_checked[j].getY();
-            z2 = atoms_checked[j].getZ();
-            for (unsigned int k = 0; k < atoms_checked.size(); ++k)
+            x2 = atoms[id].getX();
+            y2 = atoms[id].getY();
+            z2 = atoms[id].getZ();
+
+            for (int m = 1; m < iatom[0][i]; ++m)
             {
-              if (atoms_checked[k].getType() == 1 && atoms_checked[k].getMark() == 0) //unmarked U atoms
+              int jd = iatom[m][i];
+              if (atoms[jd].getType() == 1 && atoms[jd].getMark() == 0) // unmarked U atoms
               {
                 //calculate the distances between the U atom and both O atoms
-                rxij = x1 - atoms_checked[k].getX();
-                ryij = y1 - atoms_checked[k].getY();
-                rzij = z1 - atoms_checked[k].getZ();
+                rxij = x1 - atoms[jd].getX();
+                ryij = y1 - atoms[jd].getY();
+                rzij = z1 - atoms[jd].getZ();
 
                 // Apply PBCs
                 rxij = rxij - anInt(rxij / Lx) * Lx;
@@ -457,9 +565,9 @@ int main(int argc, char **argv)
                 drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
                 if (drij_sq < uo_rnn_cut_sq) // This may not work because there may not be a U atom that is within the cutoff distance for both O atoms - needs to be rewritten
                 {
-                  rxij = x2 - atoms_checked[k].getX();
-                  ryij = y2 - atoms_checked[k].getY();
-                  rzij = z2 - atoms_checked[k].getZ();
+                  rxij = x2 - atoms[jd].getX();
+                  ryij = y2 - atoms[jd].getY();
+                  rzij = z2 - atoms[jd].getZ();
 
                   // Apply PBCs
                   rxij = rxij - anInt(rxij / Lx) * Lx;
@@ -470,9 +578,8 @@ int main(int argc, char **argv)
                   if (drij_sq < uo_rnn_cut_sq)
                   {
                     // Only if both O atoms are close enough to the U atom is
-                    // this U atom removed
-                    atoms_checked[k].setMark(1);
-                    atoms[atoms_checked[k].getId() - 1].setMark(1);
+                    // this U atom removed.
+                    atoms[jd].setMark(1);
                     ++n_U_removed;
                     break;
                   }
@@ -483,7 +590,7 @@ int main(int argc, char **argv)
         }
       }
     }
-  } // ^^ This amount of nesting is BAD
+  }
 
   cout << n_U_removed << " U atoms will be removed.\n";
   cout << n_O_removed << " O atoms will be removed.\n";
