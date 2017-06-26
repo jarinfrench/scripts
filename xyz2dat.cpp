@@ -47,7 +47,6 @@ int main(int argc, char** argv)
   }
 
   fout << "This bulk UO2 coordinates format: [ID type charge x y z]\n\n";
-  //fout << "This bulk Cu coordinates format: [ID type x y z]\n\n";
 
   fin >> N; // Number of atoms
   fout << N << "  atoms\n";
