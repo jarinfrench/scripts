@@ -1,0 +1,401 @@
+/******************************************************************************
+* This script requires as input the LAMMPS-formatted file for a single crystal
+* at 0K, the grain radius, and the rotation angle (in degrees).  Prompts will be
+* given if all three are not specified at the command line.  The atoms within
+* the radius are rotated, and then the distances between atoms are checked.
+* If the atoms are too close (as specified by the #define terms), one is removed,
+* being sure to maintain charge neutrality (one U for every 2 O removed).  Note
+* that this script is specifically for UO2.  Changes can be made for other systems.
+******************************************************************************/
+
+#include <iostream>
+#include <string>
+#include <cstring>
+#include <fstream>
+#include <sstream>
+#include <cstdlib>
+#include <cmath>
+#include <vector>
+#include <algorithm>
+#include "atom.h"
+
+using namespace std;
+// Note: this conversion is for UO2 only!
+// For UO2, charge style, the charge must be specified
+// The sequence is atom-ID atom-type q x y z
+
+#define PI 3.14159265358979 // easier and faster to simply store these values here.
+#define SKIN 10.0 //skin depth (just under 3a0, a0 = 3.615)
+#define RNN_CUT 1.0 // Cutoff value for Cu-Cu atoms too close (using Mishin potential)
+
+// Calculate the rounded value of x
+double anInt(double x)
+{
+  int temp; // temporary variable to hold the integer value of x
+  if (x > 0.0) x += 0.5;
+  if (x < 0.0) x -= 0.5;
+  temp = (int)(x);
+  return (double)(temp);
+}
+
+int main(int argc, char **argv)
+{
+  // External values
+  string filename1, filename2, filename3, filename4, str; //filenames and line variable
+  int axis;
+  double r_grain, r_grain_m, r_grain_p; //radius of the grain, with buffer zone
+  double r_grain_sq, r_grain_m_sq, r_grain_p_sq; // squared values for convenience
+  double theta, theta_conv; // angle of rotation
+  double costheta, sintheta; // better to calculate this once.
+  double rnn_cut_sq = RNN_CUT * RNN_CUT; //easier to do it once
+
+  double scale_factor_a, scale_factor_b, scale_factor_c; // dimensional scaling values
+  double Lx, Ly, Lz; // box size
+  int ntotal, n_atom_id; // total number of atoms that have been read/written
+  double rxij, ryij, rzij, drij_sq; //positional differences, total distance^2
+  int n_Cu_removed = 0;
+  bool decimal; // boolean value to include decimal or not
+
+  // Values from file
+  int N, ntypes; // number of atoms, and number of atom types
+  double xlow, xhigh, ylow, yhigh, zlow, zhigh; // atom bounds
+  int atom_id, atom_type; // id number and type number
+  double x, y, z; //position values
+  double x1, y1, z1, temp_x, temp_y; // Store the original value and manipulate!
+
+  // Containers
+  vector <Atom> atoms_checked, atoms; // contains the atoms we look at, and the entire set.
+
+  if (argc != 4) // check command line arguments
+  {
+    // filename
+    // Format of filename should be LAMMPS_UO2_SC_N######_{axis}.dat
+    cout << "Please input the filename in LAAMPS's format at 0K:\n";
+    cin  >> filename1;
+
+    // Grain radius
+    cout << "Please input the radius of the new grain:\n";
+    cin  >> r_grain;
+
+    // Rotation angle
+    cout << "Please input the rotation angle (in degrees) of the new grain:\n";
+    cin  >> theta;
+    if (abs(theta) > 180.0)
+      cout << "Caution!  The rotation angle is greater than 180 degrees!\n";
+    if (theta - (int)theta == 0)
+      decimal = false;
+    else
+      decimal = true;
+  }
+  else
+  {
+    filename1 = argv[1];
+    // the NULL is required to make this work.  see documentation for why.
+    r_grain = strtod(argv[2], NULL);
+    theta = strtod(argv[3], NULL);
+    for (unsigned int i = 0; i < strlen(argv[3]); ++i) // check if a decimal point exists in argument 3
+    {
+      if (argv[3][i] == '.')
+      {
+        decimal = true; // it exists!
+        break;
+      }
+      else
+        decimal = false; // it doesn't exist
+    }
+  }
+
+  // Some values we will use a lot of
+  r_grain_m = r_grain - SKIN;
+  r_grain_p = r_grain + SKIN;
+  r_grain_m_sq = r_grain_m * r_grain_m; // we use the squared values a lot,
+  r_grain_p_sq = r_grain_p * r_grain_p; // so just calculate once
+  r_grain_sq = r_grain * r_grain;
+
+  // String streams make things easy.  This particular line requires that the
+  // filename be formatted such that before the file extension, the axis is
+  // specified.  This means that the file must be of the format:
+  // LAMMPS_UO2_SC_N######_{axis}.dat
+  istringstream iss (filename1.substr(filename1.find(".") - 3, 3));
+  if (!(iss >> axis))
+  {
+    cout << "Error determining rotation axis.\n";
+    return 9;
+  }
+
+  ostringstream fn2, fn3, fn4; // String streams for easy file naming
+  fn2 << filename1.substr(0,filename1.find(".")).c_str()
+      << "_" << theta
+      << "degree_r" << r_grain << "A_rotated.dat";
+      // This next line was used in determining the ideal cutoff distance.
+      //<< "degree_r" << r_grain << "A_rotated_rcut" << UU_RNN_CUT << ".dat";
+  filename2 = fn2.str();
+
+  fn3 << filename1.substr(0,filename1.find(".")).c_str()
+      << "_" << theta
+      << "degree_r" << r_grain << "A_marked.dat";
+      //<< "degree_r" << r_grain << "A_marked_rcut" << UU_RNN_CUT << ".dat";
+  filename3 = fn3.str();
+
+  // We use theta_conv to do the calculations, theta is meant to just look pretty.
+  theta_conv = theta * PI / 180.0; // convert theta_conv to radians
+  costheta = cos(theta_conv); // just calculate this once!
+  sintheta = sin(theta_conv);
+
+  ifstream fin(filename1.c_str()); // only reading this file
+  if (fin.fail())
+  {
+    cout << "Error opening the file " << filename1 << endl;
+    return -1;
+  } // End error check
+
+  ofstream fout(filename2.c_str()); // only writing to this file
+  fout << fixed; // makes sure to always use the precision specified.
+  if (fout.fail()) //Error check
+  {
+    cout << "Error opening the file " << filename2 << endl;
+    return -1;
+  } // End error check
+
+  // Read and create the header of the dat file
+  getline(fin, str);
+  fout << "These Cu coordinates are shifted: [ID type x y z]\n";
+  fout << "\n";
+
+  //Get the number of atoms
+  fin  >> N >> str;
+  fout << N << "  atoms\n";
+
+  //Get the number of atom types
+  fin  >> ntypes >> str >> str;
+  fout << ntypes << "   atom types\n";
+
+  // Get the bounds of the system
+  fin  >> xlow >> xhigh >> str >> str;
+  fin  >> ylow >> yhigh >> str >> str;
+  fin  >> zlow >> zhigh >> str >> str;
+
+  // Sets the scaling factor.
+  scale_factor_a = 1.0;
+  scale_factor_b = 1.0;
+  scale_factor_c = 1.0;
+
+  // Calculate the bounding box size in each direction
+  Lx = xhigh - xlow;
+  Ly = yhigh - ylow;
+  Lz = zhigh - zlow;
+
+  // Check to make sure the diameter of the new grain is smaller than the box
+  // dimensions
+  if (r_grain * 2.0 >= Lx)
+  {
+    cout << "Error! Grain diameter = " << r_grain * 2.0 << " >= Lx = " << Lx << endl;
+    return -2;
+  }
+
+  if (r_grain * 2.0 >= Ly)
+  {
+    cout << "Error! Grain diameter = " << r_grain * 2.0 << " >= Ly = " << Ly << endl;
+    return -2;
+  }
+
+  // Scale the dimensions
+  xlow  *= scale_factor_a;
+  xhigh *= scale_factor_a;
+
+  ylow  *= scale_factor_b;
+  yhigh *= scale_factor_b;
+
+  zlow  *= scale_factor_c;
+  zhigh *= scale_factor_c;
+
+  // Write the modified max and mins to the new file
+  fout.precision(6);
+  fout << xlow << "\t" << xhigh << "\txlo xhi\n";
+  fout << ylow << "\t" << yhigh << "\tylo yhi\n";
+  fout << zlow << "\t" << zhigh << "\tzlo zhi\n";
+
+  fin  >> str; // Read the extra stuff
+
+  fout << "\nAtoms\n\n"; // We now want to write the atoms down
+
+  ntotal = 0; // Number of atoms read so far
+  n_atom_id = 0; // number written so far
+
+  while (fin >> atom_id >> atom_type >> x >> y >> z) // read the data
+  {
+    // Check for reading errors
+    if (fin.fail())
+    {
+      cout << "Read error\n";
+      break;
+    }
+
+    ++ntotal; // Increment the number of atoms
+
+    // Make sure there aren't more than ntypes of atoms
+    if (atom_type > ntypes)
+    {
+      cout << "Error! Atom_type = " << atom_type << " is greater than " << ntypes << endl;
+      return -3;
+    }
+    // change the origin to the center of the simulation for rotating the atoms
+    x1 = x - Lx / 2.0;
+    y1 = y - Ly / 2.0;
+    z1 = z - Lz / 2.0;
+
+    // If we are smaller than the radius, rotate the atom by theta_conv around the
+    // z axis.
+    // TODO: make this an option to do twist or tilt boundaries
+
+    if ((x1 * x1 + y1 * y1) <= (r_grain_sq))
+    {
+      temp_x = x1 * costheta - y1 * sintheta;
+      temp_y = x1 * sintheta + y1 * costheta;
+      x1 = temp_x;
+      y1 = temp_y;
+    }
+
+    if (x1 * x1 + y1 * y1 > r_grain_m_sq &&
+        x1 * x1 + y1 * y1 < r_grain_p_sq) // If the atom is in our range of interest
+    {
+      Atom a(atom_id, atom_type, 0, x1, y1, z1); // store checked atoms
+      atoms_checked.push_back(a);
+    }
+    x1 += Lx / 2.0;
+    y1 += Ly / 2.0;
+    z1 += Lz / 2.0;
+
+    x1 *= scale_factor_a;
+    y1 *= scale_factor_b;
+    z1 *= scale_factor_c;
+
+    // Write the rotated atoms to their own file
+    ++ n_atom_id; // increment atom ID
+    fout.precision(0);
+    fout << n_atom_id << " " << atom_type << " ";
+    fout.precision(6);
+    fout << x1 << " " << y1  << " " << z1 << endl;
+
+    Atom b(atom_id, atom_type, 0, x1, y1, z1); // store all atoms
+    atoms.push_back(b);
+  }
+
+  // Make sure we read all of the atoms
+  if (ntotal != N)
+  {
+    cout << "ntotal = " << ntotal << " != N = " << N << endl;
+    return -4;
+  } // End error check
+  fin.close(); // Done reading the file
+
+  /*****************************************************************************
+  ****************************ATOM REMOVAL**************************************
+  *****************************************************************************/
+  // Compare the distances of each atom
+
+  // NOTE: The following assumes that the atoms were read in order by their ID.
+  // If this is not the case, this will not work properly!
+  for (unsigned int i = 0; i < atoms_checked.size() - 1; ++i)
+  {
+    // Get the positions of atom i
+    x1 = atoms_checked[i].getX();
+    y1 = atoms_checked[i].getY();
+    z1 = atoms_checked[i].getZ();
+    // Checking Cu atoms for being too close
+    if (atoms_checked[i].getMark() == 0) // only checking unmarked Cu atoms
+    {
+      for (unsigned int j = i + 1; j < atoms_checked.size(); ++j) // Don't double count!
+      {
+        if (atoms_checked[j].getMark() == 0) // Only unmarked Cu atoms
+        {
+          // Calculate the distance
+          rxij = x1 - atoms_checked[j].getX();
+          ryij = y1 - atoms_checked[j].getY();
+          rzij = z1 - atoms_checked[j].getZ();
+
+          // Apply PBCs
+          rxij = rxij - anInt(rxij / Lx) * Lx;
+          ryij = ryij - anInt(ryij / Ly) * Ly;
+          rzij = rzij - anInt(rzij / Lz) * Lz;
+
+          drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+          if (drij_sq < rnn_cut_sq) // if the U atoms are too close
+          {
+            atoms_checked[i].setMark(1);
+            // The -1 is here because the id's start at 1, and c++ indices start at 0
+            atoms[atoms_checked[i].getId() - 1].setMark(1);
+            ++n_Cu_removed;
+            break; // since we've removed this atom, move on to the next one.
+          }
+        }
+      }
+    }
+  }
+
+  cout << n_Cu_removed << " Cu atoms will be removed.\n";
+
+  ofstream fout2(filename3.c_str());
+  fout2 << fixed;
+  if (fout2.fail())
+  {
+    cout << "Error opening the file " << filename3 << endl;
+    return -2;
+  }
+
+  fn4 << filename1.substr(0,filename1.find("N")).c_str()
+      << axis << "_";
+  if (decimal) // Input is checked to determine if we print the decimal or not in the filename
+    fn4.precision(2);
+  else
+    fn4.precision(0);
+  fn4 << fixed << theta << "degree_r";
+  fn4.precision(0);
+  fn4 << r_grain
+      << "A_removed.dat";
+      //<< "A_removed_rcut" << UU_RNN_CUT << ".dat";
+  filename4 = fn4.str();
+
+  ofstream fout3(filename4.c_str());
+  fout3 << fixed;
+  if (fout3.fail()) // error check
+  {
+    cout << "Error opening the file " << filename4 << endl;
+    return -2;
+  }
+
+  // write the base data to the file
+  fout3 << "These Cu coordinates are shifted and have atoms removed:[ID type x y z]\n"
+        << "\n"
+        << N - n_Cu_removed << "   atoms\n"
+        << ntypes << "   atom types\n"
+        << xlow << " " << xhigh << "   xlo xhi\n"
+        << ylow << " " << yhigh << "   ylo yhi\n"
+        << zlow << " " << zhigh << "   zlo zhi\n"
+        << "\nAtoms\n\n";
+
+  // Now write the atoms to the files.  filename3 has all the atoms including
+  // the rotated ones and the tag. filename4 has the correct number of atoms.
+  ntotal = 0;
+  for (unsigned int i = 0; i < atoms.size(); ++i)
+  {
+    fout2 << atoms[i].getId() << " " << atoms[i].getType() << " "
+          << atoms[i].getX() << " "
+          << atoms[i].getY() << " " << atoms[i].getZ() << " "
+          << atoms[i].getMark() << endl;
+
+    if (atoms[i].getMark() == 0) // We only write the atoms that are NOT marked for removal
+    {
+      ++ntotal;
+      fout3 << ntotal << " " << atoms[i].getType() << " "
+            << atoms[i].getX() << " "
+            << atoms[i].getY() << " " << atoms[i].getZ() << endl;
+    }
+  }
+
+  // Close the file streams
+  fout2.close();
+  fout3.close();
+
+  return 0;
+}
