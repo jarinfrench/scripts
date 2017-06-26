@@ -114,7 +114,7 @@ int main(int argc, char** argv)
   // Cutoff is the midpoint between the ideal value and the rotated ideal value.
   // Note that this assumes that the outside grain is oriented with it's x axis
   // aligned with the x axis of the lab frame.
-  // FIXME: this needs to be generalized for outside grains that aren't aligned
+  // TODO: this needs to be generalized for outside grains that aren't aligned
   cutoff = (ideal_symm + total1) / 2.0;
 
   fin_input.ignore();
