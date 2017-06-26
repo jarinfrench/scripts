@@ -43,8 +43,8 @@ int main(int argc, char **argv)
   // External values
   string filename1, filename2, filename3, filename4, str; //filenames and line variable
   int axis;
-  double r_grain, r_grain_m, r_grain_p; //radius of the grain, with buffer zone
-  double r_grain_sq, r_grain_m_sq, r_grain_p_sq; // squared values for convenience
+  double r_grain; //radius of the grain, with buffer zone
+  double r_grain_sq; // squared values for convenience
   double theta, theta_conv; // angle of rotation
   double costheta, sintheta; // better to calculate this once.
   double rnn_cut_sq = RNN_CUT * RNN_CUT; //easier to do it once
@@ -53,18 +53,27 @@ int main(int argc, char **argv)
   double Lx, Ly, Lz; // box size
   int ntotal, n_atom_id; // total number of atoms that have been read/written
   double rxij, ryij, rzij, drij_sq; //positional differences, total distance^2
-  int n_Cu_removed = 0;
+  int n_Cu_removed = 0; // Counters for Cu removal.
   bool decimal; // boolean value to include decimal or not
 
   // Values from file
   int N, ntypes; // number of atoms, and number of atom types
   double xlow, xhigh, ylow, yhigh, zlow, zhigh; // atom bounds
   int atom_id, atom_type; // id number and type number
-  double x, y, z; //position values
-  double x1, y1, z1, temp_x, temp_y; // Store the original value and manipulate!
+  double x, y, z; // charge and position values
+  double x1, y1, z1, temp_x, temp_y, x2, y2, z2; // Store the original value and manipulate!
 
   // Containers
-  vector <Atom> atoms_checked, atoms; // contains the atoms we look at, and the entire set.
+  vector <Atom> atoms; // contains the atoms we look at, and the entire set.
+  vector <pair<int, double> > distances; // vector of id and distance.
+
+  // Variables used for the cell-linked list
+  int n_atoms_per_cell; // self-explanatory
+  vector <vector <int> > iatom; // Cell-linked list
+  vector <vector <vector <int> > > icell; // cell index
+  vector <vector <vector <vector <int> > > > pcell; // atom index in each cell
+  int ncellx, ncelly, ncellz, idx, idy, idz; // Number of sub cells in each direction, cell number in each direction
+  double lcellx, lcelly, lcellz; // length of sub cells in each direction
 
   if (argc != 4) // check command line arguments
   {
@@ -105,11 +114,7 @@ int main(int argc, char **argv)
     }
   }
 
-  // Some values we will use a lot of
-  r_grain_m = r_grain - SKIN;
-  r_grain_p = r_grain + SKIN;
-  r_grain_m_sq = r_grain_m * r_grain_m; // we use the squared values a lot,
-  r_grain_p_sq = r_grain_p * r_grain_p; // so just calculate once
+  // Calculate this once
   r_grain_sq = r_grain * r_grain;
 
   // String streams make things easy.  This particular line requires that the
@@ -159,7 +164,7 @@ int main(int argc, char **argv)
 
   // Read and create the header of the dat file
   getline(fin, str);
-  fout << "These Cu coordinates are shifted: [ID type x y z]\n";
+  fout << "These UO2 coordinates are shifted: [ID type charge x y z]\n";
   fout << "\n";
 
   //Get the number of atoms
@@ -221,6 +226,7 @@ int main(int argc, char **argv)
 
   ntotal = 0; // Number of atoms read so far
   n_atom_id = 0; // number written so far
+  atoms.resize(N, Atom());
 
   while (fin >> atom_id >> atom_type >> x >> y >> z) // read the data
   {
@@ -256,12 +262,6 @@ int main(int argc, char **argv)
       y1 = temp_y;
     }
 
-    if (x1 * x1 + y1 * y1 > r_grain_m_sq &&
-        x1 * x1 + y1 * y1 < r_grain_p_sq) // If the atom is in our range of interest
-    {
-      Atom a(atom_id, atom_type, 0, x1, y1, z1); // store checked atoms
-      atoms_checked.push_back(a);
-    }
     x1 += Lx / 2.0;
     y1 += Ly / 2.0;
     z1 += Lz / 2.0;
@@ -277,8 +277,7 @@ int main(int argc, char **argv)
     fout.precision(6);
     fout << x1 << " " << y1  << " " << z1 << endl;
 
-    Atom b(atom_id, atom_type, 0, x1, y1, z1); // store all atoms
-    atoms.push_back(b);
+    atoms[atom_id - 1] = Atom(atom_id, atom_type, 0.0, x1, y1, z1); // store all atoms
   }
 
   // Make sure we read all of the atoms
@@ -289,30 +288,150 @@ int main(int argc, char **argv)
   } // End error check
   fin.close(); // Done reading the file
 
+  // Generate the cell-linked list for fast calculations
+  // First generate the number of cells in each direction (minimum is 1)
+  ncellx = (int)(Lx / RNN_CUT) + 1;
+  ncelly = (int)(Ly / RNN_CUT) + 1;
+  ncellz = (int)(Lz / RNN_CUT) + 1;
+  lcellx = Lx / ncellx; // Length of the cells in each direction
+  lcelly = Ly / ncelly;
+  lcellz = Lz / ncellz;
+
+  // Number of atoms per cell based on cell size, with a minimum allowed of 200
+  n_atoms_per_cell = max((int)(N / (double)(3 * ncellx * ncelly * ncellz)), 200);
+
+  // resizes the vectors to be the correct length. Saves on time.
+  // Defaults all values to 0
+  icell.resize(ncellx, vector <vector <int> > // x dimension
+              (ncelly, vector <int> // y dimension
+              (ncellz, 0))); // z dimension
+  pcell.resize(ncellx, vector <vector <vector <int> > > // x dimension
+              (ncelly, vector <vector <int> > // y dimension
+              (ncellz, vector <int> // z dimension
+              (n_atoms_per_cell, 0)))); // atom number in cell.
+  iatom.resize(n_atoms_per_cell, vector <int> (N,0)); // the actual list.
+
+  /****************************************************************************/
+  /**************************CREATE CELL-LINKED LIST***************************/
+  /****************************************************************************/
+  for (unsigned int i = 0; i < atoms.size(); ++i) // Look at each atom
+  {
+    //if (atoms[i].getType() != 1) continue; // Only want U atoms
+    // Assign this atom to a cell
+    // Rounds towards 0 with a type cast
+    idx = (int)(atoms[i].getX() / lcellx); // assign the x cell
+    idy = (int)(atoms[i].getY() / lcelly); // assign the y cell
+    idz = (int)(atoms[i].getZ() / lcellz); // assign the z cell
+    // Check if we went out of bounds
+    // C++ indexes from 0, so we have to subtract 1 from the maximum value to
+    // stay within our memory bounds
+    if (idx >= ncellx) idx = ncellx - 1;
+    if (idy >= ncelly) idy = ncelly - 1;
+    if (idz >= ncellz) idz = ncellz - 1;
+
+    ++icell[idx][idy][idz]; // increase the number of atoms in this cell
+    // assign the atom number to this index.
+    pcell[idx][idy][idz][icell[idx][idy][idz] - 1] = i;
+  }
+
+  for (int i = 0; i < ncellx; ++i) // For each x cell
+  {
+    for (int j = 0; j < ncelly; ++j) // For each y cell
+    {
+      for (int k = 0; k < ncellz; ++k) // For each z cell
+      {
+        for (int l = 0; l < icell[i][j][k]; ++l) // For each atom in this cell
+        {
+          int id = pcell[i][j][k][l]; // store this atom id
+          // Now we check each sub cell around the current one
+          for (int ii = -1; ii < 2; ++ii) // allowed values: -1, 0, and 1
+          {
+            for (int jj = -1; jj < 2; ++jj)
+            {
+              for (int kk = -1; kk < 2; ++kk)
+              {
+                int ia = i + ii; // min value: -1.  Max value: number of cells in dimension
+                int ja = j + jj;
+                int ka = k + kk;
+                // Check to make sure we are still in bounds
+                // C++ indexes from 0, so we accomodate.
+                if (ia >= ncellx) ia = 0;
+                if (ja >= ncelly) ja = 0;
+                if (ka >= ncellz) ka = 0;
+                if (ia < 0) ia = ncellx - 1;
+                if (ja < 0) ja = ncelly - 1;
+                if (ka < 0) ka = ncellz - 1;
+
+                // Now check each atom in this cell
+                for (int m = 0; m < icell[ia][ja][ka]; ++m)
+                {
+                  int jd = pcell[ia][ja][ka][m];
+                  // If jd <= id, we've already dealt with this interaction
+                  if (jd <= id)
+                  {
+                    continue;
+                  }
+
+                  // Now the actual calculations!
+                  rxij = atoms[id].getX() - atoms[jd].getX();
+                  ryij = atoms[id].getY() - atoms[jd].getY();
+                  rzij = atoms[id].getZ() - atoms[jd].getZ();
+
+                  // Apply PBCs
+                  rxij = rxij - anInt(rxij / Lx) * Lx;
+                  ryij = ryij - anInt(ryij / Ly) * Ly;
+                  rzij = rzij - anInt(rzij / Lz) * Lz;
+
+                  // Now calculate the distance
+                  drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+
+                  if (drij_sq > rnn_cut_sq)
+                  {
+                    continue; // move to the next atom if we're too far away
+                  }
+
+                  if (drij_sq == 0.0) // This should never be hit, but just in case
+                  {
+                    continue; // This is the same atom!
+                  }
+
+                  // Create the neighbor list
+                  iatom[0][id] += 1; //for atom id
+                  iatom[(iatom[0][id])][id] = jd;
+                  iatom[0][jd] += 1; // for atom jd
+                  iatom[(iatom[0][jd])][jd] = id;
+                } // m
+              } //kk
+            } //jj
+          } //ii
+        } // l
+      } // k
+    } // j
+  } // i
+  /****************************************************************************/
+  /**********************END GENERATE CELL-LINKED LIST*************************/
+  /****************************************************************************/
+
   /*****************************************************************************
   ****************************ATOM REMOVAL**************************************
   *****************************************************************************/
   // Compare the distances of each atom
-
-  // NOTE: The following assumes that the atoms were read in order by their ID.
-  // If this is not the case, this will not work properly!
-  for (unsigned int i = 0; i < atoms_checked.size() - 1; ++i)
+  for (unsigned int i = 0; i < atoms.size(); ++i)
   {
-    // Get the positions of atom i
-    x1 = atoms_checked[i].getX();
-    y1 = atoms_checked[i].getY();
-    z1 = atoms_checked[i].getZ();
-    // Checking Cu atoms for being too close
-    if (atoms_checked[i].getMark() == 0) // only checking unmarked Cu atoms
+    if (atoms[i].getMark() == 0) // only checking unmarked Cu atoms
     {
-      for (unsigned int j = i + 1; j < atoms_checked.size(); ++j) // Don't double count!
+      x1 = atoms[i].getX();
+      y1 = atoms[i].getY();
+      z1 = atoms[i].getZ();
+      for (int l = 1; l <= iatom[0][i]; ++l)
       {
-        if (atoms_checked[j].getMark() == 0) // Only unmarked Cu atoms
+        int id = iatom[l][i];
+        if (atoms[id].getMark() == 0) // Only unmarked Cu atoms
         {
           // Calculate the distance
-          rxij = x1 - atoms_checked[j].getX();
-          ryij = y1 - atoms_checked[j].getY();
-          rzij = z1 - atoms_checked[j].getZ();
+          rxij = x1 - atoms[id].getX();
+          ryij = y1 - atoms[id].getY();
+          rzij = z1 - atoms[id].getZ();
 
           // Apply PBCs
           rxij = rxij - anInt(rxij / Lx) * Lx;
@@ -320,13 +439,11 @@ int main(int argc, char **argv)
           rzij = rzij - anInt(rzij / Lz) * Lz;
 
           drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-          if (drij_sq < rnn_cut_sq) // if the U atoms are too close
+          if (drij_sq < rnn_cut_sq) // If the Cu atoms are too close
           {
-            atoms_checked[i].setMark(1);
-            // The -1 is here because the id's start at 1, and c++ indices start at 0
-            atoms[atoms_checked[i].getId() - 1].setMark(1);
+            atoms[i].setMark(1);
             ++n_Cu_removed;
-            break; // since we've removed this atom, move on to the next one.
+            break; // since we've removed this atom, move on to the next one
           }
         }
       }
