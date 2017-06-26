@@ -61,7 +61,7 @@ int main(int argc, char **argv)
   double xlow, xhigh, ylow, yhigh, zlow, zhigh; // atom bounds
   int atom_id, atom_type; // id number and type number
   double x, y, z; // charge and position values
-  double x1, y1, z1, temp_x, temp_y, x2, y2, z2; // Store the original value and manipulate!
+  double x1, y1, z1, temp_x, temp_y; // Store the original value and manipulate!
 
   // Containers
   vector <Atom> atoms; // contains the atoms we look at, and the entire set.
