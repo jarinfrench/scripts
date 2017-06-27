@@ -85,11 +85,12 @@ else:
     unit_style = line4[1]
 
 if unit_style == "metal":
-    unit_labels = {"mass": "g/mol", "distance": "Angstroms", "time": "ps",
-                   "energy": "eV", "velocity": "Angstroms/ps", "force": "eV/Angstrom",
+    unit_labels = {"mass": "g/mol", "distance": r"$\AA$", "time": "ps",
+                   "energy": "eV", "velocity": r"$\AA$/ps", "force": r"eV/$\AA$",
                    "torque": "eV", "temperature": "K", "pressure": "bars",
                    "dynamic viscosity": "Poise", "charge": r"Multiples of e$^-1$ charge",
-                   "dipole": "charge*Angstroms", "electric field": "V/Angstrom",
+                   "dipole": r"charge*$\AA$", "electric field": r"V/$\AA$",
+                   "volume": r"$\AA^3$",
                    "density": r"g/cm$^3$", "none": " ", "cpu": "s"}
 elif unit_style == "si":
     unit_labels = {"mass": "kg", "distance": "m", "time": "s",
@@ -97,6 +98,7 @@ elif unit_style == "si":
                    "torque": "N*m", "temperature": "K", "pressure": r"N/m$^2$",
                    "dynamic viscosity": r"N*s/m$^2$", "charge": "C",
                    "dipole": "C*m", "electric field": "V/m",
+                   "volume": r"m$^3$",
                    "density": r"kg/m$^3$", "none": " ", "cpu": "s"}
 else:
     print("Please see the LAMMPS manual for relevant units.")
@@ -109,7 +111,9 @@ lammps_thermo = {"Step": "none", "Elapsed": "time", "Elaplong": "time",
                  "KinEng": "energy", "TotEng": "energy", "Enthalpy": "none",
                  "Pxx": "pressure", "Pyy": "pressure", "Pzz": "pressure",
                  "Pxy": "pressure", "Pxz": "pressure", "Pyz": "pressure",
-                 "Fmax": "force", "Fnorm": "force", "E_per_atom": "energy"}
+                 "Fmax": "force", "Fnorm": "force", "E_per_atom": "energy",
+                 "Lx": "distance", "Ly": "distance", "Lz": "distance",
+                 "Volume": "volume"}
 
 # Now we get the labels
 labels = next(reader)

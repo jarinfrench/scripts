@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 {
   string filename1, filename2, str, str2; // file to be parsed, written to, junk var
   string date1, date2, date3, date; // Different parts of the date
-  string indicator; // line that specifies that we have important information coming up next.
+  string indicator, indicator2; // line that specifies that we have important information coming up next.
   string indicator_end; // line that specifies the end of the important info.
   string unit_indicator, unit_style; // line that specifies what unit style we are using
   double Lx = 0.0, Ly = 0.0, Lz = 0.0; // box size in each direction.
@@ -55,6 +55,7 @@ int main(int argc, char** argv)
   }
 
   indicator = "Per MPI rank memory allocation";
+  indicator2 = "Memory usage per processor";
   indicator_end = "Loop time of";
   unit_indicator = "Unit style";
 
@@ -166,7 +167,7 @@ int main(int argc, char** argv)
   // which tells us that we have important information coming in.
   while (getline(fin, str))
   {
-    if (str.find(indicator) != string::npos) // found our indicator line
+    if (str.find(indicator) != string::npos || str.find(indicator2) != string::npos) // found our indicator line
     {
       getline(fin, str); // get the line containing our data labels
       stringstream ss(str);
