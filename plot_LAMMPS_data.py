@@ -125,7 +125,11 @@ for i in range(len(labels)): # for the total number of labels we have
 # come to another label set. <-- Second label set NOT IMPLEMENTED YET (TODO)
 for row in reader:
     for i in range(len(labels)):
-        data[i].append(float(row[i]))
+        try:
+            data[i].append(float(row[i]))
+        except:
+            print("Second label set not implemented yet.")
+            break;
 
 # This removes duplicated values from the FIRST data set (the assumption is that
 # the first column of data contains the step number)
