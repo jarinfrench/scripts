@@ -5,7 +5,6 @@
 #include <sstream>
 #include <vector>
 #include <cmath> // for cos, sin
-#include <cstdlib>
 #include "atom.h"
 
 using namespace std;
