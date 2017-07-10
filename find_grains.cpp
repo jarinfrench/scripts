@@ -118,6 +118,7 @@ int main(int argc, char** argv)
 
   fin_input.ignore();
   // Now read through each set of files
+  int j = 1;
   while (getline(fin_input, filename1))
   {
     // Open up the files for reading and writing.
@@ -143,6 +144,14 @@ int main(int argc, char** argv)
     {
       // This is for a LAMMPS dump file
       getline(fin, str); // Gets ITEM: TIMESTEP
+      if (j == 1)
+      {
+        if (str != "0")
+        {
+          cout << "Warning: first data file is not at timestep 0!"
+               << "Ignore this warning if this is intentional.\n";
+        }
+      }
       getline(fin, str); // Gets the timestep number
       getline(fin, str); // Gets ITEM: NUMBER OF ATOMS
       fin >> N;
@@ -436,6 +445,7 @@ int main(int argc, char** argv)
     }
 
     cout << "Processing of file \"" << filename1 << "\" completed.\n";
+    ++j;
   }
 
   fin_input.close();

@@ -37,7 +37,7 @@ double latticeParam(double T)
 int main(int argc, char **argv)
 {
   string filename, filename2, str; // data file, junk variable.
-  double T, a0, M; // temperature, lattice parameter, mobility
+  double T, a0, M, r_sq; // temperature, lattice parameter, mobility
   int N0, N1; // Number of atoms in grain 2 at time 1 and time 2
   double t0, t1, Lz, eGB; // time at 1, time at 2, height of cylindrical grain, GBE
 
@@ -72,37 +72,42 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  ofstream fout("mobility_data.csv");
+  if (fout.fail())
+  {
+    cout << "Error: unable to open file mobility_data.csv.\n";
+    return 1;
+  }
+  fout << "This is the mobility data for T = " << T << " K [timestep, mobility in m^4/Js, r^2 of the shrinking grain]\n";
+
   getline(fin, str); // get the comment line
-  getline(fin, str); // get the initial, unminimized structure.
+  fin >> t0 >> str >> str >> str >> str;
+  if (t0 != 0)
+  {
+    cout << "Something is wrong in the input file - Perhaps a missing entry?\n"
+         << "This script requires that the second line in the data file contain the timestep 0 information!\n";
+    return 2;
+  }
   fin >> t0 >> str >> str >> str >> N0; // Get the initial values
 
-  int i = 0;
   while (fin >> t1 >> str >> str >> str >> N1)
   {
+    // if t1 is less than or equal to t0, the data file is corrupted and needs
+    // to be looked at.
+    if (t1 <= t0)
+    {
+      cout << "Error: data file corrupted.  t0 = " << t0 << " >= t1 = " << t1 << endl;
+      return 3;
+    }
     // Now that we've multiplied everything together, convert it to the correct
-    // units.  Units should be m^4 / J*s.  Note that we have N0 before N1 to
-    // calculate positive values.
-    M += (N0 - N1) * a0 * a0 * a0 / ((t1 - t0) * 0.002 * 8 * PI * Lz * eGB) * 1.0e-8;
-    //cout << M << endl;
-    ++i;
+    // units.  Units should be m^4 / J*s.
+    r_sq = N1 * a0 * a0 * a0 / (4 * PI * Lz);
+    M = abs(N1 - N0) / ((t1 - t0) * 0.002 * 2 * eGB) * 1.0e-8 * r_sq / N1;
+    fout << t1 << "," << M << "," << r_sq << endl;
   }
   // Close the file stream
   fin.close();
-
-  cout << "The mobility is " << M / i << endl;
-
-  stringstream ss;
-  ss << "mobility_T" << (int)T << "K.csv";
-  filename2 = ss.str();
-
-  ofstream fout(filename2.c_str(), ios_base::app);
-  if (fout.fail())
-  {
-    cout << "Error: unable to open file " << filename2 << endl;
-    return 1;
-  }
-
-  fout << M / i << " " << T << endl;
+  fout.close();
 
   return 0;
 }
