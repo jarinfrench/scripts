@@ -1,6 +1,9 @@
 all : rotate_and_remove calculate_GBE calculate_mobility check_distances \
 csv2tecplot extract_energy find_grains parse_lammps_dump parse_lammps_output \
 xyz2dat
+	mv rotate_and_remove calculate_GBE calculate_mobility check_distances \
+	csv2tecplot extract_energy find_grains parse_lammps_dump parse_lammps_output \
+	xyz2dat bin/
 
 debug : rotate_and_remove_dbg calculate_GBE_dbg calculate_mobility_dbg \
 check_distances_dbg csv2tecplot_dbg extract_energy_dbg find_grains_dbg \
