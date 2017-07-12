@@ -8,6 +8,7 @@ xyz2dat generate_impurities
 debug : rotate_and_remove_dbg calculate_GBE_dbg calculate_mobility_dbg \
 check_distances_dbg csv2tecplot_dbg extract_energy_dbg find_grains_dbg \
 parse_lammps_dump_dbg parse_lammps_output_dbg xyz2dat_dbg generate_impurities_dbg
+	mv *_dbg bin/
 
 rotate_and_remove : rotate_and_remove_atom.cpp atom.o
 	g++ -O3 -o rotate_and_remove rotate_and_remove_atom.cpp atom.o
@@ -79,6 +80,4 @@ xyz2dat_dbg : xyz2dat.cpp
 	g++ -ggdb -g -o xyz2dat_dbg xyz2dat.cpp
 
 clean :
-	rm rotate_and_remove calculate_GBE calculate_mobility check_distances \
-	csv2tecplot extract_energy find_grains parse_lammps_dump parse_lammps_output \
-	xyz2dat generate_impurities *_dbg
+	cd bin/ && ls -I '*.*' | xargs rm && cd .. && rm *.o
