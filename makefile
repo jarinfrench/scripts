@@ -1,11 +1,11 @@
-all : rotate_and_remove calculate_GBE calculate_mobility check_distances \
+all : rotate_and_remove calculate_GBE calculate_grain_area check_distances \
 csv2tecplot extract_energy find_grains parse_lammps_dump parse_lammps_output \
 xyz2dat generate_impurities
-	mv rotate_and_remove calculate_GBE calculate_mobility check_distances \
+	mv rotate_and_remove calculate_GBE calculate_grain_area check_distances \
 	csv2tecplot extract_energy find_grains parse_lammps_dump parse_lammps_output \
 	xyz2dat generate_impurities bin/
 
-debug : rotate_and_remove_dbg calculate_GBE_dbg calculate_mobility_dbg \
+debug : rotate_and_remove_dbg calculate_GBE_dbg calculate_grain_area_dbg \
 check_distances_dbg csv2tecplot_dbg extract_energy_dbg find_grains_dbg \
 parse_lammps_dump_dbg parse_lammps_output_dbg xyz2dat_dbg generate_impurities_dbg
 	mv *_dbg bin/
@@ -19,8 +19,8 @@ atom.o : atom.h atom.cpp
 calculate_GBE : calculate_GBE.cpp
 	g++ -O3 -o calculate_GBE calculate_GBE.cpp
 
-calculate_mobility : calculate_mobility.cpp
-	g++ -O3 -o calculate_mobility calculate_mobility.cpp
+calculate_grain_area : calculate_grain_area.cpp
+	g++ -O3 -o calculate_grain_area calculate_grain_area.cpp
 
 check_distances : check_distances.cpp atom.cpp atom.o
 	g++ -O3 -o check_distances check_distances.cpp atom.o
@@ -52,8 +52,8 @@ rotate_and_remove_dbg : rotate_and_remove_atom.cpp atom.o
 calculate_GBE_dbg : calculate_GBE.cpp
 	g++ -ggdb -g -o calculate_GBE_dbg calculate_GBE.cpp
 
-calculate_mobility_dbg : calculate_mobility.cpp
-	g++ -ggdb -g -o calculate_mobility_dbg calculate_mobility.cpp
+calculate_grain_area_dbg : calculate_grain_area.cpp
+	g++ -ggdb -g -o calculate_grain_area_dbg calculate_grain_area.cpp
 
 check_distances_dbg : check_distances.cpp atom.cpp atom.o
 	g++ -ggdb -g -o check_distances_dbg check_distances.cpp atom.o

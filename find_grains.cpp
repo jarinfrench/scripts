@@ -81,7 +81,8 @@ int main(int argc, char** argv)
     cout << "Error opening file data.txt\n";
     return 1;
   }
-  fout_data << "Data consists of: [timestep, outside grain value, inside grain value, atoms in grain 1, atoms in grain 2]\n";
+  // The # is there for use with programs like gnuplot.
+  fout_data << "# Data consists of: [timestep, atoms in grain 2]\n";
 
   // Get the important information from the input file:
   // Number of files, misorientation angle,
@@ -195,8 +196,7 @@ int main(int argc, char** argv)
       return 1;
     }
 
-    fout_data << filename2.substr(0,filename2.find("_interface")) << " "
-              << ideal_symm << " " << total1 << " ";
+    fout_data << filename2.substr(0,filename2.find("_interface")) << " ";
 
     // Preallocate the information (saves time, and allows the atoms to be written
     // in order)
@@ -415,7 +415,7 @@ int main(int argc, char** argv)
       }
     }
 
-    fout_data << n_grain_1 << " " << n_grain_2 << endl;
+    fout_data << n_grain_2 << endl;
     // Make sure we write the entire set of atoms
     // This writes things in a tecplot-readable format.
     n_atoms_read = 0;
