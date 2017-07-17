@@ -86,7 +86,7 @@ int main(int argc, char **argv)
          << "This script requires that the second line in the data file contain the timestep 0 information!\n";
     return 2;
   }
-  fout << t0 * 0.002 << "," << N0 * a0 * a0 * a0 / (4 * Lz) << endl;
+  fout << t0 * 0.002 << " " << N0 * a0 * a0 * a0 / (4 * Lz) << endl;
   fin >> str >> str; // ignore the minimization step
 
   while (fin >> t1 >> N1)
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
     // units.  Units should be m^4 / J*s.
     r_sq = N1 * a0 * a0 * a0 / (4 * Lz);
 
-    fout << t1 * 0.002 << "," << r_sq << endl;
+    fout << t1 * 0.002 << " " << r_sq << endl;
   }
   // Close the file stream
   fin.close();
