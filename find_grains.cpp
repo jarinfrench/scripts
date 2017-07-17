@@ -145,6 +145,7 @@ int main(int argc, char** argv)
     {
       // This is for a LAMMPS dump file
       getline(fin, str); // Gets ITEM: TIMESTEP
+      getline(fin, str); // Gets the timestep number
       if (j == 1)
       {
         if (str != "0")
@@ -153,7 +154,6 @@ int main(int argc, char** argv)
                << "Ignore this warning if this is intentional.\n";
         }
       }
-      getline(fin, str); // Gets the timestep number
       getline(fin, str); // Gets ITEM: NUMBER OF ATOMS
       fin >> N;
       fin.ignore();
