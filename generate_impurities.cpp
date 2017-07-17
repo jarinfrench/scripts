@@ -32,7 +32,8 @@ bool pairCmp(pair<int, double> &a, pair<int, double> &b)
 int main(int argc, char** argv)
 {
   string file1, file2, file3, str; // filename to read, output files, junk var
-  int seed, impurity; // random number generator seed
+  int seed; // random number generator seed
+  double impurity; // Number of vacancies to generate.
   int N, N_vac, N_sub, ntypes, ntotal = 0, n2; // Number of: atoms, vacancies/subs, atom types, atoms read, U to remove
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounding box / box dimensions
   int atom_id, atom_id2, atom_type; // atom id number, type number
