@@ -37,7 +37,7 @@ double latticeParam(double T)
 int main(int argc, char **argv)
 {
   string filename, filename2, str; // data file, junk variable.
-  double T, a0, M, r_sq; // temperature, lattice parameter, mobility
+  double T, a0, area, scale_factor; // temperature, lattice parameter, area
   int N0, N1; // Number of atoms in grain 2 at time 1 and time 2
   double t0, t1, Lz; // time at 1, time at 2, height of cylindrical grain, GBE
   // NOTE: eGB is generally taken as 1.5.  I should use a value close to what
@@ -62,6 +62,9 @@ int main(int argc, char **argv)
   }
 
   a0 = latticeParam(T);
+  scale_factor = a0 / 5.453; // Important to account for expansion of the lattice
+  Lz *= scale_factor;
+
   // open up the file for reading
   ifstream fin(filename.c_str());
   if (fin.fail())
@@ -70,13 +73,13 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  ofstream fout("mobility_data.csv");
+  ofstream fout("area_data.txt");
   if (fout.fail())
   {
-    cout << "Error: unable to open file mobility_data.csv.\n";
+    cout << "Error: unable to open file area_data.txt.\n";
     return 1;
   }
-  fout << "# This is the area data for T = " << T << " K [time, area (Angstroms^2)]\n";
+  fout << "# This is the area data for T = " << T << " K [time(ps) area(Angstroms^2)]\n";
 
   getline(fin, str); // get the comment line
   fin >> t0 >> N0;
@@ -100,9 +103,9 @@ int main(int argc, char **argv)
     }
     // Now that we've multiplied everything together, convert it to the correct
     // units.  Units should be m^4 / J*s.
-    r_sq = N1 * a0 * a0 * a0 / (4 * Lz);
+    area = N1 * a0 * a0 * a0 / (4 * Lz);
 
-    fout << t1 * 0.002 << " " << r_sq << endl;
+    fout << t1 * 0.002 << " " << area << endl;
   }
   // Close the file stream
   fin.close();
