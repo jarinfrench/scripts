@@ -13,11 +13,10 @@ using namespace std;
 int main(int argc, char** argv)
 {
   string filename1, filename2, filename3, str;
-  int n_atoms, N, type;
+  int n_atoms, N, type, n_types;
   double xlow, xhigh, ylow, yhigh, zlow, zhigh;
   double x, y, z, charge, temp = 1.0;
-  char atom_type;
-  //string atom_type; // for multi character atom types
+  string atom_type;
 
   if (argc == 1)
   {
@@ -28,6 +27,9 @@ int main(int argc, char** argv)
   {
     filename1 = argv[1];
   }
+
+  cout << "Please enter the number of atom types in the data file: ";
+  cin  >> n_types;
 
   filename2 = "temp.dat"; // temporary filename until we determine what it needs to be
   filename3 = filename1.substr(0, filename1.find(".")) + ".dat";
@@ -46,13 +48,24 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  fout << "This bulk UO2 coordinates format: [ID type charge x y z]\n\n";
+  if (n_types == 2)
+  {
+    fout << "This bulk UO2 coordinates format: [ID type charge x y z]\n\n";
+  }
+  else if (n_types == 1)
+  {
+    fout << "This bulk Cu coordinates format: [ID type x y z]\n\n";
+  }
+  else
+  {
+    cout << "Error: Case of n_types > 2 not handled.\n";
+    return 10;
+  }
 
   fin >> N; // Number of atoms
   fout << N << "  atoms\n";
 
-  fout << "2   atom types\n"; // This is assuming UO2
-  //fout << "1   atom types\n"; // This is assuming Cu
+  fout << n_types << "   atom types\n";
 
   fin >> xhigh >> yhigh >> zhigh >> str >> str >> str; // Boundaries
   xlow = 0.0;
@@ -69,17 +82,22 @@ int main(int argc, char** argv)
   while (fin >> atom_type >> x >> y >> z) // Read in the data
   {
     // Not needed for Cu
-    if (atom_type == 'U') // Given a U atom, write the correct type and charge
+    if (atom_type.compare("U")) // Given a U atom, write the correct type and charge
     {
       type = 1;
       charge = 2.4;
     }
-    else if (atom_type == 'O') // Same with the O atom
+    else if (atom_type.compare("O")) // Same with the O atom
     {
       type = 2;
       charge = -1.2;
     }
-    else // We are only dealing with U and O, so if we have something else, there's a problem
+    else if (atom_type.compare("Cu"))
+    {
+      type = 1;
+      charge = 0.0;
+    }
+    else // We are only dealing with U and O, or Cu, so if we have something else, there's a problem
     {
       cout << "Unrecognized atom type.\n";
       return 2;
@@ -105,9 +123,22 @@ int main(int argc, char** argv)
       zhigh = 0.0;
       zlow = temp;
     }
-    fout << setprecision(0) << ++n_atoms << " " << type << " " // Note that type can be replaced by 1 for single type situtations
-         << setprecision(1) << charge << " "
-         << setprecision(6) << x << " " << y << " " << z << endl;
+    if (n_types == 2)
+    {
+      fout << setprecision(0) << ++n_atoms << " " << type << " "
+           << setprecision(1) << charge << " "
+           << setprecision(6) << x << " " << y << " " << z << endl;
+    }
+    else if (n_types == 1)
+    {
+      fout << setprecision(0) << ++n_atoms << " " << type << " "
+           << setprecision(6) << x << " " << y << " " << z << endl;
+    }
+    else
+    {
+      cout << "Error: Number of atom types is too large.\n";
+      return 10;
+    }
 
   }
 

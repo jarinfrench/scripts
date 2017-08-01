@@ -33,7 +33,7 @@ int main(int argc, char** argv)
   int atom_id, type; // id and type number of atom; used to read in the data
   double charge, x, y, z; // charge and position of atom, used to read in data
   double rxij, ryij, rzij, drij_sq; // positions and distance squared
-  double uu_cut_sq; // cutoff distance
+  double r_cut_sq; // cutoff distance
   double sintheta_sq, total1 = 0.0, total2 = 0.0; // sin^2 of the angle, symmetry parameter (it's a sum, so starts at 0)
   double xtemp, ytemp, sintheta, costheta, cutoff; // rotated x position, y position, sin theta, cos theta, cutoff for which grain an atom belongs to.
   bool dump; // boolean value to determine if the read file is a LAMMPS dump file or not.
@@ -85,14 +85,15 @@ int main(int argc, char** argv)
   fout_data << "# Data consists of: [timestep, atoms in grain 2]\n";
 
   // Get the important information from the input file:
-  // Number of files, misorientation angle,
-  fin_input >> n_files >> theta >> r_cut >> a0 >> ideal_symm;
-  uu_cut_sq = r_cut * r_cut;
+  // Number of files, misorientation angle, number of atom types, cutoff distance, lattice parameter, ideal symmetry parameter
+  fin_input >> n_files >> theta >> n_type >> r_cut >> a0 >> ideal_symm;
+  r_cut_sq = r_cut * r_cut;
 
   sintheta = sin(theta * PI / 180.0); // best to calculate this once
   costheta = cos(theta * PI / 180.0);
 
   // Calculate the cutoff value for grain identification
+  // Assumes FCC structure!
   vector <double> xx (12,0.0); // x positions in terms of a0 for nearest neighbors
   vector <double> yy (12,0.0); // y positions in terms of a0 for nearest neighbors
   xx[0] = 0.5; xx[1] = 0.5; xx[2] = -0.5; xx[3] = -0.5; xx[4] = 0.5; xx[5] = 0.5; xx[6] = -0.5; xx[7] = -0.5;
@@ -163,7 +164,6 @@ int main(int argc, char** argv)
       fin >> zlow >> zhigh;
       fin.ignore();
       getline(fin, str); // Gets ITEM: ATOMS <data types>
-      n_type = 2; // Assumes only two types of atoms: U and O
       filename2 = filename1.substr(0,filename1.find(".dump")) + "_interface.dat";
     }
     else
@@ -171,11 +171,12 @@ int main(int argc, char** argv)
       // This is for a LAMMPS input file
       getline(fin, str); // gets comment line
       fin >> N >> str; // number of atoms
-      fin >> n_type >> str >> str;
+      fin >> str >> str >> str; // Number of types is specified in the input file
       fin >> xlow >> xhigh >> str >> str;
       fin >> ylow >> yhigh >> str >> str;
       fin >> zlow >> zhigh >> str >> str;
       fin >> str;
+      fin.ignore();
       filename2 = filename1.substr(0,filename1.find(".dat")) + "_interface.dat";
     }
     // Convert the bounds in terms of a0
@@ -207,9 +208,26 @@ int main(int argc, char** argv)
     icell.clear();
     pcell.clear();
     iatom.clear();
+
     // Read the data
-    while (fin >> atom_id >> type >> charge >> x >> y >> z)
+    while (getline(fin, str))
     {
+      stringstream ss(str);
+      if (n_type == 1)
+      {
+        ss >> atom_id >> type >> x >> y >> z;
+        charge = 0.0;
+      }
+      else if (n_type == 2)
+      {
+        ss >> atom_id >> type >> charge >> x >> y >> z;
+      }
+      else
+      {
+        cout << "This case is not handled.  n_types = " << n_type << " != (1|2)\n";
+        return 10;
+      }
+
       if (type > n_type)
       {
         cout << "Error: unexpected atom type.\n"
@@ -334,7 +352,7 @@ int main(int argc, char** argv)
                     // Now calculate the distance
                     drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
 
-                    if (drij_sq > uu_cut_sq)
+                    if (drij_sq > r_cut_sq)
                     {
                       continue; // move to the next atom if we're too far away
                     }
@@ -367,7 +385,7 @@ int main(int argc, char** argv)
     {
       if (atoms[i].getType() != 1)
       {
-        continue; // Only focus on U
+        continue; // Only focus on U (or the single atom type)
       }
 
       x = atoms[i].getX();
@@ -392,6 +410,11 @@ int main(int argc, char** argv)
         // Calculate the magnitude of the distance
         drij_sq = (rxij * rxij) + (ryij * ryij);
 
+        if (drij_sq == 0) // Handles the case where the projected position of the atom is right on top of the current atom.
+        {
+          total2 += 1;
+          continue;
+        }
         // This uses the relation sin^2 = 1-cos^2, where cos = dot(A,B) / (|A|*|B|)
         sintheta_sq = 1 - (rxij * rxij) / drij_sq;
         total2 += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
@@ -425,22 +448,46 @@ int main(int argc, char** argv)
       {
         continue;
       }
-      fout << atoms[i].getId() << " "
-           << atoms[i].getType() << " "
-           << atoms[i].getCharge() << " "
-           << (atoms[i].getX() + xlow) * a0 << " "
-           << (atoms[i].getY() + ylow) * a0 << " "
-           << (atoms[i].getZ() + zlow) * a0 << " "
-           << atoms[i].getMark() << " "
-           << symm[i] << endl;
+      if (n_type == 1)
+      {
+        fout << atoms[i].getId() << " "
+             << atoms[i].getType() << " "
+             << (atoms[i].getX() + xlow) * a0 << " "
+             << (atoms[i].getY() + ylow) * a0 << " "
+             << (atoms[i].getZ() + zlow) * a0 << " "
+             << atoms[i].getMark() << " "
+             << symm[i] << endl;
+      }
+      else if (n_type == 2)
+      {
+        fout << atoms[i].getId() << " "
+             << atoms[i].getType() << " "
+             << atoms[i].getCharge() << " "
+             << (atoms[i].getX() + xlow) * a0 << " "
+             << (atoms[i].getY() + ylow) * a0 << " "
+             << (atoms[i].getZ() + zlow) * a0 << " "
+             << atoms[i].getMark() << " "
+             << symm[i] << endl;
+      }
+      else
+      {
+        cout << "Error: n_types != (1|2), n_types = " << n_type << endl;
+        return 10;
+      }
+
       ++n_atoms_read;
     }
     fout.close(); // Close the output file
 
-    if (n_atoms_read != N / 3.0)
+    // Allows for a different number of atom types to be checked.
+    if (n_type == 2)
+    {
+      n_atoms_read *= 3;
+    }
+    if (n_atoms_read != N)
     {
       cout << "Error: number of atoms written does not match number of atoms in the simulation.\n"
-           << "N = " << N / 3.0 << " != n_atoms_read = " << n_atoms_read << endl;
+           << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
       return 6;
     }
 
