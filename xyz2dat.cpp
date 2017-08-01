@@ -28,8 +28,22 @@ int main(int argc, char** argv)
     filename1 = argv[1];
   }
 
-  cout << "Please enter the number of atom types in the data file: ";
-  cin  >> n_types;
+  if (filename1.find("UO2") == string::npos)
+  {
+    if (filename1.find("CU") == string::npos)
+    {
+      cout << "Unable to determine number of atom types in the data file.\n";
+      return 8;
+    }
+    else
+    {
+      n_types = 1;
+    }
+  }
+  else
+  {
+    n_types = 2;
+  }
 
   filename2 = "temp.dat"; // temporary filename until we determine what it needs to be
   filename3 = filename1.substr(0, filename1.find(".")) + ".dat";
