@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 
   string filename1, filename2, input_file, data_file, str; // filenames read from and written to, input file, data file, junk variable
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
-  int N, n_type, n_atoms_read = 0; // number of atoms, atom types, number of atoms read
+  int N, n_type, n_atoms_read = 0, smaller; // number of atoms, atom types, number of atoms read
   vector <Atom> atoms; // all of the atoms from the file
   vector <double> symm; // a vector to hold the calculated symmetry parameters
   int atom_id, type; // id and type number of atom; used to read in the data
@@ -438,7 +438,40 @@ int main(int argc, char** argv)
       }
     }
 
-    fout_data << n_grain_2 << endl;
+    // This is a check to make sure we are outputting the values for the shrinking grain.
+    if (j == 1)
+    {
+      if (n_grain_1 < n_grain_2)
+      {
+        smaller = 1;
+      }
+      else //n_grain_1 >= n_grain_2
+      {
+        smaller = 2;
+      }
+    }
+    else // j != 1
+    {
+      if (smaller == 1)
+      {
+        if (!(n_grain_1 < n_grain_2))
+        {
+          cout << "Grains were labeled incorrectly.\n";
+          return 9;
+        }
+      }
+      else // (smaller == 2)
+      {
+        if (!(n_grain_1 > n_grain_2)) // Ignores the possibility of n1 == n2
+        {
+          cout << "Grains were labeled incorrectly.\n";
+          return 9;
+        }
+      }
+    }
+    // We want to make sure we ouput the smaller value
+    fout_data << (n_grain_1 < n_grain_2 ? n_grain_1 : n_grain_2) << endl;
+
     // Make sure we write the entire set of atoms
     // This writes things in a tecplot-readable format.
     n_atoms_read = 0;
