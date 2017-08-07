@@ -14,7 +14,7 @@ double latticeParam(double T, string atom_type)
   // A is the y intercept, B is the linear coefficient, C is the parabolic
   // coefficient
   double A, B, C;
-  if (atom_type.compare("UO2"))
+  if (atom_type.compare("UO2") != 0 ) // If the strings match exactly, the returned value is 0
   {
     if (T >= 0.0 && T <= 1000.0)
     {
@@ -34,7 +34,7 @@ double latticeParam(double T, string atom_type)
       exit(10); // We don't want to continue with execution if we're out of range.
     }
   }
-  else if (atom_type.compare("CU"))
+  else if ( atom_type.compare("CU") != 0)
   {
     if (T >= 0.0 && T <= 700.0)
     {
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
     cout << "Please enter the height of the original cylinder (in Angstroms): ";
     cin  >> Lz;
 
-    cout << "Please enter the molecules in the simulation (i.e. UO2, Cu): \n";
+    cout << "Please enter the molecules in the simulation (i.e. UO2, Cu): ";
     cin  >> atom_types;
   }
   else
