@@ -86,7 +86,15 @@ int main(int argc, char** argv)
 
   // Get the important information from the input file:
   // Number of files, misorientation angle, number of atom types, cutoff distance, lattice parameter, ideal symmetry parameter
-  fin_input >> n_files >> theta >> n_type >> r_cut >> a0 >> ideal_symm;
+  getline(fin_input, str);
+  stringstream ss_input(str);
+  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> a0 >> ideal_symm))
+  {
+    cout << "Error reading the input file.  Did you forget a value?\n"
+         << "Format of the first line of the input file is:\n"
+         << "<number of files> <misorientation angle> <number of atom types> <cutoff distance in Angstroms> <lattice parameter in Angstroms> <ideal symmetry parameter value>\n";
+    return 9;
+  }
   r_cut_sq = r_cut * r_cut;
 
   sintheta = sin(theta * PI / 180.0); // best to calculate this once
@@ -118,7 +126,6 @@ int main(int argc, char** argv)
   // TODO: this needs to be generalized for outside grains that aren't aligned
   cutoff = (ideal_symm + total1) / 2.0;
 
-  fin_input.ignore();
   // Now read through each set of files
   int j = 1;
   while (getline(fin_input, filename1))
