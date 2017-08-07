@@ -160,7 +160,7 @@ int main(int argc, char **argv)
     ntypes = 2;
   }
 
-  if (ntypes != 1 || ntypes != 2)
+  if (ntypes != 1 && ntypes != 2)
   {
     cout << "Error determining the number of atom types (1).\n";
     return 8;
@@ -202,8 +202,20 @@ int main(int argc, char **argv)
 
   // Read and create the header of the dat file
   getline(fin, str);
-  fout << "These UO2 coordinates are shifted: [ID type charge x y z]\n";
-  fout << "\n";
+  if (ntypes == 1)
+  {
+    fout << "These Cu coordinates are shifted: [ID type x y z]\n\n";
+  }
+  else if (ntypes == 2)
+  {
+    fout << "These UO2 coordinates are shifted: [ID type charge x y z]\n\n";
+  }
+  else
+  {
+    cout << "Number of types is incorrect.\n";
+    return 8;
+  }
+
 
   //Get the number of atoms
   fin  >> N >> str;
@@ -272,6 +284,7 @@ int main(int argc, char **argv)
   atoms.resize(N, Atom());
 
   fin.ignore();
+  getline(fin,str); // gets the blank line before the data.
   while (getline(fin, str)) // read the data
   {
     stringstream ss(str);
