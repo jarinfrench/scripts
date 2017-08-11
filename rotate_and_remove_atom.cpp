@@ -91,6 +91,7 @@ int main(int argc, char **argv)
 
   if (argc != 4) // check command line arguments
   {
+    cout << "rotate_and_remove <data_file> <grain_radius> <rotation_angle>\n";
     // filename
     // Format of filename should be LAMMPS_UO2_SC_N######_{axis}.dat
     cout << "Please input the filename in LAAMPS's format at 0K:\n";
@@ -285,6 +286,7 @@ int main(int argc, char **argv)
 
   fin.ignore();
   getline(fin,str); // gets the blank line before the data.
+  getline(fin,str);
   while (getline(fin, str)) // read the data
   {
     stringstream ss(str);
