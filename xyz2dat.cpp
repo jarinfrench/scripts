@@ -16,7 +16,7 @@ int main(int argc, char** argv)
   int n_atoms, N, type, n_types;
   double xlow, xhigh, ylow, yhigh, zlow, zhigh;
   double x, y, z, charge, temp = 1.0;
-  string atom_type;
+  string atom_type, element;
 
   if (argc == 1)
   {
@@ -30,7 +30,7 @@ int main(int argc, char** argv)
 
   if (filename1.find("UO2") == string::npos)
   {
-    if (filename1.find("CU") == string::npos)
+    if (filename1.find("CU") == string::npos && filename1.find("AL") == string::npos)
     {
       cout << "Unable to determine number of atom types in the data file.\n";
       return 8;
@@ -38,11 +38,21 @@ int main(int argc, char** argv)
     else
     {
       n_types = 1;
+      if (filename1.find("CU") != string::npos)
+        element = "Cu";
+      else if (filename1.find("AL") != string::npos)
+        element = "Al";
+      else
+      {
+        cout << "Unknown element.\n";
+        return 9;
+      }
     }
   }
   else
   {
     n_types = 2;
+    element = "UO2";
   }
 
   filename2 = "temp.dat"; // temporary filename until we determine what it needs to be
@@ -68,7 +78,15 @@ int main(int argc, char** argv)
   }
   else if (n_types == 1)
   {
-    fout << "This bulk Cu coordinates format: [ID type x y z]\n\n";
+    if (element.compare("Cu") == 0)
+      fout << "This bulk Cu coordinates format: [ID type x y z]\n\n";
+    else if (element.compare("Al") == 0)
+      fout << "This bulk Al coordinates format: [ID type x y z]\n\n";
+    else
+    {
+      cout << "Error: only able to handle Cu and Al case currently.\n";
+      return 9;
+    }
   }
   else
   {
@@ -106,7 +124,7 @@ int main(int argc, char** argv)
       type = 2;
       charge = -1.2;
     }
-    else if (atom_type.compare("Cu"))
+    else if (atom_type.compare("Cu") || atom_type.compare("Al"))
     {
       type = 1;
       charge = 0.0;
