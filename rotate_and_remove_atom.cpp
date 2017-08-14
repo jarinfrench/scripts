@@ -25,13 +25,11 @@ using namespace std;
 // The sequence is atom-ID atom-type q x y z
 
 #define PI 3.14159265358979 // easier and faster to simply store these values here.
-#define UO2_SKIN 16.0 //skin depth (just under 3a0, a0 = 5.453)
-#define CU_SKIN 10.0 //skin depth for copper
-#define UU_RNN_CUT 2.0 // Cutoff value for U-U atoms too close
+#define UU_RNN_CUT 2.0 // Cutoff value for U-U atoms too close (Basak Potential)
 #define UO_RNN_CUT 4.0 // Cutoff value for U-O atoms too close
 #define OO_RNN_CUT 0.63801 // Cutoff value for O-O atoms too close
 #define CU_RNN_CUT 1.0 // Cutoff value for Cu-Cu atoms too close (using Mishin potential)
-#define AL_RNN_CUT 2.4 // Cutoff value for Al-Al atoms too close (using Ercolessi-Adams potential)
+#define AL_RNN_CUT 1.0 // Cutoff value for Al-Al atoms too close (using Ercolessi-Adams potential)
 
 // Calculate the rounded value of x
 double anInt(double x)
@@ -238,7 +236,6 @@ int main(int argc, char **argv)
     return 8;
   }
 
-
   //Get the number of atoms
   fin  >> N >> str;
   fout << N << "  atoms\n";
@@ -307,7 +304,6 @@ int main(int argc, char **argv)
 
   fin.ignore();
   getline(fin,str); // gets the blank line before the data.
-  getline(fin,str);
   while (getline(fin, str)) // read the data
   {
     stringstream ss(str);
@@ -857,7 +853,7 @@ int main(int argc, char **argv)
 
   }
 
-  if (ntotal != N - n_U_removed - n_O_removed && ntypes == 2) // One last check
+  if ((ntotal != N - n_U_removed - n_O_removed) && ntypes == 2) // One last check
   {
     cout << "Error! The final number of removed atoms is not balanced!\n"
          << "ntotal = " << ntotal << " != N - n_U_removed - n_O_removed = "

@@ -3,23 +3,23 @@
 # If the executable is not found, an error is thrown.  This script needs the
 # original (unrotated) crystal, as well as the radius of the grain.
 
-read -e -p "Please enter the filename of the original UO2 matrix: " FN
+read -e -p "Please enter the filename of the original matrix: " FN
 
 read -p "Please enter the radius of the rotated grain: " radius
 
 # based on the filename, the axis is determined.  Can only handle 100 to 133 at
 # this point.  Further modifications may be necessary to handle larger axes.
-axis=`echo $FN | grep -o "1[0-3][0-3]"`
+axis=`echo $FN | grep -o "1[0-3][0-5]"`
 
 # Utilize the symmetry of the axis.
 if [ $axis -eq 111 ]; then
-  range=120
+  let range=120/5
 elif [ $axis -eq 110 ]; then
-  range=180
+  let range=180/5
 elif [ $axis -eq 100 ]; then
-  range=90
+  let range=90/5
 else
-  range=360 # This may be too high, but generally not.
+  let range=360/5 # This may be too high, but generally not.
 fi
 
 # If we have a text file with the angles we are interested in checking, specify
@@ -38,12 +38,8 @@ case $angles in
     echo "Generating default layouts..."
     for i in $(seq 1 $range);
     do
-      if [ $i -eq 1 ]; then
-        echo "Rotating $i degree"
-      else
-        echo "Rotating $i degrees"
-      fi
-      rotate_and_remove $FN $radius $i
+      echo "Rotating $(($i*5)) degrees"
+      rotate_and_remove $FN $radius $(($i*5))
     done
     ;;
   *)
