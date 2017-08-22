@@ -29,7 +29,9 @@ using namespace std;
 #define UO_RNN_CUT 4.0 // Cutoff value for U-O atoms too close
 #define OO_RNN_CUT 0.63801 // Cutoff value for O-O atoms too close
 #define CU_RNN_CUT 1.0 // Cutoff value for Cu-Cu atoms too close (using Mishin potential)
-#define AL_RNN_CUT 1.0 // Cutoff value for Al-Al atoms too close (using Ercolessi-Adams potential)
+#define AL_RNN_CUT 2.4 // Cutoff value for Al-Al atoms too close (using Ercolessi-Adams potential)
+#define AU_RNN_CUT 1.0 // Cutoff value for Au-Au atoms too close (using Foiles Au1 potential)
+#define NI_RNN_CUT 1.0 // Cutoff value for Ni-Ni atoms too close (using Foiles-Hoyt potential)
 
 // Calculate the rounded value of x
 double anInt(double x)
@@ -52,7 +54,7 @@ int main(int argc, char **argv)
 {
   // External values
   string filename1, filename2, filename3, filename4, str; //filenames and line variable
-  string element;
+  string element; // element type
   int axis;
   double r_grain; //radius of the grain, with buffer zone
   double r_grain_sq; // squared values for convenience
@@ -63,12 +65,15 @@ int main(int argc, char **argv)
   double oo_rnn_cut_sq = OO_RNN_CUT * OO_RNN_CUT;
   double cu_rnn_cut_sq = CU_RNN_CUT * CU_RNN_CUT;
   double al_rnn_cut_sq = AL_RNN_CUT * AL_RNN_CUT;
+  double au_rnn_cut_sq = AU_RNN_CUT * AU_RNN_CUT;
+  double ni_rnn_cut_sq = NI_RNN_CUT * NI_RNN_CUT;
 
   double scale_factor_a, scale_factor_b, scale_factor_c; // dimensional scaling values
   double Lx, Ly, Lz; // box size
   int ntotal, n_atom_id; // total number of atoms that have been read/written
   double rxij, ryij, rzij, drij_sq; //positional differences, total distance^2
   int n_U_removed = 0, n_O_removed = 0, n_Cu_removed = 0, n_Al_removed = 0; // Counters for U and O removal.
+  int n_Au_removed = 0, n_Ni_removed = 0;
   bool decimal; // boolean value to include decimal or not
 
   // Values from file
@@ -146,7 +151,8 @@ int main(int argc, char **argv)
   if (filename1.find("UO2") == string::npos)
   {
     // Couldn't find UO2 in the filename
-    if (filename1.find("CU") == string::npos && filename1.find("AL") == string::npos)
+    if (filename1.find("CU") == string::npos && filename1.find("AL") == string::npos &&
+        filename1.find("AU") == string::npos && filename1.find("NI") == string::npos)
     {
       //Couldn't find CU in the filename
       cout << "Error: unable to determine number of atom types in the simulation.\n";
@@ -159,6 +165,10 @@ int main(int argc, char **argv)
         element = "Cu";
       else if (filename1.find("AL") != string::npos)
         element = "Al";
+      else if (filename1.find("AU") != string::npos)
+        element = "Au";
+      else if (filename1.find("NI") != string::npos)
+        element = "Ni";
       else
       {
         cout << "Unknown element.\n";
@@ -174,7 +184,7 @@ int main(int argc, char **argv)
 
   if (ntypes != 1 && ntypes != 2)
   {
-    cout << "Error determining the number of atom types (1).\n";
+    cout << "Error determining the number of atom types.\n";
     return 8;
   }
 
@@ -220,9 +230,13 @@ int main(int argc, char **argv)
       fout << "This bulk Cu coordinates format: [ID type x y z]\n\n";
     else if (element.compare("Al") == 0)
       fout << "This bulk Al coordinates format: [ID type x y z]\n\n";
+    else if (element.compare("Au") == 0)
+      fout << "This bulk Au coordinates format: [ID type x y z]\n\n";
+    else if (element.compare("Ni") == 0)
+      fout << "This bulk Ni coordinates format: [ID type x y z]\n\n";
     else
     {
-      cout << "Error: only able to handle Cu and Al case currently.\n";
+      cout << "Error: only able to handle Cu, Al, Au, and Ni cases currently.\n";
       return 9;
     }
   }
@@ -244,7 +258,7 @@ int main(int argc, char **argv)
   fin  >> ntypes_test >> str >> str;
   if (ntypes_test != ntypes)
   {
-    cout << "Error determining number of atom types (2).\n";
+    cout << "Atom types incorrectly determined.\n";
     return 8;
   }
   fout << ntypes << "   atom types\n";
@@ -402,6 +416,18 @@ int main(int argc, char **argv)
       ncellx = (int)(Lx / AL_RNN_CUT) + 1;
       ncelly = (int)(Ly / AL_RNN_CUT) + 1;
       ncellz = (int)(Lz / AL_RNN_CUT) + 1;
+    }
+    else if (element.compare("Au") == 0)
+    {
+      ncellx = (int)(Lx / AU_RNN_CUT) + 1;
+      ncelly = (int)(Ly / AU_RNN_CUT) + 1;
+      ncellz = (int)(Lz / AU_RNN_CUT) + 1;
+    }
+    else if (element.compare("Ni") == 0)
+    {
+      ncellx = (int)(Lx / NI_RNN_CUT) + 1;
+      ncelly = (int)(Ly / NI_RNN_CUT) + 1;
+      ncellz = (int)(Lz / NI_RNN_CUT) + 1;
     }
   }
   lcellx = Lx / ncellx; // Length of the cells in each direction
@@ -579,6 +605,24 @@ int main(int argc, char **argv)
                 break;
               }
             }
+            else if (element.compare("Au") == 0)
+            {
+              if (drij_sq < au_rnn_cut_sq)
+              {
+                atoms[i].setMark(1);
+                ++n_Au_removed;
+                break;
+              }
+            }
+            else if (element.compare("Ni") == 0)
+            {
+              if (drij_sq < ni_rnn_cut_sq)
+              {
+                atoms[i].setMark(1);
+                ++n_Ni_removed;
+                break;
+              }
+            }
             else
             {
               cout << "Element error.\n";
@@ -745,6 +789,10 @@ int main(int argc, char **argv)
       cout << n_Cu_removed << " Cu atoms will be removed.\n";
     else if (element.compare("Al") == 0)
       cout << n_Al_removed << " Al atoms will be removed.\n";
+    else if (element.compare("Au") == 0)
+      cout << n_Au_removed << " Au atoms will be removed.\n";
+    else if (element.compare("Ni") == 0)
+      cout << n_Ni_removed << " Ni atoms will be removed.\n";
   }
 
   ofstream fout2(filename3.c_str());
@@ -806,6 +854,28 @@ int main(int argc, char **argv)
       fout3 << "These Al coordinates are shifted and have atoms removed:[ID type charge x y z]\n"
             << "\n"
             << N - n_Al_removed << "   atoms\n"
+            << ntypes << "   atom types\n"
+            << xlow << " " << xhigh << "   xlo xhi\n"
+            << ylow << " " << yhigh << "   ylo yhi\n"
+            << zlow << " " << zhigh << "   zlo zhi\n"
+            << "\nAtoms\n\n";
+    }
+    else if (element.compare("Au") == 0)
+    {
+      fout3 << "These Au coordinates are shifted and have atoms removed:[ID type charge x y z]\n"
+            << "\n"
+            << N - n_Au_removed << "   atoms\n"
+            << ntypes << "   atom types\n"
+            << xlow << " " << xhigh << "   xlo xhi\n"
+            << ylow << " " << yhigh << "   ylo yhi\n"
+            << zlow << " " << zhigh << "   zlo zhi\n"
+            << "\nAtoms\n\n";
+    }
+    else if (element.compare("Ni") == 0)
+    {
+      fout3 << "These Ni coordinates are shifted and have atoms removed:[ID type charge x y z]\n"
+            << "\n"
+            << N - n_Ni_removed << "   atoms\n"
             << ntypes << "   atom types\n"
             << xlow << " " << xhigh << "   xlo xhi\n"
             << ylow << " " << yhigh << "   ylo yhi\n"
