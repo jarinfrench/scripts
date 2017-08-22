@@ -95,6 +95,13 @@ int main(int argc, char** argv)
          << "<number of files> <misorientation angle> <number of atom types> <cutoff distance in Angstroms> <lattice parameter in Angstroms> <ideal symmetry parameter value>\n";
     return 9;
   }
+  cout << "Input parameters are as follows:\n"
+       << "\tn_files = " << n_files << endl
+       << "\ttheta = " << theta << endl
+       << "\tn_types = " << n_type << endl
+       << "\tr_cut = " << r_cut << endl
+       << "\ta0 = " << a0 << endl
+       << "\tideal_symm = " << ideal_symm << endl;
   r_cut_sq = r_cut * r_cut;
 
   sintheta = sin(theta * PI / 180.0); // best to calculate this once
