@@ -1,13 +1,3 @@
-/******************************************************************************
-* This script requires as input the LAMMPS-formatted file for a single crystal
-* at 0K, the grain radius, and the rotation angle (in degrees).  Prompts will be
-* given if all three are not specified at the command line.  The atoms within
-* the radius are rotated, and then the distances between atoms are checked.
-* If the atoms are too close (as specified by the #define terms), one is removed,
-* being sure to maintain charge neutrality (one U for every 2 O removed).  Note
-* that this script is specifically for UO2.  Changes can be made for other systems.
-******************************************************************************/
-
 #include <iostream>
 #include <string>
 #include <cstring>

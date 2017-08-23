@@ -101,7 +101,7 @@ that file, and then prompts the user as to which plots to show."
 
 position.*: C++ class that contains positions (x, y, and z).  Not used in anything.
 
-rotate_and_remove_[atom|Cu].cpp: Script that rotates atoms within a radius r of
+rotate_and_remove_atom.cpp: Script that rotates atoms within a radius r of
 the center of the structure, and then removes atoms that are too close to each
 other.
 

@@ -15,7 +15,7 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-  string filename1, filename2, str, str2, str3; // filenames and line variablea
+  string filename1, filename2, str, str2, str3; // filenames and line variables
   int N; // number of atoms
   vector<long double> energies; // all of the energies we've read
   long double en1, en2, en3; // current energies
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
   // If we didn't find any energies, no point in doing anything else.
   if (energies.size() == 0)
   {
-    cout << "Did not find any energies to return.\n\n";
+    cout << "Did not find any energies to return in file " << filename1 << "\n\n";
     fin.close();
     return 0;
   }

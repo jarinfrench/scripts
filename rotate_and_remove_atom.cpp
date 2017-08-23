@@ -148,11 +148,11 @@ int main(int argc, char **argv)
     cout << "Error determining rotation axis.\n";
     return 9;
   }
-  if (filename1.find("UO2") == string::npos)
+  if (filename1.find("_UO2_") == string::npos)
   {
     // Couldn't find UO2 in the filename
-    if (filename1.find("CU") == string::npos && filename1.find("AL") == string::npos &&
-        filename1.find("AU") == string::npos && filename1.find("NI") == string::npos)
+    if (filename1.find("_CU_") == string::npos && filename1.find("_AL_") == string::npos &&
+        filename1.find("_AU_") == string::npos && filename1.find("_NI_") == string::npos)
     {
       //Couldn't find CU in the filename
       cout << "Error: unable to determine number of atom types in the simulation.\n";
@@ -161,13 +161,13 @@ int main(int argc, char **argv)
     else
     {
       ntypes = 1;
-      if (filename1.find("CU") != string::npos)
+      if (filename1.find("_CU_") != string::npos)
         element = "Cu";
-      else if (filename1.find("AL") != string::npos)
+      else if (filename1.find("_AL_") != string::npos)
         element = "Al";
-      else if (filename1.find("AU") != string::npos)
+      else if (filename1.find("_AU_") != string::npos)
         element = "Au";
-      else if (filename1.find("NI") != string::npos)
+      else if (filename1.find("_NI_") != string::npos)
         element = "Ni";
       else
       {
