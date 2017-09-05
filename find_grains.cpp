@@ -23,8 +23,6 @@ double anInt(double x)
 
 int main(int argc, char** argv)
 {
-  double coeffs [2] = {3,2}; // Coefficients of the symmetry parameter
-
   string filename1, filename2, input_file, data_file, str; // filenames read from and written to, input file, data file, junk variable
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
   int N, n_type, n_atoms_read = 0, smaller; // number of atoms, atom types, number of atoms read
@@ -38,9 +36,10 @@ int main(int argc, char** argv)
   double xtemp, ytemp, sintheta, costheta, cutoff; // rotated x position, y position, sin theta, cos theta, cutoff for which grain an atom belongs to.
   bool dump; // boolean value to determine if the read file is a LAMMPS dump file or not.
   unsigned int n_grain_1, n_grain_2; // counter for number of atoms in each grain
+  double coeffs [2] = {3,2}; // Coefficients of the symmetry parameter (default)
 
   // Input file parameters
-  int n_files; // Number of files to be read
+  int n_files, rot_axis; // Number of files to be read, rotation axis
   double theta, r_cut, a0, ideal_symm; // misorientation angle, cutoff distance (in terms of a0), a0, ideal symmetry parameter.
   /* Note that the ideal symmetry parameter is calculated by taking the orientation
   * of the larger grain (or the outside grain) and calculating the orientation
@@ -88,20 +87,20 @@ int main(int argc, char** argv)
   // Number of files, misorientation angle, number of atom types, cutoff distance, lattice parameter, ideal symmetry parameter
   getline(fin_input, str);
   stringstream ss_input(str);
-  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> a0 >> ideal_symm))
+  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> a0 >> rot_axis ))
   {
     cout << "Error reading the input file.  Did you forget a value?\n"
          << "Format of the first line of the input file is:\n"
-         << "<number of files> <misorientation angle> <number of atom types> <cutoff distance in Angstroms> <lattice parameter in Angstroms> <ideal symmetry parameter value>\n";
+         << "<number of files> <misorientation angle> <number of atom types> <cutoff distance in Angstroms> <lattice parameter in Angstroms> <rotation axis>\n";
     return 9;
   }
-  cout << "Input parameters are as follows:\n"
+  cout << "Input parameters:\n"
        << "\tn_files = " << n_files << endl
        << "\ttheta = " << theta << endl
        << "\tn_types = " << n_type << endl
        << "\tr_cut = " << r_cut << endl
        << "\ta0 = " << a0 << endl
-       << "\tideal_symm = " << ideal_symm << endl;
+       << "\trotation_axis = " << rot_axis << endl;
   r_cut_sq = r_cut * r_cut;
 
   sintheta = sin(theta * PI / 180.0); // best to calculate this once
@@ -113,15 +112,132 @@ int main(int argc, char** argv)
   vector <double> yy (12,0.0); // y positions in terms of a0 for nearest neighbors
   xx[0] = 0.5; xx[1] = 0.5; xx[2] = -0.5; xx[3] = -0.5; xx[4] = 0.5; xx[5] = 0.5; xx[6] = -0.5; xx[7] = -0.5;
   yy[0] = 0.5; yy[1] = -0.5; yy[2] = 0.5; yy[3] = -0.5; yy[8] = 0.5; yy[9] = 0.5; yy[10] = -0.5; yy[11] = -0.5;
+  switch (rot_axis)
+  {
+    case 100 :
+      ideal_symm = 1.0;
+      xx[0] =  0.0000; yy[0] = -0.5000;
+      xx[1] =  0.0000; yy[1] = -0.5000;
+      xx[2] =  0.0000; yy[2] =  0.5000;
+      xx[3] =  0.0000; yy[3] =  0.5000;
+      xx[4] = -0.5000; yy[4] =  0.0000;
+      xx[5] = -0.5000; yy[5] =  0.0000;
+      xx[6] =  0.5000; yy[6] =  0.0000;
+      xx[7] =  0.5000; yy[7] =  0.0000;
+      xx[8] = -0.5000; yy[8] = -0.5000;
+      xx[9] = -0.5000; yy[9] =  0.5000;
+      xx[10] =  0.5000; yy[10] = -0.5000;
+      xx[11] =  0.5000; yy[11] =  0.5000;
+      break;
+
+    case 110 :
+      ideal_symm = 1.54320928882;
+      xx[0] =  0.0000; yy[0] = -0.7071;
+      xx[1] =  0.0000; yy[1] =  0.7071;
+      xx[2] = -0.5000; yy[2] =  0.3536;
+      xx[3] =  0.5000; yy[3] =  0.3536;
+      xx[4] = -0.5000; yy[4] = -0.3536;
+      xx[5] =  0.5000; yy[5] = -0.3536;
+      xx[6] =  0.0000; yy[6] =  0.0000;
+      xx[7] =  0.0000; yy[7] =  0.0000;
+      xx[8] = -0.5000; yy[8] = -0.3536;
+      xx[9] =  0.5000; yy[9] = -0.3536;
+      xx[10] = -0.5000; yy[10] =  0.3536;
+      xx[11] =  0.5000; yy[11] =  0.3536;
+      break;
+
+    case 111 :
+      ideal_symm = 1.25000033391;
+      xx[0] =  0.7071; yy[0] =  0.0000;
+      xx[1] = -0.7071; yy[1] =  0.0000;
+      xx[2] =  0.0000; yy[2] = -0.4082;
+      xx[3] =  0.3536; yy[3] =  0.6124;
+      xx[4] = -0.3536; yy[4] =  0.6124;
+      xx[5] = -0.3536; yy[5] =  0.2041;
+      xx[6] =  0.3536; yy[6] =  0.2041;
+      xx[7] =  0.0000; yy[7] =  0.4082;
+      xx[8] =  0.3536; yy[8] = -0.2041;
+      xx[9] = -0.3536; yy[9] = -0.2041;
+      xx[10] = -0.3536; yy[10] = -0.6124;
+      xx[11] =  0.3536; yy[11] = -0.6124;
+      break;
+
+    case 112 :
+      ideal_symm = 1.04770825671;
+      xx[0] =  0.0000; yy[0] = -0.7071;
+      xx[1] =  0.0000; yy[1] =  0.7071;
+      xx[2] = -0.5774; yy[2] =  0.0000;
+      xx[3] =  0.0000; yy[3] =  0.3536;
+      xx[4] =  0.0000; yy[4] = -0.3536;
+      xx[5] = -0.5774; yy[5] = -0.3536;
+      xx[6] = -0.5774; yy[6] =  0.3536;
+      xx[7] =  0.5774; yy[7] =  0.0000;
+      xx[8] =  0.5774; yy[8] =  0.3536;
+      xx[9] =  0.5774; yy[9] = -0.3536;
+      xx[10] =  0.0000; yy[10] = -0.3536;
+      xx[11] =  0.0000; yy[11] =  0.3536;
+      break;
+
+    case 113 :
+      ideal_symm = 0.990510750888;
+      xx[0] =  0.7071; yy[0] =  0.0000;
+      xx[1] = -0.7071; yy[1] =  0.0000;
+      xx[2] =  0.3536; yy[2] = -0.1066;
+      xx[3] = -0.3536; yy[3] = -0.1066;
+      xx[4] = -0.3536; yy[4] =  0.5330;
+      xx[5] =  0.3536; yy[5] =  0.5330;
+      xx[6] =  0.0000; yy[6] = -0.6396;
+      xx[7] = -0.3536; yy[7] =  0.1066;
+      xx[8] =  0.3536; yy[8] =  0.1066;
+      xx[9] =  0.0000; yy[9] =  0.6396;
+      xx[10] =  0.3536; yy[10] = -0.5330;
+      xx[11] = -0.3536; yy[11] = -0.5330;
+      break;
+
+    case 135 :
+      ideal_symm = 1.41319314949;
+      xx[0] =  0.6325; yy[0] = -0.2673;
+      xx[1] = -0.3162; yy[1] = -0.5345;
+      xx[2] =  0.4743; yy[2] =  0.4009;
+      xx[3] = -0.1581; yy[3] =  0.6682;
+      xx[4] = -0.4743; yy[4] =  0.1336;
+      xx[5] =  0.1581; yy[5] = -0.1336;
+      xx[6] =  0.3162; yy[6] =  0.5345;
+      xx[7] =  0.4743; yy[7] = -0.1336;
+      xx[8] = -0.1581; yy[8] =  0.1336;
+      xx[9] = -0.6325; yy[9] =  0.2673;
+      xx[10] = -0.4743; yy[10] = -0.4009;
+      xx[11] =  0.1581; yy[11] = -0.6682;
+      break;
+    default:
+      cout << "The " << rot_axis << " axis has not been implemented yet.\n";
+      return 11;
+
+  }
 
   for (unsigned int i = 0; i < xx.size(); ++i)
   {
     xtemp = costheta * xx[i] - sintheta * yy[i];
     ytemp = sintheta * xx[i] + costheta * yy[i];
-    // Uses the idea that sin^2 = 1-cos^2
-    // cos = A.B / (|A||B|), and since B is (1,0,0), this simplifies to
-    // cos = A_x / |A|, meaning that cos^2 = A_x^2/(A_x^2+A_y^2)
+
+    /* Uses the idea that sin^2 = 1-cos^2
+    * Projection onto the XY plane means we ignore the z coordinates
+    * cos = A.B / (|A||B|); this simplifies to
+    * cos = (A_x + B_x) / |A||B|, meaning that
+    * cos^2 = (A_x * B_x + A_y * B_y + A_z * B_z)^2 / (A_x^2 + A_y^2 + A_z^2)(B_x^2 + B_y^2 + B_z^2)
+    * Here, A is the vector representing the distance between a central atom i
+    * and a nearest neighbor atom j, and B is the unit vector in the X direction
+    * or (100).  This simplifies the above equation to:
+    * cos^2 = A_x^2 / (A_x^2 + A_y^2)
+    */
+
     sintheta_sq = 1 - ((xtemp * xtemp) / (xtemp * xtemp + ytemp * ytemp));
+    if (isnan(sintheta_sq)) // Handles the case of dividing by 0
+    {
+      // This is when the atoms lie on top of each other when projected onto the
+      // xy plane.
+      sintheta_sq = 1;
+    }
     // Symmetry parameter as defined by Zhang. Coefficients are changed to get
     // better resolution between grains.
     total1 += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
@@ -130,8 +246,10 @@ int main(int argc, char** argv)
   // Cutoff is the midpoint between the ideal value and the rotated ideal value.
   // Note that this assumes that the outside grain is oriented with it's x axis
   // aligned with the x axis of the lab frame.
-  // TODO: this needs to be generalized for outside grains that aren't aligned
   cutoff = (ideal_symm + total1) / 2.0;
+
+  cout << "\tIdeal symmetry parameter: " << ideal_symm << endl
+       << "\tRotated symmetry parameter: " << total1 << endl;
 
   // Now read through each set of files
   int j = 1;
@@ -165,7 +283,7 @@ int main(int argc, char** argv)
       {
         if (str != "0")
         {
-          cout << "Warning: first data file is not at timestep 0!"
+          cout << "Warning: first data file is not at timestep 0! "
                << "Ignore this warning if this is intentional.\n";
         }
       }
@@ -430,7 +548,7 @@ int main(int argc, char** argv)
           continue;
         }
         // This uses the relation sin^2 = 1-cos^2, where cos = dot(A,B) / (|A|*|B|)
-        sintheta_sq = 1 - (rxij * rxij) / drij_sq;
+        sintheta_sq = 1 - ((rxij * rxij) / drij_sq);
         total2 += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
       }
       total2 /= iatom[0][i]; // This may not always be 12!
