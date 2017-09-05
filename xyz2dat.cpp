@@ -114,17 +114,17 @@ int main(int argc, char** argv)
   while (fin >> atom_type >> x >> y >> z) // Read in the data
   {
     // Not needed for Cu
-    if (atom_type.compare("U")) // Given a U atom, write the correct type and charge
+    if (atom_type.compare("U") == 0) // Given a U atom, write the correct type and charge
     {
       type = 1;
       charge = 2.4;
     }
-    else if (atom_type.compare("O")) // Same with the O atom
+    else if (atom_type.compare("O") == 0) // Same with the O atom
     {
       type = 2;
       charge = -1.2;
     }
-    else if (atom_type.compare("Cu") || atom_type.compare("Al"))
+    else if (atom_type.compare("Cu") == 0 || atom_type.compare("Al") == 0)
     {
       type = 1;
       charge = 0.0;
