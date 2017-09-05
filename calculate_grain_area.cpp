@@ -94,10 +94,16 @@ int main(int argc, char **argv)
     atom_types = argv[4]; // get the molecule
   }
 
+  cout << "Input parameters:"
+       << "\n\tSimulation temperature: " << T
+       << "\n\tCylinder thickness: " << Lz
+       << "\n\tNumber of atom types: " << atom_types << endl;
+
   // No matter what the user entered, capitalize everything.
   transform(atom_types.begin(), atom_types.end(), atom_types.begin(), ::toupper);
 
   a0 = latticeParam(T, atom_types);
+  cout << "\tLattice parameter: " << a0 << endl;
   scale_factor = a0 / 5.453; // Important to account for expansion of the lattice
   Lz *= scale_factor;
 
