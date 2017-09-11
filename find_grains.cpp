@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include <cmath> // for cos, sin
+#include <cstdlib>
 #include "atom.h"
 
 using namespace std;
@@ -19,6 +20,87 @@ double anInt(double x)
   if (x < 0.0) x -= 0.5;
   temp = (int)(x);
   return (double)(temp);
+}
+
+void extractAxis(int axis, vector <double> & v)
+{
+  if (axis > 999)
+  {
+    cout << "Axis indices are too high!  Must be <= 999.\n";
+    return;
+  }
+
+  v[0] = (axis / 100) % 10;
+  v[1] = (axis / 10) % 10;
+  v[2] = axis % 10;
+}
+
+/* Note that this function does NOT correctly rotate the axes as given in GBstudio
+ * however, it does allow the resulting simulations to be properly parsed.
+ **/
+vector <vector <double> > rotate2Axis(vector <double> axis1, vector <double> axis2)
+{
+  if (axis1.size() != 3 || axis2.size() != 3)
+  {
+    cout << "Error: size of vectors is incorrect.  Must be a 3D vector (3 elements)\n"
+         << "\tSize of vector 1: " << axis1.size()
+         << "\n\tSize of vector 2:" << axis2.size() << endl;
+    exit(12);
+  }
+
+  vector <double> v (3,0); // cross product of axis 1 and axis 2
+  vector <vector <double> > vx; // skew symmetric matrix given by the normalized axes
+  vector <vector <double> > vx_sq; // dot product of vx with itself
+  vector <vector <double> > rotation; // The resultant rotation matrix
+  double c; // dot product of axis1 with axis2
+  double norm1 = sqrt(axis1[0] * axis1[0] + axis1[1] * axis1[1] + axis1[2] * axis1[2]);
+  double norm2 = sqrt(axis2[0] * axis2[0] + axis2[1] * axis2[1] + axis2[2] * axis2[2]);
+
+  vx.resize(3, vector <double> (3, 0.0));
+  vx_sq.resize(3, vector <double> (3, 0.0));
+  rotation.resize(3, vector <double> (3, 0.0));
+
+  if (axis1[0] == axis2[0] && axis1[1] == axis2[1] && axis1[2] == axis2[2])
+  {
+    v[0] = 0; v[1] = 0; v[2] = 0;
+  }
+  else
+  {
+    v[0] = axis1[1] / norm1 * axis2[2] / norm2 - axis1[2] / norm1 * axis2[1] / norm2;
+    v[1] = -(axis1[0] / norm1 * axis2[2] / norm2 - axis1[2] / norm1 * axis2[0] / norm2);
+    v[2] = axis1[0] / norm1 * axis2[1] / norm2 - axis1[1] / norm1 * axis2[0] / norm2;
+  }
+
+  c = axis1[0] / norm1 * axis2[0] / norm2 + axis1[1] / norm1 * axis2[1] / norm2 + axis1[2] / norm1 * axis2[2] / norm2;
+  vx[0][1] = -v[2]; vx[0][2] = v[1];
+  vx[1][0] = v[2]; vx[1][2] = -v[0];
+  vx[2][0] = -v[1]; vx[2][1] = v[0];
+
+  for (int i = 0; i < 3; ++i)
+  {
+    for (int j = 0; j < 3; ++j)
+    {
+      for (int k = 0; k < 3; ++k)
+      {
+        vx_sq[i][j] += vx[i][k] * vx[k][j];
+      }
+    }
+  }
+
+  for (int i = 0; i < 3; ++i)
+  {
+    for (int j = 0; j < 3; ++j)
+    {
+      if (i == j)
+      {
+        rotation[i][j] += 1.0;
+      }
+
+      rotation[i][j] += vx[i][j] + vx_sq[i][j] / (1 + c);
+    }
+  }
+
+  return rotation;
 }
 
 int main(int argc, char** argv)
@@ -37,6 +119,7 @@ int main(int argc, char** argv)
   bool dump; // boolean value to determine if the read file is a LAMMPS dump file or not.
   unsigned int n_grain_1, n_grain_2; // counter for number of atoms in each grain
   double coeffs [2] = {3,2}; // Coefficients of the symmetry parameter (default)
+  vector <vector <double> > rotation; //rotation matrix
 
   // Input file parameters
   int n_files, rot_axis; // Number of files to be read, rotation axis
@@ -110,115 +193,163 @@ int main(int argc, char** argv)
   // Assumes FCC structure!
   vector <double> xx (12,0.0); // x positions in terms of a0 for nearest neighbors
   vector <double> yy (12,0.0); // y positions in terms of a0 for nearest neighbors
-  xx[0] = 0.5; xx[1] = 0.5; xx[2] = -0.5; xx[3] = -0.5; xx[4] = 0.5; xx[5] = 0.5; xx[6] = -0.5; xx[7] = -0.5;
-  yy[0] = 0.5; yy[1] = -0.5; yy[2] = 0.5; yy[3] = -0.5; yy[8] = 0.5; yy[9] = 0.5; yy[10] = -0.5; yy[11] = -0.5;
-  switch (rot_axis)
+  vector <double> zz (12,0.0); // z positions in terms of a0 for nearest neighbors
+
+  vector <double> rotation_axis (3,0);
+  vector <double> z_axis (3,0);
+  z_axis[2] = 1.0;
+  // Ideally, a simple function could calculate the positions of the first nearest
+  // neighbors just based on the rotation axis, thus eliminating the need for
+  // this switch statement.  Note that GBStudio (the applet that I generally use
+  // to create my structures) aligns the rotation axis with the z axis, and the
+  // function rotate2Axis above seems to rotate things to align with the x axis
+  // Perhaps I need an additional rotation about the Y axis to align x with z?
+  /*switch (rot_axis)
   {
     case 100 :
-      ideal_symm = 1.0;
-      xx[0] =  0.0000; yy[0] = -0.5000;
-      xx[1] =  0.0000; yy[1] = -0.5000;
-      xx[2] =  0.0000; yy[2] =  0.5000;
-      xx[3] =  0.0000; yy[3] =  0.5000;
-      xx[4] = -0.5000; yy[4] =  0.0000;
-      xx[5] = -0.5000; yy[5] =  0.0000;
-      xx[6] =  0.5000; yy[6] =  0.0000;
-      xx[7] =  0.5000; yy[7] =  0.0000;
-      xx[8] = -0.5000; yy[8] = -0.5000;
-      xx[9] = -0.5000; yy[9] =  0.5000;
-      xx[10] =  0.5000; yy[10] = -0.5000;
-      xx[11] =  0.5000; yy[11] =  0.5000;
+      //ideal_symm = 1.0;
+      xx[0]  =  0.0000; yy[0]  = -0.5000; zz[0]  = -0.5000; // (   0, -1/2, -1/2)
+      xx[1]  =  0.0000; yy[1]  = -0.5000; zz[1]  =  0.5000; // (   0, -1/2,  1/2)
+      xx[2]  =  0.0000; yy[2]  =  0.5000; zz[2]  = -0.5000; // (   0,  1/2, -1/2)
+      xx[3]  =  0.0000; yy[3]  =  0.5000; zz[3]  =  0.5000; // (   0,  1/2,  1/2)
+      xx[4]  = -0.5000; yy[4]  =  0.0000; zz[4]  = -0.5000; // (-1/2,    0, -1/2)
+      xx[5]  = -0.5000; yy[5]  =  0.0000; zz[5]  =  0.5000; // (-1/2,    0,  1/2)
+      xx[6]  =  0.5000; yy[6]  =  0.0000; zz[6]  = -0.5000; // ( 1/2,    0, -1/2)
+      xx[7]  =  0.5000; yy[7]  =  0.0000; zz[7]  =  0.5000; // ( 1/2,    0,  1/2)
+      xx[8]  = -0.5000; yy[8]  = -0.5000; zz[8]  =  0.0000; // (-1/2, -1/2,    0)
+      xx[9]  = -0.5000; yy[9]  =  0.5000; zz[9]  =  0.0000; // (-1/2,  1/2,    0)
+      xx[10] =  0.5000; yy[10] = -0.5000; zz[10] =  0.0000; // ( 1/2, -1/2,    0)
+      xx[11] =  0.5000; yy[11] =  0.5000; zz[11] =  0.0000; // ( 1/2,  1/2,    0)
       break;
 
     case 110 :
-      ideal_symm = 1.54320928882;
-      xx[0] =  0.0000; yy[0] = -0.7071;
-      xx[1] =  0.0000; yy[1] =  0.7071;
-      xx[2] = -0.5000; yy[2] =  0.3536;
-      xx[3] =  0.5000; yy[3] =  0.3536;
-      xx[4] = -0.5000; yy[4] = -0.3536;
-      xx[5] =  0.5000; yy[5] = -0.3536;
-      xx[6] =  0.0000; yy[6] =  0.0000;
-      xx[7] =  0.0000; yy[7] =  0.0000;
-      xx[8] = -0.5000; yy[8] = -0.3536;
-      xx[9] =  0.5000; yy[9] = -0.3536;
-      xx[10] = -0.5000; yy[10] =  0.3536;
-      xx[11] =  0.5000; yy[11] =  0.3536;
+      //ideal_symm = 1.54320928882;
+      xx[0]  =  0.0000; yy[0]  = -0.7071; zz[0]  =  0.0000; // (   0,  -1/sqrt(2),           0)
+      xx[1]  =  0.0000; yy[1]  =  0.7071; zz[1]  =  0.0000; // (   0,   1/sqrt(2),           0)
+      xx[2]  = -0.5000; yy[2]  =  0.3536; zz[2]  = -0.3536; // (-1/2,  1/2sqrt(2), -1/2sqrt(2))
+      xx[3]  =  0.5000; yy[3]  =  0.3536; zz[3]  = -0.3536; // ( 1/2,  1/2sqrt(2), -1/2sqrt(2))
+      xx[4]  = -0.5000; yy[4]  = -0.3536; zz[4]  = -0.3536; // (-1/2, -1/2sqrt(2), -1/2sqrt(2))
+      xx[5]  =  0.5000; yy[5]  = -0.3536; zz[5]  = -0.3536; // ( 1/2, -1/2sqrt(2), -1/2sqrt(2))
+      xx[6]  =  0.0000; yy[6]  =  0.0000; zz[6]  = -0.7071; // (   0,           0,  -1/sqrt(2))
+      xx[7]  =  0.0000; yy[7]  =  0.0000; zz[7]  =  0.7071; // (   0,           0,   1/sqrt(2))
+      xx[8]  = -0.5000; yy[8]  = -0.3536; zz[8]  =  0.3536; // (-1/2, -1/2sqrt(2),  1/2sqrt(2))
+      xx[9]  =  0.5000; yy[9]  = -0.3536; zz[9]  =  0.3536; // ( 1/2, -1/2sqrt(2),  1/2sqrt(2))
+      xx[10] = -0.5000; yy[10] =  0.3536; zz[10] =  0.3536; // (-1/2,  1/2sqrt(2),  1/2sqrt(2))
+      xx[11] =  0.5000; yy[11] =  0.3536; zz[11] =  0.3536; // ( 1/2,  1/2sqrt(2),  1/2sqrt(2))
       break;
 
     case 111 :
-      ideal_symm = 1.25000033391;
-      xx[0] =  0.7071; yy[0] =  0.0000;
-      xx[1] = -0.7071; yy[1] =  0.0000;
-      xx[2] =  0.0000; yy[2] = -0.4082;
-      xx[3] =  0.3536; yy[3] =  0.6124;
-      xx[4] = -0.3536; yy[4] =  0.6124;
-      xx[5] = -0.3536; yy[5] =  0.2041;
-      xx[6] =  0.3536; yy[6] =  0.2041;
-      xx[7] =  0.0000; yy[7] =  0.4082;
-      xx[8] =  0.3536; yy[8] = -0.2041;
-      xx[9] = -0.3536; yy[9] = -0.2041;
-      xx[10] = -0.3536; yy[10] = -0.6124;
-      xx[11] =  0.3536; yy[11] = -0.6124;
+      //ideal_symm = 1.25000033391;
+      xx[0]  =  0.7071; yy[0]  =  0.0000; zz[0]  =  0.0000;
+      xx[1]  = -0.7071; yy[1]  =  0.0000; zz[1]  =  0.0000;
+      xx[2]  =  0.0000; yy[2]  = -0.4082; zz[2]  = -0.5774;
+      xx[3]  =  0.3536; yy[3]  =  0.6124; zz[3]  =  0.0000;
+      xx[4]  = -0.3536; yy[4]  =  0.6124; zz[4]  =  0.0000;
+      xx[5]  = -0.3536; yy[5]  =  0.2041; zz[5]  = -0.5774;
+      xx[6]  =  0.3536; yy[6]  =  0.2041; zz[6]  = -0.5774;
+      xx[7]  =  0.0000; yy[7]  =  0.4082; zz[7]  =  0.5774;
+      xx[8]  =  0.3536; yy[8]  = -0.2041; zz[8]  =  0.5774;
+      xx[9]  = -0.3536; yy[9]  = -0.2041; zz[9]  =  0.5774;
+      xx[10] = -0.3536; yy[10] = -0.6124; zz[10] =  0.0000;
+      xx[11] =  0.3536; yy[11] = -0.6124; zz[11] =  0.0000;
       break;
 
     case 112 :
-      ideal_symm = 1.04770825671;
-      xx[0] =  0.0000; yy[0] = -0.7071;
-      xx[1] =  0.0000; yy[1] =  0.7071;
-      xx[2] = -0.5774; yy[2] =  0.0000;
-      xx[3] =  0.0000; yy[3] =  0.3536;
-      xx[4] =  0.0000; yy[4] = -0.3536;
-      xx[5] = -0.5774; yy[5] = -0.3536;
-      xx[6] = -0.5774; yy[6] =  0.3536;
-      xx[7] =  0.5774; yy[7] =  0.0000;
-      xx[8] =  0.5774; yy[8] =  0.3536;
-      xx[9] =  0.5774; yy[9] = -0.3536;
-      xx[10] =  0.0000; yy[10] = -0.3536;
-      xx[11] =  0.0000; yy[11] =  0.3536;
+      //ideal_symm = 1.04770825671;
+      xx[0]  =  0.0000; yy[0]  = -0.7071; zz[0]  =  0.0000;
+      xx[1]  =  0.0000; yy[1]  =  0.7071; zz[1]  =  0.0000;
+      xx[2]  = -0.5774; yy[2]  =  0.0000; zz[2]  = -0.4082;
+      xx[3]  =  0.0000; yy[3]  =  0.3536; zz[3]  =  0.6124;
+      xx[4]  =  0.0000; yy[4]  = -0.3536; zz[4]  =  0.6124;
+      xx[5]  = -0.5774; yy[5]  = -0.3536; zz[5]  =  0.2041;
+      xx[6]  = -0.5774; yy[6]  =  0.3536; zz[6]  =  0.2041;
+      xx[7]  =  0.5774; yy[7]  =  0.0000; zz[7]  =  0.4082;
+      xx[8]  =  0.5774; yy[8]  =  0.3536; zz[8]  = -0.2041;
+      xx[9]  =  0.5774; yy[9]  = -0.3536; zz[9]  = -0.2041;
+      xx[10] =  0.0000; yy[10] = -0.3536; zz[10] = -0.6124;
+      xx[11] =  0.0000; yy[11] =  0.3536; zz[11] = -0.6124;
       break;
 
     case 113 :
-      ideal_symm = 0.990510750888;
-      xx[0] =  0.7071; yy[0] =  0.0000;
-      xx[1] = -0.7071; yy[1] =  0.0000;
-      xx[2] =  0.3536; yy[2] = -0.1066;
-      xx[3] = -0.3536; yy[3] = -0.1066;
-      xx[4] = -0.3536; yy[4] =  0.5330;
-      xx[5] =  0.3536; yy[5] =  0.5330;
-      xx[6] =  0.0000; yy[6] = -0.6396;
-      xx[7] = -0.3536; yy[7] =  0.1066;
-      xx[8] =  0.3536; yy[8] =  0.1066;
-      xx[9] =  0.0000; yy[9] =  0.6396;
-      xx[10] =  0.3536; yy[10] = -0.5330;
-      xx[11] = -0.3536; yy[11] = -0.5330;
+      //ideal_symm = 0.990510750888;
+      xx[0]  =  0.7071; yy[0]  =  0.0000; zz[0]  =  0.0000;
+      xx[1]  = -0.7071; yy[1]  =  0.0000; zz[1]  =  0.0000;
+      xx[2]  =  0.3536; yy[2]  = -0.1066; zz[2]  =  0.6030;
+      xx[3]  = -0.3536; yy[3]  = -0.1066; zz[3]  =  0.6030;
+      xx[4]  = -0.3536; yy[4]  =  0.5330; zz[4]  =  0.3015;
+      xx[5]  =  0.3536; yy[5]  =  0.5330; zz[5]  =  0.3015;
+      xx[6]  =  0.0000; yy[6]  = -0.6396; zz[6]  =  0.3015;
+      xx[7]  = -0.3536; yy[7]  =  0.1066; zz[7]  = -0.6030;
+      xx[8]  =  0.3536; yy[8]  =  0.1066; zz[8]  = -0.6030;
+      xx[9]  =  0.0000; yy[9]  =  0.6396; zz[9]  = -0.3015;
+      xx[10] =  0.3536; yy[10] = -0.5330; zz[10] = -0.3015;
+      xx[11] = -0.3536; yy[11] = -0.5330; zz[11] = -0.3015;
       break;
 
     case 135 :
-      ideal_symm = 1.41319314949;
-      xx[0] =  0.6325; yy[0] = -0.2673;
-      xx[1] = -0.3162; yy[1] = -0.5345;
-      xx[2] =  0.4743; yy[2] =  0.4009;
-      xx[3] = -0.1581; yy[3] =  0.6682;
-      xx[4] = -0.4743; yy[4] =  0.1336;
-      xx[5] =  0.1581; yy[5] = -0.1336;
-      xx[6] =  0.3162; yy[6] =  0.5345;
-      xx[7] =  0.4743; yy[7] = -0.1336;
-      xx[8] = -0.1581; yy[8] =  0.1336;
-      xx[9] = -0.6325; yy[9] =  0.2673;
-      xx[10] = -0.4743; yy[10] = -0.4009;
-      xx[11] =  0.1581; yy[11] = -0.6682;
+      //ideal_symm = 1.41319314949;
+      xx[0]  =  0.6325; yy[0]  = -0.2673; zz[0]  = -0.1690;
+      xx[1]  = -0.3162; yy[1]  = -0.5345; zz[1]  = -0.3381;
+      xx[2]  =  0.4743; yy[2]  =  0.4009; zz[2]  = -0.3381;
+      xx[3]  = -0.1581; yy[3]  =  0.6682; zz[3]  = -0.1690;
+      xx[4]  = -0.4743; yy[4]  =  0.1336; zz[4]  = -0.5071;
+      xx[5]  =  0.1581; yy[5]  = -0.1336; zz[5]  = -0.6761;
+      xx[6]  =  0.3162; yy[6]  =  0.5345; zz[6]  =  0.3381;
+      xx[7]  =  0.4743; yy[7]  = -0.1336; zz[7]  =  0.5071;
+      xx[8]  = -0.1581; yy[8]  =  0.1336; zz[8]  =  0.6761;
+      xx[9]  = -0.6325; yy[9]  =  0.2673; zz[9]  =  0.1690;
+      xx[10] = -0.4743; yy[10] = -0.4009; zz[10] =  0.3381;
+      xx[11] =  0.1581; yy[11] = -0.6682; zz[11] =  0.1690;
       break;
     default:
       cout << "The " << rot_axis << " axis has not been implemented yet.\n";
       return 11;
+  }*/
 
-  }
+  extractAxis(rot_axis, rotation_axis);
+  rotation = rotate2Axis(rotation_axis, z_axis)
+  ideal_symm = 0;
+  // Calculate the ideal rotation symmetry parameter
+
+  xx[0]  =  0.0000; yy[0]  = -0.5000; zz[0]  = -0.5000; // (   0, -1/2, -1/2)
+  xx[1]  =  0.0000; yy[1]  = -0.5000; zz[1]  =  0.5000; // (   0, -1/2,  1/2)
+  xx[2]  =  0.0000; yy[2]  =  0.5000; zz[2]  = -0.5000; // (   0,  1/2, -1/2)
+  xx[3]  =  0.0000; yy[3]  =  0.5000; zz[3]  =  0.5000; // (   0,  1/2,  1/2)
+  xx[4]  = -0.5000; yy[4]  =  0.0000; zz[4]  = -0.5000; // (-1/2,    0, -1/2)
+  xx[5]  = -0.5000; yy[5]  =  0.0000; zz[5]  =  0.5000; // (-1/2,    0,  1/2)
+  xx[6]  =  0.5000; yy[6]  =  0.0000; zz[6]  = -0.5000; // ( 1/2,    0, -1/2)
+  xx[7]  =  0.5000; yy[7]  =  0.0000; zz[7]  =  0.5000; // ( 1/2,    0,  1/2)
+  xx[8]  = -0.5000; yy[8]  = -0.5000; zz[8]  =  0.0000; // (-1/2, -1/2,    0)
+  xx[9]  = -0.5000; yy[9]  =  0.5000; zz[9]  =  0.0000; // (-1/2,  1/2,    0)
+  xx[10] =  0.5000; yy[10] = -0.5000; zz[10] =  0.0000; // ( 1/2, -1/2,    0)
+  xx[11] =  0.5000; yy[11] =  0.5000; zz[11] =  0.0000; // ( 1/2,  1/2,    0)
 
   for (unsigned int i = 0; i < xx.size(); ++i)
   {
-    xtemp = costheta * xx[i] - sintheta * yy[i];
-    ytemp = sintheta * xx[i] + costheta * yy[i];
+    xtemp = rotation[0][0] * xx[i] + rotation[0][1] * yy[i] + rotation[0][2] * zz[i];
+    ytemp = rotation[1][0] * xx[i] + rotation[1][1] * yy[i] + rotation[1][2] * zz[i];
+
+    sintheta_sq = 1 - ((xtemp * xtemp) / (xtemp * xtemp + ytemp * ytemp));
+    if (isnan(sintheta_sq))
+    {
+      // This is when the atoms lie on top of each other when projected onto the
+      // xy plane.
+      sintheta_sq = 1;
+    }
+
+    ideal_symm += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
+  }
+
+  ideal_symm /= xx.size();
+
+
+  for (unsigned int i = 0; i < xx.size(); ++i)
+  {
+    x = rotation[0][0] * xx[i] + rotation[0][1] * yy[i] + rotation[0][2] * zz[i];
+    y = rotation[1][0] * xx[i] + rotation[1][1] * yy[i] + rotation[1][2] * zz[i];
+
+    xtemp = costheta * x - sintheta * y;
+    ytemp = sintheta * x + costheta * y;
 
     /* Uses the idea that sin^2 = 1-cos^2
     * Projection onto the XY plane means we ignore the z coordinates
@@ -534,13 +665,19 @@ int main(int argc, char** argv)
         // We project onto the xy plane, effectively ignoring the z coordinate
         rxij = atoms[id].getX() - x;
         ryij = atoms[id].getY() - y;
+        rzij = atoms[id].getZ() - z;
 
         // Apply PBCs
         rxij = rxij - anInt(rxij / Lx) * Lx;
         ryij = ryij - anInt(ryij / Ly) * Ly;
+        rzij = rzij - anInt(rzij / Lz) * Lz;
+
+        //Apply the rotation as above
+        xtemp = rotation[0][0] * rxij + rotation[0][1] * ryij + rotation[0][2] * rzij;
+        ytemp = rotation[1][0] * rxij + rotation[1][1] * ryij + rotation[1][2] * rzij;
 
         // Calculate the magnitude of the distance
-        drij_sq = (rxij * rxij) + (ryij * ryij);
+        drij_sq = (xtemp * xtemp) + (ytemp * ytemp);
 
         if (drij_sq == 0) // Handles the case where the projected position of the atom is right on top of the current atom.
         {
@@ -548,7 +685,7 @@ int main(int argc, char** argv)
           continue;
         }
         // This uses the relation sin^2 = 1-cos^2, where cos = dot(A,B) / (|A|*|B|)
-        sintheta_sq = 1 - ((rxij * rxij) / drij_sq);
+        sintheta_sq = 1 - ((xtemp * xtemp) / drij_sq);
         total2 += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
       }
       total2 /= iatom[0][i]; // This may not always be 12!
