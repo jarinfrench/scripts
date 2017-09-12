@@ -22,85 +22,21 @@ double anInt(double x)
   return (double)(temp);
 }
 
-void extractAxis(int axis, vector <double> & v)
+// Calculate the transpose of the passed in matrix
+vector <vector <double> > calculateTranspose(vector <vector <double> > mat)
 {
-  if (axis > 999)
+  vector <vector <double> > transpose;
+  transpose.resize(mat[0].size(), vector <double> (mat.size(),0));
+
+  for (unsigned int i = 0; i < mat.size(); ++i)
   {
-    cout << "Axis indices are too high!  Must be <= 999.\n";
-    return;
-  }
-
-  v[0] = (axis / 100) % 10;
-  v[1] = (axis / 10) % 10;
-  v[2] = axis % 10;
-}
-
-/* Note that this function does NOT correctly rotate the axes as given in GBstudio
- * however, it does allow the resulting simulations to be properly parsed.
- **/
-vector <vector <double> > rotate2Axis(vector <double> axis1, vector <double> axis2)
-{
-  if (axis1.size() != 3 || axis2.size() != 3)
-  {
-    cout << "Error: size of vectors is incorrect.  Must be a 3D vector (3 elements)\n"
-         << "\tSize of vector 1: " << axis1.size()
-         << "\n\tSize of vector 2:" << axis2.size() << endl;
-    exit(12);
-  }
-
-  vector <double> v (3,0); // cross product of axis 1 and axis 2
-  vector <vector <double> > vx; // skew symmetric matrix given by the normalized axes
-  vector <vector <double> > vx_sq; // dot product of vx with itself
-  vector <vector <double> > rotation; // The resultant rotation matrix
-  double c; // dot product of axis1 with axis2
-  double norm1 = sqrt(axis1[0] * axis1[0] + axis1[1] * axis1[1] + axis1[2] * axis1[2]);
-  double norm2 = sqrt(axis2[0] * axis2[0] + axis2[1] * axis2[1] + axis2[2] * axis2[2]);
-
-  vx.resize(3, vector <double> (3, 0.0));
-  vx_sq.resize(3, vector <double> (3, 0.0));
-  rotation.resize(3, vector <double> (3, 0.0));
-
-  if (axis1[0] == axis2[0] && axis1[1] == axis2[1] && axis1[2] == axis2[2])
-  {
-    v[0] = 0; v[1] = 0; v[2] = 0;
-  }
-  else
-  {
-    v[0] = axis1[1] / norm1 * axis2[2] / norm2 - axis1[2] / norm1 * axis2[1] / norm2;
-    v[1] = -(axis1[0] / norm1 * axis2[2] / norm2 - axis1[2] / norm1 * axis2[0] / norm2);
-    v[2] = axis1[0] / norm1 * axis2[1] / norm2 - axis1[1] / norm1 * axis2[0] / norm2;
-  }
-
-  c = axis1[0] / norm1 * axis2[0] / norm2 + axis1[1] / norm1 * axis2[1] / norm2 + axis1[2] / norm1 * axis2[2] / norm2;
-  vx[0][1] = -v[2]; vx[0][2] = v[1];
-  vx[1][0] = v[2]; vx[1][2] = -v[0];
-  vx[2][0] = -v[1]; vx[2][1] = v[0];
-
-  for (int i = 0; i < 3; ++i)
-  {
-    for (int j = 0; j < 3; ++j)
+    for (unsigned int j = 0; j < mat[i].size(); ++j)
     {
-      for (int k = 0; k < 3; ++k)
-      {
-        vx_sq[i][j] += vx[i][k] * vx[k][j];
-      }
+      transpose[i][j] = mat[j][i];
     }
   }
 
-  for (int i = 0; i < 3; ++i)
-  {
-    for (int j = 0; j < 3; ++j)
-    {
-      if (i == j)
-      {
-        rotation[i][j] += 1.0;
-      }
-
-      rotation[i][j] += vx[i][j] + vx_sq[i][j] / (1 + c);
-    }
-  }
-
-  return rotation;
+  return transpose;
 }
 
 int main(int argc, char** argv)
@@ -114,16 +50,26 @@ int main(int argc, char** argv)
   double charge, x, y, z; // charge and position of atom, used to read in data
   double rxij, ryij, rzij, drij_sq; // positions and distance squared
   double r_cut_sq; // cutoff distance
-  double sintheta_sq, total1 = 0.0, total2 = 0.0; // sin^2 of the angle, symmetry parameter (it's a sum, so starts at 0)
-  double xtemp, ytemp, sintheta, costheta, cutoff; // rotated x position, y position, sin theta, cos theta, cutoff for which grain an atom belongs to.
   bool dump; // boolean value to determine if the read file is a LAMMPS dump file or not.
   unsigned int n_grain_1, n_grain_2; // counter for number of atoms in each grain
-  double coeffs [2] = {3,2}; // Coefficients of the symmetry parameter (default)
-  vector <vector <double> > rotation; //rotation matrix
+
+  // Variables for the symmetry parameters
+  double coeffs [2] = {3,2}, ideal_symm; // Coefficients of the symmetry parameter (default), ideal symmetry parameter value.
+  double xtemp, ytemp, x2, y2, z2, sintheta, costheta, cutoff, sintheta_sq; // temp position variables, sin/cos of misorientation, cutoff value
+  double total1 = 0.0, total2 = 0.0; // symmetry parameters
+  vector <double> xx (12,0.0); // x positions in terms of a0 for nearest neighbors
+  vector <double> yy (12,0.0); // y positions in terms of a0 for nearest neighbors
+  vector <double> zz (12,0.0); // z positions in terms of a0 for nearest neighbors
+  vector <double> new_x_axis (3,0); // New x axis position
+  vector <double> new_y_axis (3,0); // New y axis position
+  vector <double> new_z_axis (3,0); // New z axis position
+  double norm_x, norm_y, norm_z; // normalizing value for each axis
+  vector <vector <double> > forward_rotation; // rotation matrix to rotate from 100 to the new axis
+  vector <vector <double> > backward_rotation; // rotation matrix to rotate from new axis to 100
 
   // Input file parameters
-  int n_files, rot_axis; // Number of files to be read, rotation axis
-  double theta, r_cut, a0, ideal_symm; // misorientation angle, cutoff distance (in terms of a0), a0, ideal symmetry parameter.
+  int n_files; // Number of files to be read, rotation axis
+  double theta, r_cut, a0; // misorientation angle, cutoff distance (in terms of a0), a0, ideal symmetry parameter.
   /* Note that the ideal symmetry parameter is calculated by taking the orientation
   * of the larger grain (or the outside grain) and calculating the orientation
   * parameter as defined by Bai et al.
@@ -152,7 +98,7 @@ int main(int argc, char** argv)
   ifstream fin_input(input_file.c_str());
   if (fin_input.fail())
   {
-    cout << "Error reading input file " << input_file << endl;
+    cout << "Error reading input file: " << input_file << endl;
     return 1;
   }
 
@@ -167,14 +113,15 @@ int main(int argc, char** argv)
   fout_data << "# Data consists of: [timestep, atoms in grain 2]\n";
 
   // Get the important information from the input file:
-  // Number of files, misorientation angle, number of atom types, cutoff distance, lattice parameter, ideal symmetry parameter
+  // Number of files, misorientation angle, number of atom types, cutoff distance, lattice parameter
+  // The way this is written, any values after a0 are ignored (I think)
   getline(fin_input, str);
   stringstream ss_input(str);
-  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> a0 >> rot_axis ))
+  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> a0))
   {
     cout << "Error reading the input file.  Did you forget a value?\n"
          << "Format of the first line of the input file is:\n"
-         << "<number of files> <misorientation angle> <number of atom types> <cutoff distance in Angstroms> <lattice parameter in Angstroms> <rotation axis>\n";
+         << "<number of files> <misorientation angle> <number of atom types> <cutoff distance in Angstroms> <lattice parameter in Angstroms>\n";
     return 9;
   }
   cout << "Input parameters:\n"
@@ -182,174 +129,89 @@ int main(int argc, char** argv)
        << "\ttheta = " << theta << endl
        << "\tn_types = " << n_type << endl
        << "\tr_cut = " << r_cut << endl
-       << "\ta0 = " << a0 << endl
-       << "\trotation_axis = " << rot_axis << endl;
+       << "\ta0 = " << a0 << endl;
   r_cut_sq = r_cut * r_cut;
 
   sintheta = sin(theta * PI / 180.0); // best to calculate this once
   costheta = cos(theta * PI / 180.0);
 
-  // Calculate the cutoff value for grain identification
-  // Assumes FCC structure!
-  vector <double> xx (12,0.0); // x positions in terms of a0 for nearest neighbors
-  vector <double> yy (12,0.0); // y positions in terms of a0 for nearest neighbors
-  vector <double> zz (12,0.0); // z positions in terms of a0 for nearest neighbors
-
-  vector <double> rotation_axis (3,0);
-  vector <double> z_axis (3,0);
-  z_axis[2] = 1.0;
-  // Ideally, a simple function could calculate the positions of the first nearest
-  // neighbors just based on the rotation axis, thus eliminating the need for
-  // this switch statement.  Note that GBStudio (the applet that I generally use
-  // to create my structures) aligns the rotation axis with the z axis, and the
-  // function rotate2Axis above seems to rotate things to align with the x axis
-  // Perhaps I need an additional rotation about the Y axis to align x with z?
-  /*switch (rot_axis)
+  // Now read the new axis locations
+  getline(fin_input,str);
+  ss_input.clear();
+  ss_input.str(str);
+  if (!(ss_input >> new_x_axis[0] >> new_x_axis[1] >> new_x_axis[2]))
   {
-    case 100 :
-      //ideal_symm = 1.0;
-      xx[0]  =  0.0000; yy[0]  = -0.5000; zz[0]  = -0.5000; // (   0, -1/2, -1/2)
-      xx[1]  =  0.0000; yy[1]  = -0.5000; zz[1]  =  0.5000; // (   0, -1/2,  1/2)
-      xx[2]  =  0.0000; yy[2]  =  0.5000; zz[2]  = -0.5000; // (   0,  1/2, -1/2)
-      xx[3]  =  0.0000; yy[3]  =  0.5000; zz[3]  =  0.5000; // (   0,  1/2,  1/2)
-      xx[4]  = -0.5000; yy[4]  =  0.0000; zz[4]  = -0.5000; // (-1/2,    0, -1/2)
-      xx[5]  = -0.5000; yy[5]  =  0.0000; zz[5]  =  0.5000; // (-1/2,    0,  1/2)
-      xx[6]  =  0.5000; yy[6]  =  0.0000; zz[6]  = -0.5000; // ( 1/2,    0, -1/2)
-      xx[7]  =  0.5000; yy[7]  =  0.0000; zz[7]  =  0.5000; // ( 1/2,    0,  1/2)
-      xx[8]  = -0.5000; yy[8]  = -0.5000; zz[8]  =  0.0000; // (-1/2, -1/2,    0)
-      xx[9]  = -0.5000; yy[9]  =  0.5000; zz[9]  =  0.0000; // (-1/2,  1/2,    0)
-      xx[10] =  0.5000; yy[10] = -0.5000; zz[10] =  0.0000; // ( 1/2, -1/2,    0)
-      xx[11] =  0.5000; yy[11] =  0.5000; zz[11] =  0.0000; // ( 1/2,  1/2,    0)
-      break;
+    cout << "Error reading new x axis.\n";
+    return 9;
+  }
+  norm_x = sqrt(new_x_axis[0] * new_x_axis[0] + new_x_axis[1] * new_x_axis[1] + new_x_axis[2] * new_x_axis[2]);
 
-    case 110 :
-      //ideal_symm = 1.54320928882;
-      xx[0]  =  0.0000; yy[0]  = -0.7071; zz[0]  =  0.0000; // (   0,  -1/sqrt(2),           0)
-      xx[1]  =  0.0000; yy[1]  =  0.7071; zz[1]  =  0.0000; // (   0,   1/sqrt(2),           0)
-      xx[2]  = -0.5000; yy[2]  =  0.3536; zz[2]  = -0.3536; // (-1/2,  1/2sqrt(2), -1/2sqrt(2))
-      xx[3]  =  0.5000; yy[3]  =  0.3536; zz[3]  = -0.3536; // ( 1/2,  1/2sqrt(2), -1/2sqrt(2))
-      xx[4]  = -0.5000; yy[4]  = -0.3536; zz[4]  = -0.3536; // (-1/2, -1/2sqrt(2), -1/2sqrt(2))
-      xx[5]  =  0.5000; yy[5]  = -0.3536; zz[5]  = -0.3536; // ( 1/2, -1/2sqrt(2), -1/2sqrt(2))
-      xx[6]  =  0.0000; yy[6]  =  0.0000; zz[6]  = -0.7071; // (   0,           0,  -1/sqrt(2))
-      xx[7]  =  0.0000; yy[7]  =  0.0000; zz[7]  =  0.7071; // (   0,           0,   1/sqrt(2))
-      xx[8]  = -0.5000; yy[8]  = -0.3536; zz[8]  =  0.3536; // (-1/2, -1/2sqrt(2),  1/2sqrt(2))
-      xx[9]  =  0.5000; yy[9]  = -0.3536; zz[9]  =  0.3536; // ( 1/2, -1/2sqrt(2),  1/2sqrt(2))
-      xx[10] = -0.5000; yy[10] =  0.3536; zz[10] =  0.3536; // (-1/2,  1/2sqrt(2),  1/2sqrt(2))
-      xx[11] =  0.5000; yy[11] =  0.3536; zz[11] =  0.3536; // ( 1/2,  1/2sqrt(2),  1/2sqrt(2))
-      break;
+  getline(fin_input,str);
+  ss_input.clear();
+  ss_input.str(str);
+  if (!(ss_input >> new_y_axis[0] >> new_y_axis[1] >> new_y_axis[2]))
+  {
+    cout << "Error reading new y axis.\n";
+    return 9;
+  }
+  norm_y = sqrt(new_y_axis[0] * new_y_axis[0] + new_y_axis[1] * new_y_axis[1] + new_y_axis[2] * new_y_axis[2]);
 
-    case 111 :
-      //ideal_symm = 1.25000033391;
-      xx[0]  =  0.7071; yy[0]  =  0.0000; zz[0]  =  0.0000;
-      xx[1]  = -0.7071; yy[1]  =  0.0000; zz[1]  =  0.0000;
-      xx[2]  =  0.0000; yy[2]  = -0.4082; zz[2]  = -0.5774;
-      xx[3]  =  0.3536; yy[3]  =  0.6124; zz[3]  =  0.0000;
-      xx[4]  = -0.3536; yy[4]  =  0.6124; zz[4]  =  0.0000;
-      xx[5]  = -0.3536; yy[5]  =  0.2041; zz[5]  = -0.5774;
-      xx[6]  =  0.3536; yy[6]  =  0.2041; zz[6]  = -0.5774;
-      xx[7]  =  0.0000; yy[7]  =  0.4082; zz[7]  =  0.5774;
-      xx[8]  =  0.3536; yy[8]  = -0.2041; zz[8]  =  0.5774;
-      xx[9]  = -0.3536; yy[9]  = -0.2041; zz[9]  =  0.5774;
-      xx[10] = -0.3536; yy[10] = -0.6124; zz[10] =  0.0000;
-      xx[11] =  0.3536; yy[11] = -0.6124; zz[11] =  0.0000;
-      break;
+  getline(fin_input,str);
+  ss_input.clear();
+  ss_input.str(str);
+  if (!(ss_input >> new_z_axis[0] >> new_z_axis[1] >> new_z_axis[2]))
+  {
+    cout << "Error reading new z axis.\n";
+    return 9;
+  }
+  norm_z = sqrt(new_z_axis[0] * new_z_axis[0] + new_z_axis[1] * new_z_axis[1] + new_z_axis[2] * new_z_axis[2]);
 
-    case 112 :
-      //ideal_symm = 1.04770825671;
-      xx[0]  =  0.0000; yy[0]  = -0.7071; zz[0]  =  0.0000;
-      xx[1]  =  0.0000; yy[1]  =  0.7071; zz[1]  =  0.0000;
-      xx[2]  = -0.5774; yy[2]  =  0.0000; zz[2]  = -0.4082;
-      xx[3]  =  0.0000; yy[3]  =  0.3536; zz[3]  =  0.6124;
-      xx[4]  =  0.0000; yy[4]  = -0.3536; zz[4]  =  0.6124;
-      xx[5]  = -0.5774; yy[5]  = -0.3536; zz[5]  =  0.2041;
-      xx[6]  = -0.5774; yy[6]  =  0.3536; zz[6]  =  0.2041;
-      xx[7]  =  0.5774; yy[7]  =  0.0000; zz[7]  =  0.4082;
-      xx[8]  =  0.5774; yy[8]  =  0.3536; zz[8]  = -0.2041;
-      xx[9]  =  0.5774; yy[9]  = -0.3536; zz[9]  = -0.2041;
-      xx[10] =  0.0000; yy[10] = -0.3536; zz[10] = -0.6124;
-      xx[11] =  0.0000; yy[11] =  0.3536; zz[11] = -0.6124;
-      break;
+  cout << "\tRotated coordinate system:\n"
+       << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
+       << "\t  y = " << new_y_axis[0] << " " << new_y_axis[1] << " " << new_y_axis[2] << endl
+       << "\t  z = " << new_z_axis[0] << " " << new_z_axis[1] << " " << new_z_axis[2] << endl;
 
-    case 113 :
-      //ideal_symm = 0.990510750888;
-      xx[0]  =  0.7071; yy[0]  =  0.0000; zz[0]  =  0.0000;
-      xx[1]  = -0.7071; yy[1]  =  0.0000; zz[1]  =  0.0000;
-      xx[2]  =  0.3536; yy[2]  = -0.1066; zz[2]  =  0.6030;
-      xx[3]  = -0.3536; yy[3]  = -0.1066; zz[3]  =  0.6030;
-      xx[4]  = -0.3536; yy[4]  =  0.5330; zz[4]  =  0.3015;
-      xx[5]  =  0.3536; yy[5]  =  0.5330; zz[5]  =  0.3015;
-      xx[6]  =  0.0000; yy[6]  = -0.6396; zz[6]  =  0.3015;
-      xx[7]  = -0.3536; yy[7]  =  0.1066; zz[7]  = -0.6030;
-      xx[8]  =  0.3536; yy[8]  =  0.1066; zz[8]  = -0.6030;
-      xx[9]  =  0.0000; yy[9]  =  0.6396; zz[9]  = -0.3015;
-      xx[10] =  0.3536; yy[10] = -0.5330; zz[10] = -0.3015;
-      xx[11] = -0.3536; yy[11] = -0.5330; zz[11] = -0.3015;
-      break;
+  forward_rotation.resize(3, vector <double> (3,0));
+  backward_rotation.resize(3, vector <double> (3,0));
+  for (unsigned int i = 0; i < new_x_axis.size(); ++i)
+  {
+    forward_rotation[0][i] = new_x_axis[i] / norm_x;
+    forward_rotation[1][i] = new_y_axis[i] / norm_y;
+    forward_rotation[2][i] = new_z_axis[i] / norm_z;
+  }
+  backward_rotation = calculateTranspose(forward_rotation);
 
-    case 135 :
-      //ideal_symm = 1.41319314949;
-      xx[0]  =  0.6325; yy[0]  = -0.2673; zz[0]  = -0.1690;
-      xx[1]  = -0.3162; yy[1]  = -0.5345; zz[1]  = -0.3381;
-      xx[2]  =  0.4743; yy[2]  =  0.4009; zz[2]  = -0.3381;
-      xx[3]  = -0.1581; yy[3]  =  0.6682; zz[3]  = -0.1690;
-      xx[4]  = -0.4743; yy[4]  =  0.1336; zz[4]  = -0.5071;
-      xx[5]  =  0.1581; yy[5]  = -0.1336; zz[5]  = -0.6761;
-      xx[6]  =  0.3162; yy[6]  =  0.5345; zz[6]  =  0.3381;
-      xx[7]  =  0.4743; yy[7]  = -0.1336; zz[7]  =  0.5071;
-      xx[8]  = -0.1581; yy[8]  =  0.1336; zz[8]  =  0.6761;
-      xx[9]  = -0.6325; yy[9]  =  0.2673; zz[9]  =  0.1690;
-      xx[10] = -0.4743; yy[10] = -0.4009; zz[10] =  0.3381;
-      xx[11] =  0.1581; yy[11] = -0.6682; zz[11] =  0.1690;
-      break;
-    default:
-      cout << "The " << rot_axis << " axis has not been implemented yet.\n";
-      return 11;
-  }*/
+  // The original first nearest neighbor positions
+  xx[0] =  0.0000; yy[0] = -0.5000; zz[0] = -0.5000;
+  xx[1] =  0.0000; yy[1] = -0.5000; zz[1] =  0.5000;
+  xx[2] =  0.0000; yy[2] =  0.5000; zz[2] = -0.5000;
+  xx[3] =  0.0000; yy[3] =  0.5000; zz[3] =  0.5000;
+  xx[4] = -0.5000; yy[4] =  0.0000; zz[4] = -0.5000;
+  xx[5] = -0.5000; yy[5] =  0.0000; zz[5] =  0.5000;
+  xx[6] =  0.5000; yy[6] =  0.0000; zz[6] = -0.5000;
+  xx[7] =  0.5000; yy[7] =  0.0000; zz[7] =  0.5000;
+  xx[8] = -0.5000; yy[8] = -0.5000; zz[8] =  0.0000;
+  xx[9] = -0.5000; yy[9] =  0.5000; zz[9] =  0.0000;
+  xx[10] =  0.5000; yy[10] = -0.5000; zz[10] =  0.0000;
+  xx[11] =  0.5000; yy[11] =  0.5000; zz[11] =  0.0000;
 
-  extractAxis(rot_axis, rotation_axis);
-  rotation = rotate2Axis(rotation_axis, z_axis)
-  ideal_symm = 0;
+  ideal_symm = 1; // based on the above positions
   // Calculate the ideal rotation symmetry parameter
 
-  xx[0]  =  0.0000; yy[0]  = -0.5000; zz[0]  = -0.5000; // (   0, -1/2, -1/2)
-  xx[1]  =  0.0000; yy[1]  = -0.5000; zz[1]  =  0.5000; // (   0, -1/2,  1/2)
-  xx[2]  =  0.0000; yy[2]  =  0.5000; zz[2]  = -0.5000; // (   0,  1/2, -1/2)
-  xx[3]  =  0.0000; yy[3]  =  0.5000; zz[3]  =  0.5000; // (   0,  1/2,  1/2)
-  xx[4]  = -0.5000; yy[4]  =  0.0000; zz[4]  = -0.5000; // (-1/2,    0, -1/2)
-  xx[5]  = -0.5000; yy[5]  =  0.0000; zz[5]  =  0.5000; // (-1/2,    0,  1/2)
-  xx[6]  =  0.5000; yy[6]  =  0.0000; zz[6]  = -0.5000; // ( 1/2,    0, -1/2)
-  xx[7]  =  0.5000; yy[7]  =  0.0000; zz[7]  =  0.5000; // ( 1/2,    0,  1/2)
-  xx[8]  = -0.5000; yy[8]  = -0.5000; zz[8]  =  0.0000; // (-1/2, -1/2,    0)
-  xx[9]  = -0.5000; yy[9]  =  0.5000; zz[9]  =  0.0000; // (-1/2,  1/2,    0)
-  xx[10] =  0.5000; yy[10] = -0.5000; zz[10] =  0.0000; // ( 1/2, -1/2,    0)
-  xx[11] =  0.5000; yy[11] =  0.5000; zz[11] =  0.0000; // ( 1/2,  1/2,    0)
-
   for (unsigned int i = 0; i < xx.size(); ++i)
   {
-    xtemp = rotation[0][0] * xx[i] + rotation[0][1] * yy[i] + rotation[0][2] * zz[i];
-    ytemp = rotation[1][0] * xx[i] + rotation[1][1] * yy[i] + rotation[1][2] * zz[i];
+    // First rotate the original first nearest neighbors to the new axis
+    x2 = forward_rotation[0][0] * xx[i] + forward_rotation[0][1] * yy[i] + forward_rotation[0][2] * zz[i];
+    y2 = forward_rotation[1][0] * xx[i] + forward_rotation[1][1] * yy[i] + forward_rotation[1][2] * zz[i];
+    z2 = forward_rotation[2][0] * xx[i] + forward_rotation[2][1] * yy[i] + forward_rotation[2][2] * zz[i];
 
-    sintheta_sq = 1 - ((xtemp * xtemp) / (xtemp * xtemp + ytemp * ytemp));
-    if (isnan(sintheta_sq))
-    {
-      // This is when the atoms lie on top of each other when projected onto the
-      // xy plane.
-      sintheta_sq = 1;
-    }
+    // Rotate about the new z axis
+    xtemp = costheta * x2 - sintheta * y2;
+    ytemp = sintheta * x2 + costheta * y2;
 
-    ideal_symm += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
-  }
-
-  ideal_symm /= xx.size();
-
-
-  for (unsigned int i = 0; i < xx.size(); ++i)
-  {
-    x = rotation[0][0] * xx[i] + rotation[0][1] * yy[i] + rotation[0][2] * zz[i];
-    y = rotation[1][0] * xx[i] + rotation[1][1] * yy[i] + rotation[1][2] * zz[i];
-
-    xtemp = costheta * x - sintheta * y;
-    ytemp = sintheta * x + costheta * y;
+    // rotate back to the original frame to calculate the values
+    x = backward_rotation[0][0] * xtemp + backward_rotation[0][1] * ytemp + backward_rotation[0][2] * z2;
+    y = backward_rotation[1][0] * xtemp + backward_rotation[1][1] * ytemp + backward_rotation[1][2] * z2;
 
     /* Uses the idea that sin^2 = 1-cos^2
     * Projection onto the XY plane means we ignore the z coordinates
@@ -361,8 +223,7 @@ int main(int argc, char** argv)
     * or (100).  This simplifies the above equation to:
     * cos^2 = A_x^2 / (A_x^2 + A_y^2)
     */
-
-    sintheta_sq = 1 - ((xtemp * xtemp) / (xtemp * xtemp + ytemp * ytemp));
+    sintheta_sq = 1 - ((x * x) / (x * x + y * y));
     if (isnan(sintheta_sq)) // Handles the case of dividing by 0
     {
       // This is when the atoms lie on top of each other when projected onto the
@@ -672,9 +533,9 @@ int main(int argc, char** argv)
         ryij = ryij - anInt(ryij / Ly) * Ly;
         rzij = rzij - anInt(rzij / Lz) * Lz;
 
-        //Apply the rotation as above
-        xtemp = rotation[0][0] * rxij + rotation[0][1] * ryij + rotation[0][2] * rzij;
-        ytemp = rotation[1][0] * rxij + rotation[1][1] * ryij + rotation[1][2] * rzij;
+        // Rotate back to the <100> direction
+        xtemp = backward_rotation[0][0] * rxij + backward_rotation[0][1] * ryij + backward_rotation[0][2] * rzij;
+        ytemp = backward_rotation[1][0] * rxij + backward_rotation[1][1] * ryij + backward_rotation[1][2] * rzij;
 
         // Calculate the magnitude of the distance
         drij_sq = (xtemp * xtemp) + (ytemp * ytemp);
