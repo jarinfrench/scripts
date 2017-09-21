@@ -43,7 +43,7 @@ int main(int argc, char** argv)
 {
   string filename1, filename2, input_file, data_file, str; // filenames read from and written to, input file, data file, junk variable
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
-  int N, n_type, n_atoms_read = 0, smaller; // number of atoms, atom types, number of atoms read
+  int N, n_type, n_atoms_read = 0; // number of atoms, atom types, number of atoms read
   vector <Atom> atoms; // all of the atoms from the file
   vector <double> symm; // a vector to hold the calculated symmetry parameters
   int atom_id, type; // id and type number of atom; used to read in the data
@@ -110,7 +110,7 @@ int main(int argc, char** argv)
     return 1;
   }
   // The # is there for use with programs like gnuplot.
-  fout_data << "# Data consists of: [timestep, atoms in grain 2]\n";
+  fout_data << "# Data consists of: [timestep, atoms in grain 1, atoms in grain 2]\n";
 
   // Get the important information from the input file:
   // Number of files, misorientation angle, number of atom types, cutoff distance, lattice parameter
@@ -196,7 +196,6 @@ int main(int argc, char** argv)
   xx[11] =  0.5000; yy[11] =  0.5000; zz[11] =  0.0000;
 
   ideal_symm = 1; // based on the above positions
-  // Calculate the ideal rotation symmetry parameter
 
   for (unsigned int i = 0; i < xx.size(); ++i)
   {
@@ -241,7 +240,8 @@ int main(int argc, char** argv)
   cutoff = (ideal_symm + total1) / 2.0;
 
   cout << "\tIdeal symmetry parameter: " << ideal_symm << endl
-       << "\tRotated symmetry parameter: " << total1 << endl;
+       << "\tRotated symmetry parameter: " << total1 << endl
+       << "\tCutoff value: " << cutoff << endl;
 
   // Now read through each set of files
   int j = 1;
@@ -568,39 +568,7 @@ int main(int argc, char** argv)
       }
     }
 
-    // This is a check to make sure we are outputting the values for the shrinking grain.
-    if (j == 1)
-    {
-      if (n_grain_1 < n_grain_2)
-      {
-        smaller = 1;
-      }
-      else //n_grain_1 >= n_grain_2
-      {
-        smaller = 2;
-      }
-    }
-    else // j != 1
-    {
-      if (smaller == 1)
-      {
-        if (!(n_grain_1 < n_grain_2))
-        {
-          cout << "Grains were labeled incorrectly.\n";
-          return 9;
-        }
-      }
-      else // (smaller == 2)
-      {
-        if (!(n_grain_1 > n_grain_2)) // Ignores the possibility of n1 == n2
-        {
-          cout << "Grains were labeled incorrectly.\n";
-          return 9;
-        }
-      }
-    }
-    // We want to make sure we ouput the smaller value
-    fout_data << (n_grain_1 < n_grain_2 ? n_grain_1 : n_grain_2) << endl;
+    fout_data << n_grain_1 << " " << n_grain_2 << endl;
 
     // Make sure we write the entire set of atoms
     // This writes things in a tecplot-readable format.

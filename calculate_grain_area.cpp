@@ -9,32 +9,57 @@ using namespace std;
 
 #define PI 3.141592653589793
 
-double latticeParam(double T, string atom_type)
+double latticeParam(double T, string atom_type, bool is_eam)
 {
+  // May need to make this function call on a separate data file containing the
+  // parameters for various elements/alloys
   // A is the y intercept, B is the linear coefficient, C is the parabolic
   // coefficient
   double A, B, C;
   if (atom_type.compare("UO2") == 0 ) // If the strings match exactly, the returned value is 0
   {
-    if (T >= 0.0 && T <= 1000.0)
+    if (is_eam)
     {
-      A = 5.45297739;
-      B = 5.89383E-5;
-      C = 0.0;
-    }
-    else if (T > 1000.0 && T <= 3300.00)
-    {
-      A = 5.44364863;
-      B = 6.18966E-5;
-      C = 5.27784E-9;
+      if (T >= 0.0 && T <= 1000.0)
+  	  {
+  	    A = 5.452371;
+  		  B = 5.67E-5;
+  		  C = 0.0;
+  	  }
+  	  else if (T > 1000.0 && T <= 3300.0)
+  	  {
+  		  A = 5.478309;
+  		  B = 1.2e-5;
+  		  C = 2.07e-8;
+      }
+      else
+      {
+        cout << "Temperature out of fitted range (0 K - 3300 K).\n";
+        exit(10); // We don't want to continue with execution if we're out of range.
+      }
     }
     else
     {
-      cout << "Temperature out of fitted range (0 K - 3300 K).\n";
-      exit(10); // We don't want to continue with execution if we're out of range.
+      if (T >= 0.0 && T <= 1000.0)
+      {
+        A = 5.45297739;
+        B = 5.89383E-5;
+        C = 0.0;
+      }
+      else if (T > 1000.0 && T <= 3300.00)
+      {
+        A = 5.44364863;
+        B = 6.18966E-5;
+        C = 5.27784E-9;
+      }
+      else
+      {
+        cout << "Temperature out of fitted range (0 K - 3300 K).\n";
+        exit(10); // We don't want to continue with execution if we're out of range.
+      }
     }
   }
-  else if ( atom_type.compare("CU") == 0)
+  else if (atom_type.compare("CU") == 0)
   {
     if (T >= 0.0 && T <= 700.0)
     {
@@ -67,12 +92,13 @@ int main(int argc, char **argv)
 {
   string filename, filename2, atom_types, str; // data file, junk variable.
   double T, a0, area, scale_factor; // temperature, lattice parameter, area
-  int N0, N1; // Number of atoms in grain 2 at time 1 and time 2
+  int N1_0, N2_0, N1_next, N2_next; // Number of atoms in grains 1 and 2 at times 1 and 2
   double t0, t1, Lz; // time at 1, time at 2, height of cylindrical grain, GBE
+  bool is_eam = false;
   // NOTE: eGB is generally taken as 1.5.  I should use a value close to what
   // was calculated in the GBE calculations.
 
-  if (argc != 5)
+  if (argc < 5 || argc > 6)
   {
     cout << "Please enter the filename containing the number of atoms in each grain: ";
     cin  >> filename;
@@ -85,24 +111,61 @@ int main(int argc, char **argv)
 
     cout << "Please enter the molecules in the simulation (i.e. UO2, Cu): ";
     cin  >> atom_types;
+
+    transform(atom_types.begin(), atom_types.end(), atom_types.begin(), ::toupper);
+
+    if (atom_types.compare("UO2") == 0)
+    {
+      cout << "Please enter \"EAM\" if using the EAM UO2 potential (enter \"No\" otherwise): ";
+      cin  >> str;
+      transform(str.begin(), str.end(), str.begin(), ::toupper);
+      if (str.compare("EAM") == 0)
+      {
+        is_eam = true;
+      }
+    }
   }
   else
   {
-    filename = argv[1]; // get the filename
-    T = strtod(argv[2], NULL); // get the temperature.
-    Lz = strtod(argv[3], NULL); // get the cylinder height
-    atom_types = argv[4]; // get the molecule
-  }
+    if (argc == 5)
+    {
+      filename = argv[1]; // get the filename
+      T = strtod(argv[2], NULL); // get the temperature.
+      Lz = strtod(argv[3], NULL); // get the cylinder height
+      atom_types = argv[4]; // get the molecule
+    }
+    else if (argc == 6)
+    {
+      filename = argv[1]; // get the filename
+      T = strtod(argv[2], NULL); // get the temperature.
+      Lz = strtod(argv[3], NULL); // get the cylinder height
+      atom_types = argv[4]; // get the molecule
+      str = argv[5]; // gets the parameter determining if using UO2 eam potential
 
-  cout << "Input parameters:"
-       << "\n\tSimulation temperature: " << T
-       << "\n\tCylinder thickness: " << Lz
-       << "\n\tNumber of atom types: " << atom_types << endl;
+      transform(str.begin(), str.end(), str.begin(), ::toupper);
+      if (str.compare("EAM") == 0)
+      {
+        is_eam = true;
+      }
+    }
+  }
 
   // No matter what the user entered, capitalize everything.
   transform(atom_types.begin(), atom_types.end(), atom_types.begin(), ::toupper);
+  cout << "Input parameters:"
+       << "\n\tSimulation temperature: " << T
+       << "\n\tCylinder thickness: " << Lz
+       << "\n\tAtom: " << atom_types << endl;
+  if (atom_types.compare("UO2") == 0)
+  {
+    cout << "\t - EAM potential: ";
+    if (is_eam)
+      cout << "Yes\n";
+    else
+      cout << "No\n";
+  }
 
-  a0 = latticeParam(T, atom_types);
+  a0 = latticeParam(T, atom_types, is_eam);
   cout << "\tLattice parameter: " << a0 << endl;
   scale_factor = a0 / 5.453; // Important to account for expansion of the lattice
   Lz *= scale_factor;
@@ -124,30 +187,32 @@ int main(int argc, char **argv)
   fout << "# This is the area data for T = " << T << " K [time(ps) area(Angstroms^2)]\n";
 
   getline(fin, str); // get the comment line
-  fin >> t0 >> N0;
+  fin >> t0 >> N1_0 >> N2_0;
   if (t0 != 0)
   {
     cout << "Something is wrong in the input file - Perhaps a missing entry?\n"
          << "This script requires that the second line in the data file contain the timestep 0 information!\n";
     return 2;
   }
-  fout << t0 * 0.002 << " " << N0 * a0 * a0 * a0 / (4 * Lz) << endl;
-  fin >> str >> str; // ignore the minimization step
 
-  while (fin >> t1 >> N1)
+  fin >> str >> str >> str; // ignore the minimization step
+
+  // Output the converted values
+  fout << t0 * 0.002 << " " << N1_0 * a0 * a0 * a0 / (4 * Lz) << " " << N2_0 * a0 * a0 * a0 / (4 * Lz) << endl;
+  while (fin >> t1 >> N1_next >> N2_next)
   {
-    // if t1 is less than or equal to t0, the data file is corrupted and needs
-    // to be looked at.
-    if (t1 <= t0)
+    if (t1 < t0)
     {
       cout << "Error: data file corrupted.  t0 = " << t0 << " >= t1 = " << t1 << endl;
       return 3;
     }
-    // Now that we've multiplied everything together, convert it to the correct
-    // units.  Units should be m^4 / J*s.
-    area = N1 * a0 * a0 * a0 / (4 * Lz);
+    area = N1_next * a0 * a0 * a0 / (4 * Lz);
 
-    fout << t1 * 0.002 << " " << area << endl;
+    fout << t1 * 0.002 << " " << area;
+
+    area = N2_next * a0 * a0 * a0 / (4 * Lz);
+
+    fout << " " << area << endl;
   }
   // Close the file stream
   fin.close();
