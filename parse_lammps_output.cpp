@@ -30,7 +30,9 @@ int main(int argc, char** argv)
   string indicator, indicator2; // line that specifies that we have important information coming up next.
   string indicator_end; // line that specifies the end of the important info.
   string unit_indicator, unit_style; // line that specifies what unit style we are using
+  string time_step_indicator; // line the specifies the time step
   double Lx = 0.0, Ly = 0.0, Lz = 0.0; // box size in each direction.
+  double time_step; // time step value
   double a1, a2, a3, a4, a5, a6; // dummy variables
   int N = -1, n_labels = 0;; // Number of atoms, number of labels
   map <string, int> labels;
@@ -58,6 +60,8 @@ int main(int argc, char** argv)
   indicator2 = "Memory usage per processor";
   indicator_end = "Loop time of";
   unit_indicator = "Unit style";
+  time_step_indicator = "  Time step     :";
+
 
   // open up the filestreams
   ifstream fin(filename1.c_str());
@@ -160,6 +164,17 @@ int main(int argc, char** argv)
       ss >> str2 >> str2 >> str2 >> unit_style;
       fout << "\"Unit style:\"," << unit_style << endl;
       break; // once we've found the unit style, we can move on
+    }
+  }
+
+  while (getline(fin, str))
+  {
+    if (str.find(time_step_indicator) != string::npos)
+    {
+      stringstream ss(str);
+      ss >> str >> str >> str >> time_step;
+      fout << "\"Time step:\"," << time_step << endl;
+      break;
     }
   }
 

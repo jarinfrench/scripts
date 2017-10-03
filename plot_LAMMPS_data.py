@@ -115,6 +115,14 @@ lammps_thermo = {"Step": "none", "Elapsed": "time", "Elaplong": "time",
                  "Lx": "distance", "Ly": "distance", "Lz": "distance",
                  "Volume": "volume"}
 
+# Now get the time step
+line5 = next(reader)
+if (line5[0] != "Time step:"):
+    print("Unable to determine time step.")
+    time_step = 1
+else:
+    time_step = float(line5[1])
+    
 # Now we get the labels
 labels = next(reader)
 data = []
@@ -144,6 +152,14 @@ if "TotEng" in labels and N > 1:
     for i in range(len(data[totEngIndex])):
         data[len(labels)].append(data[totEngIndex][i] / N)
     labels.append("E_per_atom")
+
+# Calculate the times if not already printed
+if "Step" in labels and not "Time" in labels:
+    data.append([])
+    stepIndex = labels.index("Step")
+    for i in range(len(data[stepIndex])):
+        data[len(labels)].append(data[stepIndex][i] * time_step)
+    labels.append("Time")
 
 print("There are %d data sets:"%len(labels))
 for i in range(len(labels)):
