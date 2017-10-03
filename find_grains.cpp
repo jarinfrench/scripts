@@ -54,7 +54,7 @@ int main(int argc, char** argv)
   unsigned int n_grain_1, n_grain_2; // counter for number of atoms in each grain
 
   // Variables for the symmetry parameters
-  double coeffs [2] = {3,2}, ideal_symm; // Coefficients of the symmetry parameter (default), ideal symmetry parameter value.
+  double coeffs [2] = {3.0, 2.0}, unrotated_symm, rotated_symm; // Coefficients of the symmetry parameter equation unrotated/rotated symmetry parameter values.
   double xtemp, ytemp, x2, y2, z2, sintheta, costheta, cutoff, sintheta_sq; // temp position variables, sin/cos of misorientation, cutoff value
   double total1 = 0.0, total2 = 0.0; // symmetry parameters
   vector <double> xx (12,0.0); // x positions in terms of a0 for nearest neighbors
@@ -165,6 +165,16 @@ int main(int argc, char** argv)
     return 9;
   }
   norm_z = sqrt(new_z_axis[0] * new_z_axis[0] + new_z_axis[1] * new_z_axis[1] + new_z_axis[2] * new_z_axis[2]);
+  double costhetaz = new_z_axis[2] / norm_z;
+  double sinthetaz = sqrt(1 - costhetaz * costhetaz);
+
+  vector <double> new_y_2 (3,0);
+  new_y_2[0] = -new_z_axis[2];
+  new_y_2[1] = new_z_axis[2];
+  new_y_2[2] = 0;
+
+  double costhetay = new_y_2[1] / sqrt(new_y_2[0] * new_y_2[0] + new_y_2[1] * new_y_2[1]);
+  double sinthetay = sqrt(1 - costhetay * costhetay);
 
   cout << "\tRotated coordinate system:\n"
        << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
@@ -181,70 +191,15 @@ int main(int argc, char** argv)
   }
   backward_rotation = calculateTranspose(forward_rotation);
 
-  // The original first nearest neighbor positions
-  xx[0] =  0.0000; yy[0] = -0.5000; zz[0] = -0.5000;
-  xx[1] =  0.0000; yy[1] = -0.5000; zz[1] =  0.5000;
-  xx[2] =  0.0000; yy[2] =  0.5000; zz[2] = -0.5000;
-  xx[3] =  0.0000; yy[3] =  0.5000; zz[3] =  0.5000;
-  xx[4] = -0.5000; yy[4] =  0.0000; zz[4] = -0.5000;
-  xx[5] = -0.5000; yy[5] =  0.0000; zz[5] =  0.5000;
-  xx[6] =  0.5000; yy[6] =  0.0000; zz[6] = -0.5000;
-  xx[7] =  0.5000; yy[7] =  0.0000; zz[7] =  0.5000;
-  xx[8] = -0.5000; yy[8] = -0.5000; zz[8] =  0.0000;
-  xx[9] = -0.5000; yy[9] =  0.5000; zz[9] =  0.0000;
-  xx[10] =  0.5000; yy[10] = -0.5000; zz[10] =  0.0000;
-  xx[11] =  0.5000; yy[11] =  0.5000; zz[11] =  0.0000;
-
-  ideal_symm = 1; // based on the above positions
-
-  for (unsigned int i = 0; i < xx.size(); ++i)
-  {
-    // First rotate the original first nearest neighbors to the new axis
-    x2 = forward_rotation[0][0] * xx[i] + forward_rotation[0][1] * yy[i] + forward_rotation[0][2] * zz[i];
-    y2 = forward_rotation[1][0] * xx[i] + forward_rotation[1][1] * yy[i] + forward_rotation[1][2] * zz[i];
-    z2 = forward_rotation[2][0] * xx[i] + forward_rotation[2][1] * yy[i] + forward_rotation[2][2] * zz[i];
-
-    // Rotate about the new z axis
-    xtemp = costheta * x2 - sintheta * y2;
-    ytemp = sintheta * x2 + costheta * y2;
-
-    // rotate back to the original frame to calculate the values
-    x = backward_rotation[0][0] * xtemp + backward_rotation[0][1] * ytemp + backward_rotation[0][2] * z2;
-    y = backward_rotation[1][0] * xtemp + backward_rotation[1][1] * ytemp + backward_rotation[1][2] * z2;
-
-    /* Uses the idea that sin^2 = 1-cos^2
-    * Projection onto the XY plane means we ignore the z coordinates
-    * cos = A.B / (|A||B|); this simplifies to
-    * cos = (A_x + B_x) / |A||B|, meaning that
-    * cos^2 = (A_x * B_x + A_y * B_y + A_z * B_z)^2 / (A_x^2 + A_y^2 + A_z^2)(B_x^2 + B_y^2 + B_z^2)
-    * Here, A is the vector representing the distance between a central atom i
-    * and a nearest neighbor atom j, and B is the unit vector in the X direction
-    * or (100).  This simplifies the above equation to:
-    * cos^2 = A_x^2 / (A_x^2 + A_y^2)
-    */
-    sintheta_sq = 1 - ((x * x) / (x * x + y * y));
-    if (isnan(sintheta_sq)) // Handles the case of dividing by 0
-    {
-      // This is when the atoms lie on top of each other when projected onto the
-      // xy plane.
-      sintheta_sq = 1;
-    }
-    // Symmetry parameter as defined by Zhang. Coefficients are changed to get
-    // better resolution between grains.
-    total1 += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
-  }
-  total1 /= xx.size();
-  // Cutoff is the midpoint between the ideal value and the rotated ideal value.
-  // Note that this assumes that the outside grain is oriented with it's x axis
-  // aligned with the x axis of the lab frame.
-  cutoff = (ideal_symm + total1) / 2.0;
+  /*
 
   cout << "\tIdeal symmetry parameter: " << ideal_symm << endl
        << "\tRotated symmetry parameter: " << total1 << endl
-       << "\tCutoff value: " << cutoff << endl;
+       << "\tCutoff value: " << cutoff << endl;*/
 
+  cutoff = 1.25;
   // Now read through each set of files
-  int j = 1;
+  int aa = 1;
   while (getline(fin_input, filename1))
   {
     // Open up the files for reading and writing.
@@ -271,7 +226,7 @@ int main(int argc, char** argv)
       // This is for a LAMMPS dump file
       getline(fin, str); // Gets ITEM: TIMESTEP
       getline(fin, str); // Gets the timestep number
-      if (j == 1)
+      if (aa == 1)
       {
         if (str != "0")
         {
@@ -534,11 +489,16 @@ int main(int argc, char** argv)
         rzij = rzij - anInt(rzij / Lz) * Lz;
 
         // Rotate back to the <100> direction
-        xtemp = backward_rotation[0][0] * rxij + backward_rotation[0][1] * ryij + backward_rotation[0][2] * rzij;
-        ytemp = backward_rotation[1][0] * rxij + backward_rotation[1][1] * ryij + backward_rotation[1][2] * rzij;
+        /*xtemp = backward_rotation[0][0] * rxij + backward_rotation[0][1] * ryij + backward_rotation[0][2] * rzij;
+        ytemp = backward_rotation[1][0] * rxij + backward_rotation[1][1] * ryij + backward_rotation[1][2] * rzij;*/
+
+        ytemp = ryij * costhetaz + rzij * sinthetaz;
+
+        xtemp = rxij * costhetay + ytemp * sinthetay;
+        y2 = -rxij * sinthetay + ytemp * costhetay;
 
         // Calculate the magnitude of the distance
-        drij_sq = (xtemp * xtemp) + (ytemp * ytemp);
+        drij_sq = (xtemp * xtemp) + (y2 * y2);
 
         if (drij_sq == 0) // Handles the case where the projected position of the atom is right on top of the current atom.
         {
@@ -623,7 +583,7 @@ int main(int argc, char** argv)
     }
 
     cout << "Processing of file \"" << filename1 << "\" completed.\n";
-    ++j;
+    ++aa;
   }
 
   fin_input.close();
