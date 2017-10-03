@@ -54,26 +54,22 @@ int main(int argc, char** argv)
   unsigned int n_grain_1, n_grain_2; // counter for number of atoms in each grain
 
   // Variables for the symmetry parameters
-  double coeffs [2] = {3.0, 2.0}, unrotated_symm, rotated_symm; // Coefficients of the symmetry parameter equation unrotated/rotated symmetry parameter values.
+  double coeffs [2] = {3.0, 2.0}; // Coefficients of the symmetry parameter equation unrotated/rotated symmetry parameter values.
   double xtemp, ytemp, x2, y2, z2, sintheta, costheta, cutoff, sintheta_sq; // temp position variables, sin/cos of misorientation, cutoff value
   double total1 = 0.0, total2 = 0.0; // symmetry parameters
   vector <double> xx (12,0.0); // x positions in terms of a0 for nearest neighbors
   vector <double> yy (12,0.0); // y positions in terms of a0 for nearest neighbors
   vector <double> zz (12,0.0); // z positions in terms of a0 for nearest neighbors
   vector <double> new_x_axis (3,0); // New x axis position
-  vector <double> new_y_axis (3,0); // New y axis position
+  vector <double> new_y_axis (3.0), new_rotated_y (3,0); // New y axis position, new rotated y
   vector <double> new_z_axis (3,0); // New z axis position
   double norm_x, norm_y, norm_z; // normalizing value for each axis
-  vector <vector <double> > forward_rotation; // rotation matrix to rotate from 100 to the new axis
-  vector <vector <double> > backward_rotation; // rotation matrix to rotate from new axis to 100
+  int axis; // Miller indices of rotation axis
+  double costheta_x, sintheta_x, theta_z, costheta_z, sintheta_z;
 
   // Input file parameters
   int n_files; // Number of files to be read, rotation axis
-  double theta, r_cut, a0; // misorientation angle, cutoff distance (in terms of a0), a0, ideal symmetry parameter.
-  /* Note that the ideal symmetry parameter is calculated by taking the orientation
-  * of the larger grain (or the outside grain) and calculating the orientation
-  * parameter as defined by Bai et al.
-  */
+  double theta, r_cut, a0; // misorientation angle, cutoff distance (in terms of a0), lattice parameter
 
   // Variables used for the cell-linked list
   int n_atoms_per_cell; // self-explanatory
@@ -165,42 +161,89 @@ int main(int argc, char** argv)
     return 9;
   }
   norm_z = sqrt(new_z_axis[0] * new_z_axis[0] + new_z_axis[1] * new_z_axis[1] + new_z_axis[2] * new_z_axis[2]);
-  double costhetaz = new_z_axis[2] / norm_z;
-  double sinthetaz = sqrt(1 - costhetaz * costhetaz);
 
-  vector <double> new_y_2 (3,0);
-  new_y_2[0] = -new_z_axis[2];
-  new_y_2[1] = new_z_axis[2];
-  new_y_2[2] = 0;
+  stringstream ss;
+  ss << abs(new_z_axis[0]) << abs(new_z_axis[1]) << abs(new_z_axis[2]);
+  ss >> axis;
 
-  double costhetay = new_y_2[1] / sqrt(new_y_2[0] * new_y_2[0] + new_y_2[1] * new_y_2[1]);
-  double sinthetay = sqrt(1 - costhetay * costhetay);
+  switch (axis)
+  {
+    case 1:
+    case 10:
+    case 100:
+      //theta_x = 0.0;
+      costheta_x = 1.0;
+      sintheta_x = 0.0;
+
+      //theta_z = 0.0;
+      costheta_z = 1.0;
+      sintheta_z = 0.0;
+
+      cutoff = 1.25;
+      break;
+
+    case 11:
+    case 101:
+    case 110:
+      // Rotate about the x axis
+      // theta_x = pi/6
+      costheta_x = sqrt(3.0) / 2.0;
+      sintheta_x = 0.5;
+
+      // This rotates everything back to a <100> coordinate system, so we can
+      // set the secondary rotation to 0.
+      costheta_z = 1.0;
+      sintheta_z = 0.0;
+
+      cutoff = 1.25;
+      break;
+
+    case 111:
+      // We first need to specify the rotation about the x axis
+      // This angle was determined using the Mathematica file Compare Symmetry Params.nb
+      //theta_x = -acos(sqrt(2.0 / 3.0));
+      costheta_x = sqrt(2.0 / 3.0);
+      sintheta_x = -sqrt(1.0 / 3.0);
+
+
+
+      // Now we specify the rotation about the z axis (001)
+      // Note that the new_rotated_y in this case is -110
+      // theta_z = acos(new_rotated_y[1] / sqrt(new_rotated_y[0] * new_rotated_y[0] + new_rotated_y[1] * new_rotated_y[1]));
+      // In this case, theta_z is 45 degrees
+      costheta_z = 1.0 / sqrt(2.0);
+      sintheta_z = costheta_z;
+
+      cutoff = 1.25;
+
+      break;
+
+    default:
+      cout << "This axis is not implemented. Attempting default values.\n";
+      double theta_x = acos(new_z_axis[2] / norm_z);
+      costheta_x = cos(theta_x);
+      sintheta_x = sin(theta_x);
+
+      // Now we need to specify the new y axis
+      // This result comes from the cross product of 001 with new_z_axis
+      new_rotated_y[0] = -new_z_axis[2];
+      new_rotated_y[1] = new_z_axis[2];
+      new_rotated_y[2] = 0;
+
+      double theta_z = acos(new_rotated_y[1] / sqrt(new_rotated_y[0] * new_rotated_y[0] + new_rotated_y[1] * new_rotated_y[1]));
+      costheta_z = cos(theta_z);
+      sintheta_z = sin(theta_z);
+
+      cutoff = 1.25;
+  }
 
   cout << "\tRotated coordinate system:\n"
        << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
        << "\t  y = " << new_y_axis[0] << " " << new_y_axis[1] << " " << new_y_axis[2] << endl
        << "\t  z = " << new_z_axis[0] << " " << new_z_axis[1] << " " << new_z_axis[2] << endl;
 
-  forward_rotation.resize(3, vector <double> (3,0));
-  backward_rotation.resize(3, vector <double> (3,0));
-  for (unsigned int i = 0; i < new_x_axis.size(); ++i)
-  {
-    forward_rotation[0][i] = new_x_axis[i] / norm_x;
-    forward_rotation[1][i] = new_y_axis[i] / norm_y;
-    forward_rotation[2][i] = new_z_axis[i] / norm_z;
-  }
-  backward_rotation = calculateTranspose(forward_rotation);
-
-  /*
-
-  cout << "\tIdeal symmetry parameter: " << ideal_symm << endl
-       << "\tRotated symmetry parameter: " << total1 << endl
-       << "\tCutoff value: " << cutoff << endl;*/
-
-  cutoff = 1.25;
-  // Now read through each set of files
   int aa = 1;
-  while (getline(fin_input, filename1))
+  while (getline(fin_input, filename1) && aa <= n_files)
   {
     // Open up the files for reading and writing.
     ifstream fin(filename1.c_str());
@@ -488,14 +531,12 @@ int main(int argc, char** argv)
         ryij = ryij - anInt(ryij / Ly) * Ly;
         rzij = rzij - anInt(rzij / Lz) * Lz;
 
-        // Rotate back to the <100> direction
-        /*xtemp = backward_rotation[0][0] * rxij + backward_rotation[0][1] * ryij + backward_rotation[0][2] * rzij;
-        ytemp = backward_rotation[1][0] * rxij + backward_rotation[1][1] * ryij + backward_rotation[1][2] * rzij;*/
+        // Rotation about the x axis
+        ytemp = ryij * costheta_x - rzij * sintheta_x;
 
-        ytemp = ryij * costhetaz + rzij * sinthetaz;
-
-        xtemp = rxij * costhetay + ytemp * sinthetay;
-        y2 = -rxij * sinthetay + ytemp * costhetay;
+        // Rotation about the new z axis
+        xtemp = rxij * costheta_z - ytemp * sintheta_z;
+        y2 = rxij * sintheta_z + ryij * costheta_z;
 
         // Calculate the magnitude of the distance
         drij_sq = (xtemp * xtemp) + (y2 * y2);
