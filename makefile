@@ -1,13 +1,13 @@
 all : rotate_and_remove calculate_GBE calculate_grain_area \
-csv2tecplot extract_energy find_grains parse_lammps_dump parse_lammps_output \
+csv2tecplot extract_energy find_grains dump2dat parse_lammps_output \
 xyz2dat generate_impurities
 	mv rotate_and_remove calculate_GBE calculate_grain_area \
-	csv2tecplot extract_energy find_grains parse_lammps_dump parse_lammps_output \
+	csv2tecplot extract_energy find_grains dump2dat parse_lammps_output \
 	xyz2dat generate_impurities bin/
 
 debug : rotate_and_remove_dbg calculate_GBE_dbg calculate_grain_area_dbg \
 csv2tecplot_dbg extract_energy_dbg find_grains_dbg \
-parse_lammps_dump_dbg parse_lammps_output_dbg xyz2dat_dbg generate_impurities_dbg
+dump2dat_dbg parse_lammps_output_dbg xyz2dat_dbg generate_impurities_dbg
 	mv *_dbg bin/
 
 rotate_and_remove : rotate_and_remove_atom.cpp atom.o
@@ -35,8 +35,8 @@ find_grains : find_grains.cpp atom.o
 generate_impurities : generate_impurities.cpp atom.cpp atom.o
 	g++ -O3 -o generate_impurities generate_impurities.cpp atom.o
 
-parse_lammps_dump : parse_lammps_dump.cpp
-	g++ -O3 -o parse_lammps_dump parse_lammps_dump.cpp
+dump2dat : dump2dat.cpp
+	g++ -O3 -o dump2dat dump2dat.cpp
 
 parse_lammps_output : parse_lammps_output.cpp
 	g++ -O3 -o parse_lammps_output parse_lammps_output.cpp
@@ -65,8 +65,8 @@ find_grains_dbg : find_grains.cpp atom.cpp atom.o
 generate_impurities_dbg : generate_impurities.cpp atom.cpp atom.o
 	g++ -ggdb -g -o generate_impurities_dbg generate_impurities.cpp atom.o
 
-parse_lammps_dump_dbg : parse_lammps_dump.cpp
-	g++ -ggdb -g -o parse_lammps_dump_dbg parse_lammps_dump.cpp
+dump2dat_dbg : dump2dat.cpp
+	g++ -ggdb -g -o dump2dat_dbg dump2dat.cpp
 
 parse_lammps_output_dbg : parse_lammps_output.cpp
 	g++ -ggdb -g -o parse_lammps_output_dbg parse_lammps_output.cpp
