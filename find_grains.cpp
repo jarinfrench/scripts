@@ -22,23 +22,6 @@ double anInt(double x)
   return (double)(temp);
 }
 
-// Calculate the transpose of the passed in matrix
-vector <vector <double> > calculateTranspose(vector <vector <double> > mat)
-{
-  vector <vector <double> > transpose;
-  transpose.resize(mat[0].size(), vector <double> (mat.size(),0));
-
-  for (unsigned int i = 0; i < mat.size(); ++i)
-  {
-    for (unsigned int j = 0; j < mat[i].size(); ++j)
-    {
-      transpose[i][j] = mat[j][i];
-    }
-  }
-
-  return transpose;
-}
-
 int main(int argc, char** argv)
 {
   string filename1, filename2, input_file, data_file, str; // filenames read from and written to, input file, data file, junk variable
@@ -65,7 +48,7 @@ int main(int argc, char** argv)
   vector <double> new_z_axis (3,0); // New z axis position
   double norm_z; // normalizing value for each axis
   int axis; // Miller indices of rotation axis
-  double costheta_x, sintheta_x, costheta_z, sintheta_z;
+  double costheta, sintheta;
 
   // Input file parameters
   int n_files; // Number of files to be read, rotation axis
@@ -157,7 +140,6 @@ int main(int argc, char** argv)
   }
   norm_z = sqrt(new_z_axis[0] * new_z_axis[0] + new_z_axis[1] * new_z_axis[1] + new_z_axis[2] * new_z_axis[2]);
 
-  // convert the rotation axis to a single number for use in the switch statement
   stringstream ss;
   ss << abs(new_z_axis[0]) << abs(new_z_axis[1]) << abs(new_z_axis[2]);
   ss >> axis;
@@ -167,64 +149,42 @@ int main(int argc, char** argv)
     case 1:
     case 10:
     case 100:
-      //theta_x = 0.0;
-      costheta_x = 1.0;
-      sintheta_x = 0.0;
+      //theta = 0.0;
+      costheta = 1.0;
+      sintheta = 0.0;
 
-      //theta_z = 0.0;
-      costheta_z = 1.0;
-      sintheta_z = 0.0;
+      cutoff = 1.25;
       break;
 
     case 11:
     case 101:
     case 110:
-      // Rotate about the x axis
-      // theta_x = pi/6
-      costheta_x = sqrt(3.0) / 2.0;
-      sintheta_x = 0.5;
+      costheta = 1.0;
+      sintheta = 0.0;
 
-      // This rotates everything back to a <100> coordinate system, so we can
-      // set the secondary rotation to 0.
-      costheta_z = 1.0;
-      sintheta_z = 0.0;
+      cutoff = 1.4;
       break;
 
     case 111:
       // We first need to specify the rotation about the x axis
       // This angle was determined using the Mathematica file Compare Symmetry Params.nb
       //theta_x = -acos(sqrt(2.0 / 3.0));
-      costheta_x = sqrt(2.0 / 3.0);
-      sintheta_x = -sqrt(1.0 / 3.0);
+      costheta = sqrt(1.0 / 3.0);
+      sintheta = -sqrt(2.0 / 3.0);
 
-
-
-      // Now we specify the rotation about the z axis (001)
-      // Note that the new_rotated_y in this case is -110
-      // theta_z = acos(new_rotated_y[1] / sqrt(new_rotated_y[0] * new_rotated_y[0] + new_rotated_y[1] * new_rotated_y[1]));
-      // In this case, theta_z is 45 degrees
-      costheta_z = 1.0 / sqrt(2.0);
-      sintheta_z = costheta_z;
+      cutoff = 1.28;
       break;
 
     default:
       cout << "This axis is not implemented explicitly. Using default values.\n";
       double theta_x = acos(new_z_axis[2] / norm_z);
-      costheta_x = cos(theta_x);
-      sintheta_x = sin(theta_x);
+      costheta = cos(theta_x);
+      sintheta = -sin(theta_x);
 
-      // Now we need to specify the new y axis
-      // This result comes from the cross product of 001 with new_z_axis
-      new_rotated_y[0] = -new_z_axis[2];
-      new_rotated_y[1] = new_z_axis[2];
-      new_rotated_y[2] = 0;
-
-      double theta_z = acos(new_rotated_y[1] / sqrt(new_rotated_y[0] * new_rotated_y[0] + new_rotated_y[1] * new_rotated_y[1]));
-      costheta_z = cos(theta_z);
-      sintheta_z = sin(theta_z);
+      cutoff = 1.25;
   }
 
-  cutoff = 1.25;
+
 
   cout << "\tRotated coordinate system:\n"
        << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
@@ -507,10 +467,13 @@ int main(int argc, char** argv)
       // atom over and over.
       for (int l = 1; l <= iatom[0][i]; ++l)
       {
-        int id = iatom[l][i];
+        unsigned int id = iatom[l][i];
+        if (id < i)
+        {
+          continue;
+        }
 
         // calculate the distances
-        // We project onto the xy plane, effectively ignoring the z coordinate
         rxij = atoms[id].getX() - x;
         ryij = atoms[id].getY() - y;
         rzij = atoms[id].getZ() - z;
@@ -521,13 +484,13 @@ int main(int argc, char** argv)
         rzij = rzij - anInt(rzij / Lz) * Lz;
 
         // Rotation about the x axis
-        ytemp = ryij * costheta_x - rzij * sintheta_x;
+        ytemp = ryij * costheta - rzij * sintheta;
 
         // Rotation about the new z axis
-        xtemp = rxij * costheta_z - ytemp * sintheta_z;
-        y2 = rxij * sintheta_z + ryij * costheta_z;
+        xtemp = rxij * costheta - ytemp * sintheta;
+        y2 = rxij * sintheta + ytemp * costheta;
 
-        // Calculate the magnitude of the distance
+        // Calculate the magnitude of the distance, projected onto the xy plane
         drij_sq = (xtemp * xtemp) + (y2 * y2);
 
         if (drij_sq == 0) // Handles the case where the projected position of the atom is right on top of the current atom.
@@ -547,7 +510,7 @@ int main(int argc, char** argv)
     for (unsigned int i = 0; i < symm.size(); ++i)
     {
       symm[i] /= iatom[0][i];
-      
+
       if (atoms[i].getType() != 1)
       {
         continue;
