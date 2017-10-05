@@ -79,9 +79,29 @@ double latticeParam(double T, string atom_type, bool is_eam)
       exit(10); // We don't want to continue with execution if we're out of range.
     }
   }
+  else if (atom_type.compare("AL") == 0)
+  {
+    if (T >= 0.0 && T <= 400.0)
+    {
+      A = 4.03169899;
+      B = 6.63996E-5;
+      C = 0.0 ;
+    }
+    else if (T > 400.0 && T <= 900.0)
+    {
+      A = 4.039216034;
+      B = 3.44901E-5;
+      C = 3.60176E-8;
+    }
+    else
+    {
+      cout << "Temperature out of fitted range (0 K - 900 K).\n";
+      exit(10);
+    }
+  }
   else
   {
-    cout << "Only Cu and UO2 have been fitted.  Add to the latticeParam function if you want more data.\n";
+    cout << "Only Al, Cu, and UO2 have been fitted.  Add to the latticeParam function if you want more data.\n";
     exit(10);
   }
 
@@ -109,7 +129,7 @@ int main(int argc, char **argv)
     cout << "Please enter the height of the original cylinder (in Angstroms): ";
     cin  >> Lz;
 
-    cout << "Please enter the molecules in the simulation (i.e. UO2, Cu): ";
+    cout << "Please enter the molecules in the simulation (i.e. UO2, Cu, Al): ";
     cin  >> atom_types;
 
     transform(atom_types.begin(), atom_types.end(), atom_types.begin(), ::toupper);
