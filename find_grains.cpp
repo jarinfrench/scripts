@@ -157,6 +157,7 @@ int main(int argc, char** argv)
   }
   norm_z = sqrt(new_z_axis[0] * new_z_axis[0] + new_z_axis[1] * new_z_axis[1] + new_z_axis[2] * new_z_axis[2]);
 
+  // convert the rotation axis to a single number for use in the switch statement
   stringstream ss;
   ss << abs(new_z_axis[0]) << abs(new_z_axis[1]) << abs(new_z_axis[2]);
   ss >> axis;
@@ -173,8 +174,6 @@ int main(int argc, char** argv)
       //theta_z = 0.0;
       costheta_z = 1.0;
       sintheta_z = 0.0;
-
-      cutoff = 1.25;
       break;
 
     case 11:
@@ -189,8 +188,6 @@ int main(int argc, char** argv)
       // set the secondary rotation to 0.
       costheta_z = 1.0;
       sintheta_z = 0.0;
-
-      cutoff = 1.25;
       break;
 
     case 111:
@@ -208,13 +205,10 @@ int main(int argc, char** argv)
       // In this case, theta_z is 45 degrees
       costheta_z = 1.0 / sqrt(2.0);
       sintheta_z = costheta_z;
-
-      cutoff = 1.25;
-
       break;
 
     default:
-      cout << "This axis is not implemented. Attempting default values.\n";
+      cout << "This axis is not implemented explicitly. Using default values.\n";
       double theta_x = acos(new_z_axis[2] / norm_z);
       costheta_x = cos(theta_x);
       sintheta_x = sin(theta_x);
@@ -228,9 +222,9 @@ int main(int argc, char** argv)
       double theta_z = acos(new_rotated_y[1] / sqrt(new_rotated_y[0] * new_rotated_y[0] + new_rotated_y[1] * new_rotated_y[1]));
       costheta_z = cos(theta_z);
       sintheta_z = sin(theta_z);
-
-      cutoff = 1.25;
   }
+
+  cutoff = 1.25;
 
   cout << "\tRotated coordinate system:\n"
        << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
@@ -543,11 +537,17 @@ int main(int argc, char** argv)
         }
         // This uses the relation sin^2 = 1-cos^2, where cos = dot(A,B) / (|A|*|B|)
         sintheta_sq = 1 - ((xtemp * xtemp) / drij_sq);
-        total1 += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
+        //total1 += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
+        symm[i] += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
+        symm[id] += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
       }
-      total1 /= iatom[0][i]; // This may not always be 12!
-      symm[i] = total1; // Store them for analysis
-
+      //total1 /= iatom[0][i]; // This may not always be 12!
+      //symm[i] = total1; // Store them for analysis
+    }
+    for (unsigned int i = 0; i < symm.size(); ++i)
+    {
+      symm[i] /= iatom[0][i];
+      
       if (atoms[i].getType() != 1)
       {
         continue;
