@@ -153,7 +153,7 @@ int main(int argc, char** argv)
       costheta = 1.0;
       sintheta = 0.0;
 
-      cutoff = 1.25;
+      cutoff = 1.38;
       break;
 
     case 11:
@@ -162,7 +162,7 @@ int main(int argc, char** argv)
       costheta = 1.0;
       sintheta = 0.0;
 
-      cutoff = 1.2;
+      cutoff = 1.35;
       break;
 
     case 111:
@@ -172,7 +172,7 @@ int main(int argc, char** argv)
       costheta = sqrt(1.0 / 3.0);
       sintheta = -sqrt(2.0 / 3.0);
 
-      cutoff = 1.25;
+      cutoff = 1.34;
       break;
 
     default:
@@ -181,7 +181,10 @@ int main(int argc, char** argv)
       costheta = cos(theta_x);
       sintheta = -sin(theta_x);
 
-      cutoff = 1.25;
+      cutoff = 1.35;
+      // Note that these cutoff values seem to work better for during the simulation.
+      // For the initial crystal, values of 1.25, 1.2, 1.245, and 1.25 seem to
+      // work better for the cutoff values (for 100, 110, 111, and default respectively)
   }
 
   cout << "\tRotated coordinate system:\n"
