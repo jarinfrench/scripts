@@ -38,7 +38,7 @@ int main(int argc, char** argv)
 
   // Variables for the symmetry parameters
   double coeffs [2] = {3.0, 2.0}; // Coefficients of the symmetry parameter equation unrotated/rotated symmetry parameter values.
-  double xtemp, ytemp, y2, cutoff, sintheta_sq; // temp position variables, sin/cos of misorientation, cutoff value
+  double xtemp, ytemp, y2, cutoff, costheta_sq; // temp position variables, sin/cos of misorientation, cutoff value
   double total1 = 0.0; // symmetry parameters
   vector <double> xx (12,0.0); // x positions in terms of a0 for nearest neighbors
   vector <double> yy (12,0.0); // y positions in terms of a0 for nearest neighbors
@@ -162,7 +162,7 @@ int main(int argc, char** argv)
       costheta = 1.0;
       sintheta = 0.0;
 
-      cutoff = 1.4;
+      cutoff = 1.2;
       break;
 
     case 111:
@@ -172,7 +172,7 @@ int main(int argc, char** argv)
       costheta = sqrt(1.0 / 3.0);
       sintheta = -sqrt(2.0 / 3.0);
 
-      cutoff = 1.28;
+      cutoff = 1.25;
       break;
 
     default:
@@ -183,8 +183,6 @@ int main(int argc, char** argv)
 
       cutoff = 1.25;
   }
-
-
 
   cout << "\tRotated coordinate system:\n"
        << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
@@ -428,7 +426,7 @@ int main(int argc, char** argv)
                       continue; // move to the next atom if we're too far away
                     }
 
-                    if (drij_sq == 0.0) // This should never be hit, but just in case
+                    if (drij_sq < 1.0E-8) // This should never be hit, but just in case
                     {
                       continue; // This is the same atom!
                     }
@@ -493,19 +491,18 @@ int main(int argc, char** argv)
         // Calculate the magnitude of the distance, projected onto the xy plane
         drij_sq = (xtemp * xtemp) + (y2 * y2);
 
-        if (drij_sq == 0) // Handles the case where the projected position of the atom is right on top of the current atom.
+        if (drij_sq < 1.0E-8) // Handles the case where the projected position of the atom is right on top of the current atom.
         {
           total1 += 1;
+          cout << "Note: drij_sq = 0.0\n";
           continue;
         }
-        // This uses the relation sin^2 = 1-cos^2, where cos = dot(A,B) / (|A|*|B|)
-        sintheta_sq = 1 - ((xtemp * xtemp) / drij_sq);
-        //total1 += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
-        symm[i] += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
-        symm[id] += (coeffs[0] - coeffs[1] * sintheta_sq) * (coeffs[0] - coeffs[1] * sintheta_sq) * sintheta_sq;
+        // cos = dot(A,B) / (|A|*|B|)
+        costheta_sq = ((xtemp * xtemp) / drij_sq);
+        symm[i] += (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
+        symm[id] += (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
       }
-      //total1 /= iatom[0][i]; // This may not always be 12!
-      //symm[i] = total1; // Store them for analysis
+
     }
     for (unsigned int i = 0; i < symm.size(); ++i)
     {
