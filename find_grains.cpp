@@ -159,10 +159,10 @@ int main(int argc, char** argv)
     case 11:
     case 101:
     case 110:
-      costheta = 1.0;
-      sintheta = 0.0;
+      costheta = 0;
+      sintheta = -1;
 
-      cutoff = 1.35;
+      cutoff = 1.45;
       break;
 
     case 111:
