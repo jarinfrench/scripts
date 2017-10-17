@@ -49,7 +49,7 @@ if [[ "$destination" =~ ^inl$ ]]; then # Using INL
 # qsub script for Falcon
 
 #PBS -j oe
-#PBS -l select=4:ncpus=24:mpiprocs=24
+#PBS -l select=4:ncpus=36:mpiprocs=36
 #PBS -l walltime=01:00:00
 #PBS -P neams
 
@@ -116,13 +116,13 @@ case $usefile in
   y|Y)
     read -e -p "Please enter the filename containing the angles: " FN
     while read -r theta; do
-      if [[ "$desination" =~ ^inl$ ]]; then
+      if [[ "$destination" =~ ^inl$ ]]; then
         echo "#!/bin/bash
 
 # qsub script for Falcon
 
 #PBS -j oe
-#PBS -l select=4:ncpus=24:mpiprocs=24
+#PBS -l select=4:ncpus=36:mpiprocs=36
 #PBS -l walltime=01:00:00
 #PBS -P neams
 
@@ -193,7 +193,7 @@ exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
 # qsub script for Falcon
 
 #PBS -j oe
-#PBS -l select=4:ncpus=24:mpiprocs=24
+#PBS -l select=4:ncpus=36:mpiprocs=36
 #PBS -l walltime=01:00:00
 #PBS -P neams
 
