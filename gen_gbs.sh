@@ -7,6 +7,17 @@ read -e -p "Please enter the filename of the original matrix: " FN
 
 read -p "Please enter the radius of the rotated grain: " radius
 
+read -p "Is this type cylinder (1) or sphere (2)? " boundary_type
+
+if [[ "${boundary_type}" -eq 1 ]]; then
+  b_type="cylinder"
+elif [[ "${boundary_type}" -eq 2 ]]; then
+  b_type="sphere"
+else
+  echo "$boundary_type is not equal to 1 or 2.  Please enter 1 or 2 next time."
+  exit 4
+fi
+
 # based on the filename, the axis is determined.  Can only handle 100 to 133 at
 # this point.  Further modifications may be necessary to handle larger axes.
 axis=`echo $FN | grep -o "1[0-3][0-5]"`
@@ -31,7 +42,7 @@ case $angles in
     read -e -p "Please enter the filename of the angles txt file: " FN2
     while read -r theta; do
       echo "Rotating $theta degrees"
-      rotate_and_remove $FN $radius $theta
+      rotate_and_remove $FN $radius $theta $b_type
     done < "$FN2"
     ;;
   n|N)
@@ -39,7 +50,7 @@ case $angles in
     for i in $(seq 1 $range);
     do
       echo "Rotating $(($i*5)) degrees"
-      rotate_and_remove $FN $radius $(($i*5))
+      rotate_and_remove $FN $radius $(($i*5)) $b_type
     done
     ;;
   *)
