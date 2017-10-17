@@ -22,7 +22,6 @@ calculate_GBE : calculate_GBE.cpp
 calculate_grain_area : calculate_grain_area.cpp
 	g++ -O3 -o calculate_grain_area calculate_grain_area.cpp
 
-
 csv2tecplot : csv2tecplot.cpp
 	g++ -O3 -o csv2tecplot csv2tecplot.cpp
 

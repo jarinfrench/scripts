@@ -55,6 +55,8 @@ int main(int argc, char **argv)
   // External values
   string filename1, filename2, filename3, filename4, str; //filenames and line variable
   string element; // element type
+  string boundary_type;
+  bool is_sphere;
   int axis;
   double r_grain; //radius of the grain, with buffer zone
   double r_grain_sq; // squared values for convenience
@@ -95,9 +97,9 @@ int main(int argc, char **argv)
   int ncellx, ncelly, ncellz, idx, idy, idz; // Number of sub cells in each direction, cell number in each direction
   double lcellx, lcelly, lcellz; // length of sub cells in each direction
 
-  if (argc != 4) // check command line arguments
+  if (argc != 5) // check command line arguments
   {
-    cout << "rotate_and_remove <data_file> <grain_radius> <rotation_angle>\n";
+    cout << "rotate_and_remove <data_file> <grain_radius> <rotation_angle> <boundary_type (cylinder|sphere)>\n";
     // filename
     // Format of filename should be LAMMPS_UO2_SC_N######_{axis}.dat
     cout << "Please input the filename in LAAMPS's format at 0K:\n";
@@ -116,6 +118,12 @@ int main(int argc, char **argv)
       decimal = false;
     else
       decimal = true;
+
+    while (boundary_type.compare("cylinder") != 0 && boundary_type.compare("sphere") != 0)
+    {
+      cout << "Please enter the boundary type (cylinder|sphere): ";
+      cin  >> boundary_type;
+    }
   }
   else
   {
@@ -133,7 +141,16 @@ int main(int argc, char **argv)
       else
         decimal = false; // it doesn't exist
     }
+    boundary_type = argv[4];
+    if ((boundary_type.compare("cylinder") != 0) && (boundary_type.compare("sphere") != 0))
+    {
+      cout << "Error reading boundary type. Boundary type " <<  boundary_type << " not recognized.\n";
+      return 15;
+    }
   }
+
+  (boundary_type.compare("sphere") == 0) ? is_sphere = true : is_sphere = false;
+
 
   // Calculate this once
   r_grain_sq = r_grain * r_grain;
@@ -227,13 +244,13 @@ int main(int argc, char **argv)
   if (ntypes == 1)
   {
     if (element.compare("Cu") == 0)
-      fout << "This bulk Cu coordinates format: [ID type x y z]\n\n";
+      fout << "These Cu coordinates are shifted: [ID type x y z]\n\n";
     else if (element.compare("Al") == 0)
-      fout << "This bulk Al coordinates format: [ID type x y z]\n\n";
+      fout << "These Al coordinates are shifted: [ID type x y z]\n\n";
     else if (element.compare("Au") == 0)
-      fout << "This bulk Au coordinates format: [ID type x y z]\n\n";
+      fout << "These Au coordinates are shifted: [ID type x y z]\n\n";
     else if (element.compare("Ni") == 0)
-      fout << "This bulk Ni coordinates format: [ID type x y z]\n\n";
+      fout << "These Ni coordinates are shifted: [ID type x y z]\n\n";
     else
     {
       cout << "Error: only able to handle Cu, Al, Au, and Ni cases currently.\n";
@@ -292,6 +309,15 @@ int main(int argc, char **argv)
     return 2;
   }
 
+  // For spherical grain!
+  if (is_sphere)
+  {
+    if (r_grain * 2.0 >= Lz)
+    {
+      cout << "Error! Grain diameter = " << r_grain * 2.0 << " >= Lz = " << Lz << endl;
+      return 2;
+    }
+  }
   // Scale the dimensions
   xlow  *= scale_factor_a;
   xhigh *= scale_factor_a;
@@ -356,13 +382,27 @@ int main(int argc, char **argv)
     // z axis.
     // TODO: make this an option to do twist or tilt boundaries
 
-    if ((x1 * x1 + y1 * y1) <= (r_grain_sq))
+    if (is_sphere)
     {
-      temp_x = x1 * costheta - y1 * sintheta;
-      temp_y = x1 * sintheta + y1 * costheta;
-      x1 = temp_x;
-      y1 = temp_y;
+      if ((x1 * x1 + y1 * y1 + z1 * z1) <= (r_grain_sq))
+      {
+        temp_x = x1 * costheta - y1 * sintheta;
+        temp_y = x1 * sintheta + y1 * costheta;
+        x1 = temp_x;
+        y1 = temp_y;
+      }
     }
+    else
+    {
+      if ((x1 * x1 + y1 * y1) <= (r_grain_sq))
+      {
+        temp_x = x1 * costheta - y1 * sintheta;
+        temp_y = x1 * sintheta + y1 * costheta;
+        x1 = temp_x;
+        y1 = temp_y;
+      }
+    }
+
 
     x1 += Lx / 2.0;
     y1 += Ly / 2.0;
