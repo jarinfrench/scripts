@@ -95,7 +95,7 @@ module load gcc openmpi
 
 cd $``PBS_O_WORKDIR
 
-mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_no_GB.in > minimize_${axis}_no_GB.txt
+mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw_cascades -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_no_GB.in > minimize_${axis}_no_GB.txt
 
 exit;" >> lmp_minimize_${axis}_no_GB.pbs
 
@@ -167,7 +167,7 @@ module load gcc openmpi
 
 cd $``PBS_O_WORKDIR
 
-mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_${theta}degree.in > minimize_${axis}_${theta}degree.txt
+mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw_cascades -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_${theta}degree.in > minimize_${axis}_${theta}degree.txt
 
 exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
 
@@ -206,7 +206,7 @@ module load OpenMPI
 
 cd $``PBS_O_WORKDIR
 
-mpirun /home/frenjari/projects/lammps/lammps-17Nov16/src/lmp_openmpigccfftw_falcon -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_${i}degree.in > minimize_${axis}_${i}degree.txt
+mpirun /home/frenjari/projects/lammps/lammps-17Nov16/src/lmp_openmpigccfftw_falcon -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5))degree.in > minimize_${axis}_$((${i}*5))degree.txt
 
 exit;" >> lmp_minimize_${axis}_$((${i}*5))degree.pbs
 
@@ -238,7 +238,7 @@ module load gcc openmpi
 
 cd $``PBS_O_WORKDIR
 
-mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5))degree.in > minimize_${axis}_$((${i}*5))degree.txt
+mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw_cascades -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5))degree.in > minimize_${axis}_$((${i}*5))degree.txt
 
 exit;" >> lmp_minimize_${axis}_$((${i}*5))degree.pbs
 
