@@ -171,7 +171,7 @@ mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw_c
 
 exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
 
-        sed "7s[.*[read_data LAMMPS_${element^^}_SC_${axis}_${theta}degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_${theta}degree.in
+        sed "7s[.*[read_data LAMMPS_${element^^}_${axis}_${theta}degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_${theta}degree.in
         if [[ "${element}" =~ ^UO2$ ]]; then
           sed -i "78s[.*[dump atompos1 all custom 10000 dump1.pos.${theta}degree.dat id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
           sed -i "119s[.*[dump atompos3 all custom 10000 dump3.pos.${axis}.${theta}degree.dat id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
@@ -242,7 +242,7 @@ mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw_c
 
 exit;" >> lmp_minimize_${axis}_$((${i}*5))degree.pbs
 
-        sed "7s[.*[read_data LAMMPS_${element^^}_SC_${axis}_${i}degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+        sed "7s[.*[read_data LAMMPS_${element^^}_${axis}_$((${i}*5))degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
         if [[ "${element}" =~ ^UO2$ ]]; then
           sed -i "78s[.*[dump atompos1 all custom 10000 dump1.pos.$((${i}*5))degree.dat id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
           sed -i "119s[.*[dump atompos3 all custom 10000 dump3.pos.${axis}.$((${i}*5))degree.*.dat id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
