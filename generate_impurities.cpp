@@ -74,7 +74,7 @@ int main(int argc, char** argv)
     istringstream ss(argv[2]);
     if (!(ss >> impurity))
     {
-      cout << "Error converting argument 2 to integer.\n";
+      cout << "Error converting argument 2 to double.\n";
       return 2;
     }
     istringstream ss2(argv[3]);
@@ -86,9 +86,9 @@ int main(int argc, char** argv)
   }
 
   // Make sure we aren't doing anything weird with the impurity level
-  if (impurity >= 100 || impurity <= 0)
+  if (impurity >= 1 || impurity <= 0)
   {
-    cout << "Invalid value of impurity percentage: 0 < impurity < 100\n";
+    cout << "Invalid value of impurity percentage: 0 < impurity < 1\n";
     return 3;
   }
 
@@ -132,9 +132,9 @@ int main(int argc, char** argv)
 
   // Get the number of atoms
   fin >> N >> str;
-  n2 = anInt(N / 3.0 * impurity / 100.0);
+  n2 = anInt(N / 3.0 * impurity);
   N_vac = N - 3 * n2; // calculate the number of UO2 vacancies
-  N_sub = N - 2 * n2; // Calculate how many atoms are left after replace UO2 with Xe
+  N_sub = N - 2 * n2; // Calculate how many atoms are left after we replace UO2 with Xe
   atoms.resize(N, Atom());
 
   fout1 << N_vac << "  atoms\n"; // remove a U atom with it's two O neighbors
