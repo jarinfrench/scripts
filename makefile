@@ -1,12 +1,12 @@
-all : rotate_and_remove calculate_GBE calculate_grain_area \
+all : rotate_and_remove calculate_GBE calculate_grain_area calculate_MSD \
 csv2tecplot extract_energy find_grains dump2dat parse_lammps_output \
 xyz2dat generate_impurities
-	mv rotate_and_remove calculate_GBE calculate_grain_area \
+	mv rotate_and_remove calculate_GBE calculate_grain_area calculate_MSD \
 	csv2tecplot extract_energy find_grains dump2dat parse_lammps_output \
 	xyz2dat generate_impurities bin/
 
 debug : rotate_and_remove_dbg calculate_GBE_dbg calculate_grain_area_dbg \
-csv2tecplot_dbg extract_energy_dbg find_grains_dbg \
+calculate_MSD_dbg csv2tecplot_dbg extract_energy_dbg find_grains_dbg \
 dump2dat_dbg parse_lammps_output_dbg xyz2dat_dbg generate_impurities_dbg
 	mv *_dbg bin/
 
@@ -21,6 +21,9 @@ calculate_GBE : calculate_GBE.cpp
 
 calculate_grain_area : calculate_grain_area.cpp
 	g++ -O3 -o calculate_grain_area calculate_grain_area.cpp
+
+calculate_MSD : calculate_MSD.cpp atom.o
+	g++ -O3 -o calculate_MSD calculate_MSD.cpp atom.o
 
 csv2tecplot : csv2tecplot.cpp
 	g++ -O3 -o csv2tecplot csv2tecplot.cpp
@@ -51,6 +54,9 @@ calculate_GBE_dbg : calculate_GBE.cpp
 
 calculate_grain_area_dbg : calculate_grain_area.cpp
 	g++ -ggdb -g -o calculate_grain_area_dbg calculate_grain_area.cpp
+
+calculate_MSD_dbg : calculate_MSD.cpp atom.o
+	g++ -ggdb -g -o calculate_MSD_dbg calculate_MSD.cpp atom.o
 
 csv2tecplot_dbg : csv2tecplot.cpp
 	g++ -ggdb -g -o csv2tecplot_dbg csv2tecplot.cpp
