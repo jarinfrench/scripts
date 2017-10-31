@@ -3,12 +3,12 @@
 
 /******************************************************************************
 * This class contains all of the relevant information pertaining to a LAMMPS
-* atom, specifically for U and O.  id is the ID number of the atom (labeled from
-* 1 to N); type is the type of atom (for the specific case of UO2, U is 1, O
-* is 2); charge is the atomic charge (note that this in general is a fitted
-* parameter, and not quantized amounts); x, y, and z are the Cartesian coordinates
-* of the atom; mark specifies whether or not the atom is going to be removed.
-* Only values of 0 are "unmarked".
+* atom.  id is the ID number of the atom (labeled from 1 to N); type is the type
+* of atom (for the specific case of UO2, U is 1, O is 2); charge is the atomic
+* charge (note that this in general is a fitted parameter, and not quantized
+* amounts); x, y, and z are the Cartesian coordinates of the atom; mark
+* specifies a marking number which can be used for various purposes. Only values
+* of 0 are "unmarked".
 ******************************************************************************/
 
 class Atom
@@ -20,20 +20,20 @@ private:
   double x; // x position
   double y; // y position
   double z; // z position
-  int mark; // is the atom marked for removal?
+  int mark; // the mark on the atom.
 
 public:
   Atom(); // Default constructor
   // Constructor given the atom information
   Atom(int id, int type, double charge, double x, double y, double z);
   // All the getters
-  int getId() {return id;}
-  int getType() {return type;}
-  double getCharge() {return charge;}
-  double getX() {return x;}
-  double getY() {return y;}
-  double getZ() {return z;}
-  int getMark() {return mark;}
+  int getId() const {return id;}
+  int getType() const {return type;}
+  double getCharge() const {return charge;}
+  double getX() const {return x;}
+  double getY() const {return y;}
+  double getZ() const {return z;}
+  int getMark() const {return mark;}
 
   // All the setters
   void setId(int id) {this->id = id;}
