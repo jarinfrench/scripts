@@ -368,6 +368,11 @@ int main(int argc, char** argv)
       if (idy >= ncelly) idy = ncelly - 1;
       if (idz >= ncellz) idz = ncellz - 1;
 
+      // This is for unwrapped coordinates
+      while (idx < 0.0) idx = ncellx + idx; // Note that this keeps things within the bounds set by lcellx
+      while (idy < 0.0) idy = ncelly + idy; // Note that this keeps things within the bounds set by lcelly
+      while (idz < 0.0) idz = ncellz + idz; // Note that this keeps things within the bounds set by lcellz
+
       ++icell[idx][idy][idz]; // increase the number of atoms in this cell
       // assign the atom number to this index.
       pcell[idx][idy][idz][icell[idx][idy][idz] - 1] = i;
