@@ -1,6 +1,6 @@
 all : rotate_and_remove calculate_GBE calculate_grain_area calculate_MSD calculate_displacement \
 csv2tecplot extract_energy find_grains dump2LAMMPS_input dump2tec parse_lammps_output \
-xyz2dat generate_impurities
+xyz2dat generate_impurities debug
 	mv rotate_and_remove calculate_GBE calculate_grain_area calculate_MSD calculate_displacement \
 	csv2tecplot extract_energy find_grains dump2LAMMPS_input dump2tec parse_lammps_output \
 	xyz2dat generate_impurities bin/

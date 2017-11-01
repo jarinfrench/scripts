@@ -108,9 +108,12 @@ int main(int argc, char **argv)
     processFile(fin, atoms_1);
     fin.close();
 
+    cout << "Processing of file \"" << filename1 << "\" complete.\n";
+
     while (fin_input >> filename2)
     {
       ifstream fin2(filename2.c_str());
+      output_file = filename2.substr(0,filename2.find("_")) + "_displacement_data.dat";
 
       if (fin2.fail())
       {
@@ -120,6 +123,7 @@ int main(int argc, char **argv)
 
       processFile(fin2,atoms_2);
       fin2.close();
+      cout << "Processing of file \"" << filename2 << "\" complete.\n";
 
       if (atoms_1.size() != atoms_2.size())
       {
