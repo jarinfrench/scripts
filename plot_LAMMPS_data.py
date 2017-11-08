@@ -113,21 +113,26 @@ lammps_thermo = {"Step": "none", "Elapsed": "time", "Elaplong": "time",
                  "Pxy": "pressure", "Pxz": "pressure", "Pyz": "pressure",
                  "Fmax": "force", "Fnorm": "force", "E_per_atom": "energy",
                  "Lx": "distance", "Ly": "distance", "Lz": "distance",
-                 "Volume": "volume"}
+                 "Volume": "volume", "PE_per_atom": "energy"}
 
 # Now get the time step
 line5 = next(reader)
 if (line5[0] != "Time step:"):
     print("Unable to determine time step.")
+    time_found = False
     time_step = 1
+    labels = line5
+    data = []
+    for i in range(len(labels)): # for the total number of labels we have
+        data.append([])
 else:
     time_step = float(line5[1])
-    
-# Now we get the labels
-labels = next(reader)
-data = []
-for i in range(len(labels)): # for the total number of labels we have
-    data.append([])
+    time_found = True
+    # Now we get the labels
+    labels = next(reader)
+    data = []
+    for i in range(len(labels)): # for the total number of labels we have
+        data.append([])
 
 # Now we read through the data until either the end of the file, or until we
 # come to another label set. <-- Second label set NOT IMPLEMENTED YET (TODO)
@@ -153,8 +158,15 @@ if "TotEng" in labels and N > 1:
         data[len(labels)].append(data[totEngIndex][i] / N)
     labels.append("E_per_atom")
 
+if "PotEng" in labels and N > 1:
+    data.append([])
+    potEngIndex = labels.index("PotEng")
+    for i in range(len(data[potEngIndex])):
+        data[len(labels)].append(data[potEngIndex][i] / N)
+    labels.append("PE_per_atom")
+
 # Calculate the times if not already printed
-if "Step" in labels and not "Time" in labels:
+if "Step" in labels and not "Time" in labels and time_found:
     data.append([])
     stepIndex = labels.index("Step")
     for i in range(len(data[stepIndex])):
