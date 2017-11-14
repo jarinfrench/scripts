@@ -30,7 +30,7 @@ int main(int argc, char** argv)
   vector <Atom> atoms; // all of the atoms from the file
   vector <double> symm; // a vector to hold the calculated symmetry parameters
   int atom_id, type; // id and type number of atom; used to read in the data
-  double charge, x, y, z; // charge and position of atom, used to read in data
+  double charge, x, y, z, xu, yu, zu; // charge and position of atom, used to read in data
   double rxij, ryij, rzij, drij_sq; // positions and distance squared
   double r_cut_sq; // cutoff distance
   bool dump; // boolean value to determine if the read file is a LAMMPS dump file or not.
@@ -287,12 +287,22 @@ int main(int argc, char** argv)
       stringstream ss(str);
       if (n_type == 1)
       {
-        ss >> atom_id >> type >> x >> y >> z;
+        if (!(ss >> atom_id >> type >> x >> y >> z >> xu >> yu >> zu))
+        {
+          xu = 0.0;
+          yu = 0.0;
+          zu = 0.0;
+        }
         charge = 0.0;
       }
       else if (n_type == 2)
       {
-        ss >> atom_id >> type >> charge >> x >> y >> z;
+        if (!(ss >> atom_id >> type >> charge >> x >> y >> z >> xu >> yu >> zu))
+        {
+          xu = 0.0;
+          yu = 0.0;
+          zu = 0.0;
+        }
       }
       else
       {
@@ -315,6 +325,9 @@ int main(int argc, char** argv)
       // We make the atom id match (almost) the index.  There is a difference of 1
       // because C++ indexes from 0.
       atoms[atom_id - 1] = Atom(atom_id, type, charge, x, y, z);
+      atoms[atom_id - 1].setXu(xu);
+      atoms[atom_id - 1].setYu(yu);
+      atoms[atom_id - 1].setZu(zu);
       ++n_atoms_read;
     }
     fin.close(); // Close the data file, we're done with it.
@@ -545,16 +558,25 @@ int main(int argc, char** argv)
       }
       if (n_type == 1)
       {
+        if (i == 0)
+        {
+          fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"X\", \"Y\", \"Z\", \"Changes Grain\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
+        }
         fout << atoms[i].getId() << " "
              << atoms[i].getType() << " "
              << (atoms[i].getX() + xlow) * a0 << " "
              << (atoms[i].getY() + ylow) * a0 << " "
              << (atoms[i].getZ() + zlow) * a0 << " "
              << atoms[i].getMark() << " "
-             << symm[i] << endl;
+             << symm[i] << " " << atoms[i].getXu() << " " << atoms[i].getYu()
+             << " " << atoms[i].getZu() << endl;
       }
       else if (n_type == 2)
       {
+        if (i == 0)
+        {
+          fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"Atom Charge\",\"X\", \"Y\", \"Z\", \"Changes Grain\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
+        }
         fout << atoms[i].getId() << " "
              << atoms[i].getType() << " "
              << atoms[i].getCharge() << " "
@@ -562,7 +584,8 @@ int main(int argc, char** argv)
              << (atoms[i].getY() + ylow) * a0 << " "
              << (atoms[i].getZ() + zlow) * a0 << " "
              << atoms[i].getMark() << " "
-             << symm[i] << endl;
+             << symm[i] << " " << atoms[i].getXu() << " " << atoms[i].getYu()
+             << " " << atoms[i].getZu() << endl;
       }
       else
       {

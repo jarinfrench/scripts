@@ -14,20 +14,30 @@ void processFile(ifstream & fin, vector <Atom> & atoms)
   string str;
   unsigned int atom_id, n_read = 0;
   int atom_type, grain_num;
-  double charge, x, y, z, f_i;
+  double charge, x, y, z, f_i, xu, yu, zu;
+  getline(fin,str); // we ignore the first line
   while (getline(fin, str))
   {
     stringstream ss(str);
-    if (!(ss >> atom_id >> atom_type >> charge >> x >> y >> z >> grain_num >> f_i))
+    if (!(ss >> atom_id >> atom_type >> charge >> x >> y >> z >> grain_num >> f_i >> xu >> yu >> zu))
     {
       charge = 0.0;
-      ss >> atom_id >> atom_type >> x >> y >> z >> grain_num >> f_i;
+      if (!(ss >> atom_id >> atom_type >> x >> y >> z >> grain_num >> f_i >> xu >> yu >> zu))
+      {
+        // unwrapped coordinates not included.  Cannot calculate displacement vectors
+        cout << "Error reading data.  Please make sure the data file has the following information (in order):\n"
+             << "\t<atom_id> <atom_type> <atom_charge>(optional) x y z <grain_number> <orientation_parameter> xu yu zu\n";
+        exit(4);
+      }
     }
     if (atom_id > atoms.size())
     {
       atoms.resize(atom_id, Atom());
     }
     atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, x, y, z);
+    atoms[atom_id - 1].setXu(xu);
+    atoms[atom_id - 1].setYu(yu);
+    atoms[atom_id - 1].setZu(zu);
     atoms[atom_id - 1].setMark(grain_num);
     ++n_read;
   }
@@ -41,12 +51,12 @@ void processFile(ifstream & fin, vector <Atom> & atoms)
 void writeData(ofstream & fout, vector <Atom> const & atoms1, vector <Atom> const & atoms2)
 {
   double disp_x, disp_y, disp_z, disp_mag;
-  fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"Atom Charge\", \"X\", \"Y\", \"Z\", \"Changes Grain\", \"X(K)\", \"Y(K)\", \"Z(K)\", \"Magnitude\"\n";
+  fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"Atom Charge\", \"Xu\", \"Yu\", \"Zu\", \"Changes Grain\", \"X(K)\", \"Y(K)\", \"Z(K)\", \"Magnitude\"\n";
   for (unsigned int i = 0; i < atoms1.size(); ++i)
   {
-    disp_x = atoms1[i].getX() - atoms2[i].getX();
-    disp_y = atoms1[i].getY() - atoms2[i].getY();
-    disp_z = atoms1[i].getZ() - atoms2[i].getZ();
+    disp_x = atoms1[i].getXu() - atoms2[i].getXu();
+    disp_y = atoms1[i].getYu() - atoms2[i].getYu();
+    disp_z = atoms1[i].getZu() - atoms2[i].getZu();
     int grain_change = 0;
     if (atoms1[i].getMark() != atoms2[i].getMark())
     {
@@ -54,8 +64,8 @@ void writeData(ofstream & fout, vector <Atom> const & atoms1, vector <Atom> cons
     }
     disp_mag = sqrt(disp_x * disp_x + disp_y * disp_y + disp_z * disp_z);
     fout << atoms2[i].getId() << " " << atoms2[i].getType() << " "
-         << atoms2[i].getCharge() << " " << atoms2[i].getX() << " "
-         << atoms2[i].getY() << " " << atoms2[i].getZ() << " " << grain_change << " "
+         << atoms2[i].getCharge() << " " << atoms2[i].getXu() << " "
+         << atoms2[i].getYu() << " " << atoms2[i].getZu() << " " << grain_change << " "
          << disp_x << " " << disp_y << " " << disp_z << " " << disp_mag << endl;
   }
 }
