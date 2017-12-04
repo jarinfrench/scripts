@@ -249,6 +249,7 @@ int main(int argc, char** argv)
       fin >> zlow >> zhigh >> str >> str;
       fin >> str;
       fin.ignore();
+      getline(fin, str);
       filename2 = filename1.substr(0,filename1.find(".dat")) + "_interface.dat";
     }
     // Convert the bounds in terms of a0
