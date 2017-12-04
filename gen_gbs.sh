@@ -44,6 +44,11 @@ case $angles in
       echo "Rotating $theta degrees"
       rotate_and_remove $FN $radius $theta $b_type
     done < "$FN2"
+    for i in $(seq 1 $range);
+    do
+      echo "Rotating $(($i*5)) degrees"
+      rotate_and_remove $FN $radius $(($i*5)) $b_type
+    done
     ;;
   n|N)
     echo "Generating default layouts..."
