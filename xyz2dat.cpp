@@ -57,7 +57,7 @@ int main(int argc, char** argv)
     {
       if (islower(filename1[i]))
       {
-        if ((elements.insert(pair<string,int>(filename1.substr(i-1,2), elem_num))).second)
+        if ((elements.insert(pair<string,int>(filename1.substr(i-1,2), elem_num))).second) // check to see if insertion was successful
         {
           ++elem_num;
         }
@@ -76,7 +76,7 @@ int main(int argc, char** argv)
           }
           else
           {
-            if ((elements.insert(pair<string, int> (filename1.substr(i,1), elem_num))).second)
+            if ((elements.insert(pair<string, int> (filename1.substr(i,1), elem_num))).second) // check to see if insertion was successful
             {
               ++elem_num;
             }
@@ -172,7 +172,6 @@ int main(int argc, char** argv)
       fout << setprecision(1) << charge << " ";
     }
     fout << setprecision(6) << x << " " << y << " " << z << endl;
-
   }
 
   // Close the file streams
