@@ -19,8 +19,9 @@ int main(int argc, char **argv)
   int id, type; // Atom id number and type number
   double charge, x, y, z; // atom charge, and x, y and z positions
   double r_grain;
+  bool file2set = false;
 
-  if (argc != 4)
+  if (argc < 4)
   {
     cout << "Please enter the filename to be parsed: ";
     cin  >> filename1;
@@ -30,30 +31,46 @@ int main(int argc, char **argv)
 
     cout << "Please enter the element: ";
     cin  >> element;
+    file2set = false;
   }
   else
   {
-    filename1 = argv[1]; // First value of argv is the script name
-    r_grain = strtod(argv[2], NULL); // Second parameter specifies the endptr - ignored if NULL
-    element = argv[3];
+    if (argc == 4)
+    {
+      filename1 = argv[1]; // First value of argv is the script name
+      r_grain = strtod(argv[2], NULL); // Second parameter specifies the endptr - ignored if NULL
+      element = argv[3];
+      file2set = false;
+    }
+    else if (argc == 5)
+    {
+      filename1 = argv[1]; // First value of argv is the script name
+      r_grain = strtod(argv[2], NULL); // Second parameter specifies the endptr - ignored if NULL
+      element = argv[3];
+      filename2 = argv[4];
+      file2set = true;
+    }
   }
 
-  transform(element.begin(), element.end(), element.begin(), ::toupper);
-  if (element.compare("UO2") != 0)
+  if (!file2set)
   {
-    transform(element.begin(), element.end(), element.begin(), ::tolower);
-    element[0] = toupper(element[0]);
+    transform(element.begin(), element.end(), element.begin(), ::toupper);
+    if (element.compare("UO2") != 0)
+    {
+      transform(element.begin(), element.end(), element.begin(), ::tolower);
+      element[0] = toupper(element[0]);
+    }
+    ostringstream fn2;
+    // The +8 moves the starting point to where the filename indicates the degree
+    // The format of the filename SHOULD be: dump3.pos.<axis>.###degree.<step #>.dat
+    // The -14 comes from calculating the number of characters after the first
+    // number indicating the angle.  A hard coded value will not always get the
+    // right amount of chars.
+    fn2 << element << "_minimized_" << filename1.substr(filename1.find("pos") + 8,
+                           filename1.find(".dat") - 14 - filename1.find("pos"))
+        << "_r" << r_grain << "A.dat";
+    filename2 = fn2.str();
   }
-  ostringstream fn2;
-  // The +8 moves the starting point to where the filename indicates the degree
-  // The format of the filename SHOULD be: dump3.pos.<axis>.###degree.<step #>.dat
-  // The -14 comes from calculating the number of characters after the first
-  // number indicating the angle.  A hard coded value will not always get the
-  // right amount of chars.
-  fn2 << element << "_minimized_" << filename1.substr(filename1.find("pos") + 8,
-                         filename1.find(".dat") - 14 - filename1.find("pos"))
-      << "_r" << r_grain << "A.dat";
-  filename2 = fn2.str();
 
   ifstream fin(filename1.c_str());
   if (fin.fail())

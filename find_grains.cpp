@@ -146,6 +146,7 @@ int main(int argc, char** argv)
 
   switch (axis)
   {
+    // Note that these all assume a misorientation of 45 degrees.
     case 1:
     case 10:
     case 100:
@@ -166,9 +167,6 @@ int main(int argc, char** argv)
       break;
 
     case 111:
-      // We first need to specify the rotation about the x axis
-      // This angle was determined using the Mathematica file Compare Symmetry Params.nb
-      //theta_x = -acos(sqrt(2.0 / 3.0));
       costheta = sqrt(1.0 / 3.0);
       sintheta = -sqrt(2.0 / 3.0);
 
@@ -561,7 +559,7 @@ int main(int argc, char** argv)
       {
         if (i == 0)
         {
-          fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"X\", \"Y\", \"Z\", \"Changes Grain\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
+          fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
         }
         fout << atoms[i].getId() << " "
              << atoms[i].getType() << " "
@@ -576,7 +574,7 @@ int main(int argc, char** argv)
       {
         if (i == 0)
         {
-          fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"Atom Charge\",\"X\", \"Y\", \"Z\", \"Changes Grain\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
+          fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"Atom Charge\",\"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
         }
         fout << atoms[i].getId() << " "
              << atoms[i].getType() << " "

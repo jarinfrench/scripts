@@ -7,7 +7,7 @@ read -p "What is the rotation axis? " axis
 read -p "What is the grain radius? " radius
 read -p "What is the element? " element # get the desired element
 
-if [[ "${element,,}" =~ ^(uo2|al|cu|au|ni)$ ]]; then
+if [[ "${element,,}" =~ ^(uo2|al|cu|au|ni|ag)$ ]]; then
   element=${element,,}
   if [[ "$element" =~ ^uo2$ ]]; then
     element=${element^^}
@@ -15,7 +15,7 @@ if [[ "${element,,}" =~ ^(uo2|al|cu|au|ni)$ ]]; then
     element=${element^}
   fi
 else
-  echo "$element is not recognized.  Please enter either UO2, Cu, Al, Au, or Ni."
+  echo "$element is not recognized.  Please enter either UO2, Cu, Al, Au, Ag, or Ni."
   exit 3
 fi
 
@@ -72,9 +72,9 @@ exit;" > lmp_minimize_${axis}_no_GB.pbs
     sed -i "90s[.*[dump atompos2 all custom 10000 anneal.no_gb.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
     sed -i "119s[.*[dump atompos3 all custom 10000 CG2.no_gb.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
   else
-    sed -i "50s[.*[dump atompos1 all custom 10000 CG1.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
-    sed -i "62s[.*[dump atompos2 all custom 10000 anneal.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
-    sed -i "91s[.*[dump atompos3 all custom 10000 CG2.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
+    sed -i "49s[.*[dump atompos1 all custom 10000 CG1.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
+    sed -i "61s[.*[dump atompos2 all custom 10000 anneal.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
+    sed -i "69s[.*[dump atompos3 all custom 10000 CG2.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
   fi
 
 else # Using ARC
@@ -107,9 +107,9 @@ exit;" >> lmp_minimize_${axis}_no_GB.pbs
     sed -i "90s[.*[dump atompos2 all custom 10000 anneal.no_gb.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
     sed -i "119s[.*[dump atompos3 all custom 10000 CG2.no_gb.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
   else
-    sed -i "50s[.*[dump atompos1 all custom 10000 CG1.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
-    sed -i "62s[.*[dump atompos2 all custom 10000 anneal.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
-    sed -i "91s[.*[dump atompos3 all custom 10000 CG2.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
+    sed -i "49s[.*[dump atompos1 all custom 10000 CG1.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
+    sed -i "61s[.*[dump atompos2 all custom 10000 anneal.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
+    sed -i "69s[.*[dump atompos3 all custom 10000 CG2.no_gb.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_no_GB.in
   fi
 
 fi
@@ -149,9 +149,9 @@ exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
           sed -i "90s[.*[dump atompos2 all custom 10000 anneal.${theta}degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
           sed -i "119s[.*[dump atompos3 all custom 10000 CG2.${theta}degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
         else
-          sed -i "50s[.*[dump atompos1 all custom 10000 CG1.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
-          sed -i "62s[.*[dump atompos2 all custom 10000 anneal.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
-          sed -i "91s[.*[dump atompos3 all custom 10000 CG2.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
+          sed -i "49s[.*[dump atompos1 all custom 10000 CG1.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
+          sed -i "61s[.*[dump atompos2 all custom 10000 anneal.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
+          sed -i "69s[.*[dump atompos3 all custom 10000 CG2.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
         fi
       else
         echo "#!/bin/bash
@@ -183,9 +183,9 @@ exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
           sed -i "90s[.*[dump atompos2 all custom 10000 anneal.${theta}degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
           sed -i "119s[.*[dump atompos3 all custom 10000 CG2.${theta}degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
         else
-          sed -i "50s[.*[dump atompos1 all custom 10000 CG1.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
-          sed -i "62s[.*[dump atompos2 all custom 10000 anneal.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
-          sed -i "91s[.*[dump atompos3 all custom 10000 CG2.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
+          sed -i "49s[.*[dump atompos1 all custom 10000 CG1.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
+          sed -i "61s[.*[dump atompos2 all custom 10000 anneal.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
+          sed -i "69s[.*[dump atompos3 all custom 10000 CG2.${theta}degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
         fi
       fi
       done < "$FN"
@@ -224,9 +224,9 @@ exit;" >> lmp_minimize_${axis}_$((${i}*5))degree.pbs
           sed -i "90s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
           sed -i "119s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
         else
-          sed -i "50s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "62s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "91s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "49s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "61s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "69s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
         fi
       else
         echo "#!/bin/bash
@@ -258,9 +258,9 @@ exit;" >> lmp_minimize_${axis}_$((${i}*5))degree.pbs
           sed -i "90s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
           sed -i "119s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
         else
-          sed -i "50s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "62s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "91s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "49s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "61s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "69s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
         fi
       fi
     done

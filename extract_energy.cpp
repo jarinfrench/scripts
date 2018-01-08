@@ -55,8 +55,8 @@ int main(int argc, char **argv)
   ifstream fin(filename1.c_str());
   if (fin.fail())
   {
-    cout << "Error! Cannot open file " << filename1 << endl;
-    return -1;
+    cout << "Error! Cannot open file \"" << filename1 << "\"" << endl;
+    return 1;
   }
   // The next few lines is just to ignore the first few lines in the output file.
   getline(fin, str); // LAMMPS (17 Nov 2016)
@@ -102,12 +102,14 @@ int main(int argc, char **argv)
 
   // Write the angle, the SMALLEST value in the vector, and the number of atoms.
   // Generally speaking, the minimum value should be the last value written to
-  // the vector, but we use *min_element() just in case.
+  // the vector, but we use *min_element() just in case.  Note that if the
+  // simulation annealed the structure, there is additional, manual analysis
+  // that must be done.
   ofstream fout(filename2.c_str(), ofstream::app);
   if (fout.fail())
   {
-    cout << "Error! Cannot open file " << filename2 << endl;
-    return -1;
+    cout << "Error! Cannot open file \"" << filename2 << "\"" << endl;
+    return 1;
   }
 
   fout << theta << " " << setprecision(15)

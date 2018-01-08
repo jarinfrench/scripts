@@ -14,20 +14,32 @@ void processFile(ifstream & fin, vector <Atom> & atoms)
   string str;
   unsigned int atom_id, n_read = 0;
   int atom_type, grain_num;
+  bool warn = false;
   double charge, x, y, z, f_i, xu, yu, zu;
   getline(fin,str); // we ignore the first line
   while (getline(fin, str))
   {
     stringstream ss(str);
+    stringstream::pos_type pos = ss.tellg();
     if (!(ss >> atom_id >> atom_type >> charge >> x >> y >> z >> grain_num >> f_i >> xu >> yu >> zu))
     {
+      ss.clear();
+      ss.seekg(pos, ss.beg);
       charge = 0.0;
       if (!(ss >> atom_id >> atom_type >> x >> y >> z >> grain_num >> f_i >> xu >> yu >> zu))
       {
+        if (!warn)
+        {
+          cout << "WARNING: Unable to determine the unwrapped coordinates.  Proceeding using assumed wrapped coordinates.\n";
+          warn = true;
+        }
+        xu = x;
+        yu = y;
+        zu = z;
         // unwrapped coordinates not included.  Cannot calculate displacement vectors
-        cout << "Error reading data.  Please make sure the data file has the following information (in order):\n"
+        /*cout << "Error reading data.  Please make sure the data file has the following information (in order):\n"
              << "\t<atom_id> <atom_type> <atom_charge>(optional) x y z <grain_number> <orientation_parameter> xu yu zu\n";
-        exit(4);
+        exit(4);*/
       }
     }
     if (atom_id > atoms.size())
