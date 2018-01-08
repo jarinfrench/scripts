@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
+#include <map>
 
 using namespace std;
 
@@ -16,7 +17,8 @@ int main(int argc, char** argv)
   int n_atoms, N, type, n_types;
   double xlow, xhigh, ylow, yhigh, zlow, zhigh;
   double x, y, z, charge, temp = 1.0;
-  string atom_type, element;
+  string atom_type, chem_formula;
+  map <string, int> elements;
 
   if (argc == 1)
   {
@@ -28,32 +30,64 @@ int main(int argc, char** argv)
     filename1 = argv[1];
   }
 
-  if (filename1.find("UO2") == string::npos)
-  {
-    if (filename1.find("CU") == string::npos && filename1.find("AL") == string::npos)
+  size_t element_pos = filename1.find("LAMMPS_")+7;
+  size_t element_pos_end;
+  { // Create a local namespace so we only store the results of this subroutine
+    size_t temp = filename1.find("_N");
+    temp = filename1.find("_N", temp + 1);
+    if (temp == string::npos)
     {
-      cout << "Unable to determine number of atom types in the data file.\n";
-      return 8;
+      element_pos_end = filename1.find("_N");
     }
     else
     {
-      n_types = 1;
-      if (filename1.find("CU") != string::npos)
-        element = "Cu";
-      else if (filename1.find("AL") != string::npos)
-        element = "Al";
-      else
-      {
-        cout << "Unknown element.\n";
-        return 9;
-      }
+      element_pos_end = temp;
     }
+  }
+
+  if (element_pos == string::npos)
+  {
+    cout << "Error determining element(s).\n";
+    return 8;
   }
   else
   {
-    n_types = 2;
-    element = "UO2";
+    int elem_num = 1;
+    for (unsigned int i = element_pos; i < element_pos_end; ++i)
+    {
+      if (islower(filename1[i]))
+      {
+        if ((elements.insert(pair<string,int>(filename1.substr(i-1,2), elem_num))).second)
+        {
+          ++elem_num;
+        }
+      }
+      else
+      {
+        if (islower(filename1[i+1]))
+        {
+          continue;
+        }
+        else
+        {
+          if (isdigit(filename1[i]))
+          {
+            continue;
+          }
+          else
+          {
+            if ((elements.insert(pair<string, int> (filename1.substr(i,1), elem_num))).second)
+            {
+              ++elem_num;
+            }
+          }
+        }
+      }
+    }
   }
+  chem_formula = filename1.substr(element_pos, element_pos_end - element_pos);
+
+  n_types = elements.size();
 
   filename2 = "temp.dat"; // temporary filename until we determine what it needs to be
   filename3 = filename1.substr(0, filename1.find(".")) + ".dat";
@@ -72,27 +106,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  if (n_types == 2)
-  {
-    fout << "This bulk UO2 coordinates format: [ID type charge x y z]\n\n";
-  }
-  else if (n_types == 1)
-  {
-    if (element.compare("Cu") == 0)
-      fout << "This bulk Cu coordinates format: [ID type x y z]\n\n";
-    else if (element.compare("Al") == 0)
-      fout << "This bulk Al coordinates format: [ID type x y z]\n\n";
-    else
-    {
-      cout << "Error: only able to handle Cu and Al case currently.\n";
-      return 9;
-    }
-  }
-  else
-  {
-    cout << "Error: Case of n_types > 2 not handled.\n";
-    return 10;
-  }
+  fout << "This bulk " << chem_formula << " coordinates format: [ID type charge* x y z] (* not included if always charge neutral)\n\n";
 
   fin >> N; // Number of atoms
   fout << N << "  atoms\n";
@@ -124,15 +138,10 @@ int main(int argc, char** argv)
       type = 2;
       charge = -1.2;
     }
-    else if (atom_type.compare("Cu") == 0 || atom_type.compare("Al") == 0)
+    else
     {
-      type = 1;
-      charge = 0.0;
-    }
-    else // We are only dealing with U and O, or Cu, so if we have something else, there's a problem
-    {
-      cout << "Unrecognized atom type.\n";
-      return 2;
+      type = elements[atom_type];
+      charge = 0.0; // This will have to be manually fixed later if there is a charge
     }
 
     // This just double checks that our bounds are set correctly.  If not, they
@@ -155,22 +164,14 @@ int main(int argc, char** argv)
       zhigh = 0.0;
       zlow = temp;
     }
-    if (n_types == 2)
+
+    fout << setprecision(0) << ++n_atoms << " " << type << " ";
+
+    if (charge != 0.0)
     {
-      fout << setprecision(0) << ++n_atoms << " " << type << " "
-           << setprecision(1) << charge << " "
-           << setprecision(6) << x << " " << y << " " << z << endl;
+      fout << setprecision(1) << charge << " ";
     }
-    else if (n_types == 1)
-    {
-      fout << setprecision(0) << ++n_atoms << " " << type << " "
-           << setprecision(6) << x << " " << y << " " << z << endl;
-    }
-    else
-    {
-      cout << "Error: Number of atom types is too large.\n";
-      return 10;
-    }
+    fout << setprecision(6) << x << " " << y << " " << z << endl;
 
   }
 
