@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <vector>
+#include <map>
 #include <algorithm>
 #include "atom.h"
 
@@ -55,7 +56,7 @@ int main(int argc, char **argv)
 {
   // External values
   string filename1, filename2, filename3, filename4, str; //filenames and line variable
-  string element; // element type
+  string element, chem_formula; // element type
   string boundary_type;
   bool is_sphere;
   int axis;
@@ -89,6 +90,7 @@ int main(int argc, char **argv)
   // Containers
   vector <Atom> atoms; // contains the atoms we look at, and the entire set.
   vector <pair<int, double> > distances; // vector of id and distance.
+  map <string, int> elements;
 
   // Variables used for the cell-linked list
   int n_atoms_per_cell; // self-explanatory
@@ -166,46 +168,79 @@ int main(int argc, char **argv)
     cout << "Error determining rotation axis.\n";
     return 9;
   }
-  if (filename1.find("_UO2_") == string::npos)
+  size_t element_pos = filename1.find("LAMMPS_") + 7;
+  size_t element_pos_end;
   {
-    // Couldn't find UO2 in the filename
-    if (filename1.find("_CU_") == string::npos && filename1.find("_AL_") == string::npos &&
-        filename1.find("_AU_") == string::npos && filename1.find("_NI_") == string::npos &&
-        filename1.find("_AG_") == string::npos)
+    size_t temp = filename1.find("_N");
+    temp = filename1.find("_N", temp + 1);
+    if (temp == string::npos)
     {
-      //Couldn't find any recognized elements in the filename
-      cout << "Error: unable to determine number of atom types in the simulation.\n";
-      return 8;
+      element_pos_end = filename1.find("_N");
     }
     else
     {
-      ntypes = 1;
-      if (filename1.find("_CU_") != string::npos)
-        element = "Cu";
-      else if (filename1.find("_AL_") != string::npos)
-        element = "Al";
-      else if (filename1.find("_AU_") != string::npos)
-        element = "Au";
-      else if (filename1.find("_NI_") != string::npos)
-        element = "Ni";
-      else if (filename1.find("_AG_") != string::npos)
-        element = "Ag";
-      else
-      {
-        cout << "Unknown element.\n";
-        return 9;
-      }
+      element_pos_end = temp;
     }
+  }
+  if (element_pos == string::npos)
+  {
+    cout << "Error determining element(s).\n";
+    return 9;
   }
   else
   {
-    ntypes = 2;
-    element = "UO2";
+    int elem_num = 1;
+    for (unsigned int i = element_pos; i < element_pos_end; ++i)
+    {
+      if (islower(filename1[i]))
+      {
+        if ((elements.insert(pair<string,int>(filename1.substr(i-1,2), elem_num))).second) // check to see if insertion was successful
+        {
+          ++elem_num;
+        }
+      }
+      else
+      {
+        if (islower(filename1[i+1]))
+        {
+          continue;
+        }
+        else
+        {
+          if (isdigit(filename1[i]))
+          {
+            continue;
+          }
+          else
+          {
+            if ((elements.insert(pair<string, int> (filename1.substr(i,1), elem_num))).second) // check to see if insertion was successful
+            {
+              ++elem_num;
+            }
+          }
+        }
+      }
+    }
+  }
+  chem_formula = filename1.substr(element_pos, element_pos_end - element_pos);
+  ntypes = elements.size();
+  cout << "Elements found (" << ntypes << "): ";
+  for (map<string, int>::iterator it = elements.begin(); it != elements.end();)
+  {
+    cout << (*it).first;
+    if (++it != elements.end())
+    {
+      cout << ", ";
+    }
+    else
+    {
+      cout << endl;
+    }
   }
 
   if (ntypes != 1 && ntypes != 2)
   {
-    cout << "Error determining the number of atom types.\n";
+    cout << "This script can currently only handle 1 or 2 types of atoms.  You have asked for " << ntypes << " types of atoms.\n";
     return 8;
   }
 
@@ -246,19 +281,7 @@ int main(int argc, char **argv)
   // Read and create the header of the dat file
   getline(fin, str);
 
-  if (ntypes == 1)
-  {
-    fout << "These " << element << " coordinates are shifted: [ID type x y z\n\n]";
-  }
-  else if (ntypes == 2)
-  {
-    fout << "These UO2 coordinates are shifted: [ID type charge x y z]\n\n";
-  }
-  else
-  {
-    cout << "Number of types is incorrect.\n";
-    return 8;
-  }
+  fout << "These " << chem_formula << " coordinates are shifted [ID type charge* x y z] (*not included if always charge neutral)\n\n";
 
   //Get the number of atoms
   fin  >> N >> str;
@@ -340,19 +363,14 @@ int main(int argc, char **argv)
   while (getline(fin, str)) // read the data
   {
     stringstream ss(str);
-    if (ntypes == 2)
+    stringstream::pos_type pos = ss.tellg(); // Store the beginning position
+    if (!(ss >> atom_id >> atom_type >> atom_charge >> x >> y >> z))
     {
-      if (!(ss >> atom_id >> atom_type >> atom_charge >> x >> y >> z))
-      {
-        cout << "Read error\n";
-        break;
-      }
-    }
-    else //(ntypes == 1)
-    {
+      ss.clear();
+      ss.seekg(pos,ss.beg);
       if (!(ss >> atom_id >> atom_type >> x >> y >> z))
       {
-        cout << "Read error\n";
+        cout << "Read error.\n";
         break;
       }
       atom_charge = 0.0;
@@ -438,35 +456,40 @@ int main(int argc, char **argv)
   }
   else //(ntypes == 1)
   {
-    if (element.compare("Cu") == 0)
+    if (elements.find("Cu") != elements.end())
     {
       ncellx = (int)(Lx / CU_RNN_CUT) + 1;
       ncelly = (int)(Ly / CU_RNN_CUT) + 1;
       ncellz = (int)(Lz / CU_RNN_CUT) + 1;
     }
-    else if (element.compare("Al") == 0)
+    else if (elements.find("Al") != elements.end())
     {
       ncellx = (int)(Lx / AL_RNN_CUT) + 1;
       ncelly = (int)(Ly / AL_RNN_CUT) + 1;
       ncellz = (int)(Lz / AL_RNN_CUT) + 1;
     }
-    else if (element.compare("Au") == 0)
+    else if (elements.find("Au") != elements.end())
     {
       ncellx = (int)(Lx / AU_RNN_CUT) + 1;
       ncelly = (int)(Ly / AU_RNN_CUT) + 1;
       ncellz = (int)(Lz / AU_RNN_CUT) + 1;
     }
-    else if (element.compare("Ni") == 0)
+    else if (elements.find("Ni") != elements.end())
     {
       ncellx = (int)(Lx / NI_RNN_CUT) + 1;
       ncelly = (int)(Ly / NI_RNN_CUT) + 1;
       ncellz = (int)(Lz / NI_RNN_CUT) + 1;
     }
-    else if (element.compare("Ag") == 0)
+    else if (elements.find("Ag") != elements.end())
     {
       ncellx = (int)(Lx / AG_RNN_CUT) + 1;
       ncelly = (int)(Ly / AG_RNN_CUT) + 1;
       ncellz = (int)(Lz / AG_RNN_CUT) + 1;
+    }
+    else
+    {
+      cout << "Error: element cutoff not included.  Cannot continue.\n";
+      return 10;
     }
   }
   lcellx = Lx / ncellx; // Length of the cells in each direction
@@ -626,7 +649,7 @@ int main(int argc, char **argv)
           }
           else //(ntypes == 1)
           {
-            if (element.compare("Cu") == 0)
+            if (elements.find("Cu") != elements.end())
             {
               if (drij_sq < cu_rnn_cut_sq)
               {
@@ -635,7 +658,7 @@ int main(int argc, char **argv)
                 break;
               }
             }
-            else if (element.compare("Al") == 0)
+            else if (elements.find("Al") != elements.end())
             {
               if (drij_sq < al_rnn_cut_sq)
               {
@@ -644,7 +667,7 @@ int main(int argc, char **argv)
                 break;
               }
             }
-            else if (element.compare("Au") == 0)
+            else if (elements.find("Au") != elements.end())
             {
               if (drij_sq < au_rnn_cut_sq)
               {
@@ -653,7 +676,7 @@ int main(int argc, char **argv)
                 break;
               }
             }
-            else if (element.compare("Ni") == 0)
+            else if (elements.find("Ni") != elements.end())
             {
               if (drij_sq < ni_rnn_cut_sq)
               {
@@ -662,7 +685,7 @@ int main(int argc, char **argv)
                 break;
               }
             }
-            else if (element.compare("Ag") == 0)
+            else if (elements.find("Ag") != elements.end())
             {
               if (drij_sq < ag_rnn_cut_sq)
               {
@@ -833,7 +856,7 @@ int main(int argc, char **argv)
   }
   else // ntypes == 1
   {
-    cout << n_1_removed << " " << element << " atoms will be removed.\n";
+    cout << n_1_removed << " " << chem_formula << " atoms will be removed.\n";
   }
 
   ofstream fout2(filename3.c_str());
@@ -866,21 +889,14 @@ int main(int argc, char **argv)
   }
 
   // write the base data to the file
-  if (ntypes == 2)
-  {
-    fout3 << "These UO2 coordinates are shifted and have atoms removed:[ID type charge x y z]\n"
-          << "\n"
-          << N - n_1_removed - n_2_removed << "   atoms\n"
-          << ntypes << "   atom types\n"
-          << xlow << " " << xhigh << "   xlo xhi\n"
-          << ylow << " " << yhigh << "   ylo yhi\n"
-          << zlow << " " << zhigh << "   zlo zhi\n"
-          << "\nAtoms\n\n";
-  }
-  else // ntypes == 1
-  {
-    fout3 << "These " << element << " coordinates are shifted and have atoms removed:[ID type x y z]\n";
-  }
+  fout3 << "These " << element << " coordinates are shifted and have atoms removed:[ID type x y z]\n"
+        << "\n"
+        << N - n_1_removed - n_2_removed << "   atoms\n"
+        << ntypes << "   atom types\n"
+        << xlow << " " << xhigh << "   xlo xhi\n"
+        << ylow << " " << yhigh << "   ylo yhi\n"
+        << zlow << " " << zhigh << "   zlo zhi\n"
+        << "\nAtoms\n\n";
 
   // Now write the atoms to the files.  filename3 has all the atoms including
   // the rotated ones and the tag. filename4 has the correct number of atoms.
