@@ -21,9 +21,6 @@
 #include "atom.h"
 
 using namespace std;
-// Note: this conversion is for UO2 only!
-// For UO2, charge style, the charge must be specified
-// The sequence is atom-ID atom-type q x y z
 
 #define PI 3.14159265358979 // easier and faster to simply store these values here.
 #define UU_RNN_CUT 2.0 // Cutoff value for U-U atoms too close (Basak Potential)
@@ -34,6 +31,11 @@ using namespace std;
 #define AG_RNN_CUT 1.0 // Cutoff value for Ag-Ag atoms too close (using Mishin potential)
 #define AU_RNN_CUT 1.0 // Cutoff value for Au-Au atoms too close (using Foiles Au1 potential)
 #define NI_RNN_CUT 1.0 // Cutoff value for Ni-Ni atoms too close (using Foiles-Hoyt potential)
+
+struct ratio {
+  int n_types;
+  vector <int> ratio;
+} compound_ratio;
 
 // Calculate the rounded value of x
 double anInt(double x)
@@ -52,10 +54,25 @@ bool pairCmp(pair<int, double> &a, pair<int, double> &b)
   return (a.second < b.second);
 }
 
+template <typename K, typename V>
+int findByValue(map<K,V> mapOfElemen, V value)
+{
+  typename map<K,V>::iterator it = mapOfElemen.begin();
+  while (it != mapOfElemen.end())
+  {
+    if (it->second == value)
+    {
+      return it->first;
+    }
+    ++it;
+  }
+  return -1;
+}
+
 int main(int argc, char **argv)
 {
   // External values
-  string filename1, filename2, filename3, filename4, str; //filenames and line variable
+  string filename1, filename2, filename3, filename4, input_file, str; //filenames and line variable
   string element, chem_formula; // element type
   string boundary_type;
   bool is_sphere;
@@ -64,21 +81,14 @@ int main(int argc, char **argv)
   double r_grain_sq; // squared values for convenience
   double theta, theta_conv; // angle of rotation
   double costheta, sintheta; // better to calculate this once.
-  double uu_rnn_cut_sq = UU_RNN_CUT * UU_RNN_CUT; //easier to do it once
   double uo_rnn_cut_sq = UO_RNN_CUT * UO_RNN_CUT;
   double oo_rnn_cut_sq = OO_RNN_CUT * OO_RNN_CUT;
-  double cu_rnn_cut_sq = CU_RNN_CUT * CU_RNN_CUT;
-  double al_rnn_cut_sq = AL_RNN_CUT * AL_RNN_CUT;
-  double ag_rnn_cut_sq = AG_RNN_CUT * AG_RNN_CUT;
-  double au_rnn_cut_sq = AU_RNN_CUT * AU_RNN_CUT;
-  double ni_rnn_cut_sq = NI_RNN_CUT * NI_RNN_CUT;
 
   double scale_factor_a, scale_factor_b, scale_factor_c; // dimensional scaling values
   double Lx, Ly, Lz; // box size
   int ntotal, n_atom_id; // total number of atoms that have been read/written
   double rxij, ryij, rzij, drij_sq; //positional differences, total distance^2
   int n_1_removed = 0, n_2_removed = 0;
-  bool decimal; // boolean value to include decimal or not
 
   // Values from file
   int N, ntypes, ntypes_test; // number of atoms, and number of atom types
@@ -88,9 +98,11 @@ int main(int argc, char **argv)
   double x1, y1, z1, temp_x, temp_y, x2, y2, z2; // Store the original value and manipulate!
 
   // Containers
+  vector <double> rcut, rcut_sq; // cutoff radii for each interaction
+  vector <int> n_removed; // number of atoms removed of each type
   vector <Atom> atoms; // contains the atoms we look at, and the entire set.
   vector <pair<int, double> > distances; // vector of id and distance.
-  map <string, int> elements;
+  map <int, string> elements;
 
   // Variables used for the cell-linked list
   int n_atoms_per_cell; // self-explanatory
@@ -100,60 +112,75 @@ int main(int argc, char **argv)
   int ncellx, ncelly, ncellz, idx, idy, idz; // Number of sub cells in each direction, cell number in each direction
   double lcellx, lcelly, lcellz; // length of sub cells in each direction
 
-  if (argc != 5) // check command line arguments
+  if (argc != 2) // check for input file
   {
-    cout << "rotate_and_remove <data_file> <grain_radius> <rotation_angle> <boundary_type (cylinder|sphere)>\n";
-    // filename
-    // Format of filename should be LAMMPS_UO2_SC_N######_{axis}.dat
-    cout << "Please input the filename in LAAMPS's format at 0K:\n";
-    cin  >> filename1;
-
-    // Grain radius
-    cout << "Please input the radius of the new grain:\n";
-    cin  >> r_grain;
-
-    // Rotation angle
-    cout << "Please input the rotation angle (in degrees) of the new grain:\n";
-    cin  >> theta;
-    if (abs(theta) > 180.0)
-      cout << "Caution!  The rotation angle is greater than 180 degrees!\n";
-    if (theta - (int)theta == 0)
-      decimal = false;
-    else
-      decimal = true;
-
-    while (boundary_type.compare("cylinder") != 0 && boundary_type.compare("sphere") != 0)
-    {
-      cout << "Please enter the boundary type (cylinder|sphere): ";
-      cin  >> boundary_type;
-    }
+    cout << "Please enter a valid input file containing (in order):\n"
+         << "\tthe data file to be processed\n\tdesired grain radius\n\t"
+         << "rotation angle\n\tboundary type (cylinder|sphere)\n\tnumber of atom types\n\tcutoff radius\n"
+         << "Note that the number of cutoff radii is dependent on the number of atom interactions,\n"
+         << "so, for example, if there are two atom types, there are the two same-element interactions,\n"
+         << "and there is also the interaction between the two different elements.  Include all the relevant,\n"
+         << "cutoff radii in the order of same-element interactions, followed by inter-element interactions.\n"
+         << "Keep the numbering consistent with the data file.\n";
+    return 1;
   }
   else
   {
-    filename1 = argv[1];
-    // the NULL is required to make this work.  see documentation for why.
-    r_grain = strtod(argv[2], NULL);
-    theta = strtod(argv[3], NULL);
-    for (unsigned int i = 0; i < strlen(argv[3]); ++i) // check if a decimal point exists in argument 3
+    // Process the input file
+    input_file = argv[1];
+    ifstream finput(input_file.c_str());
+    if (finput.fail())
     {
-      if (argv[3][i] == '.')
-      {
-        decimal = true; // it exists!
-        break;
-      }
-      else
-        decimal = false; // it doesn't exist
+      cout << "Error reading file \"" << input_file << "\"\n";
+      return 2;
     }
-    boundary_type = argv[4];
-    if ((boundary_type.compare("cylinder") != 0) && (boundary_type.compare("sphere") != 0))
+    else
     {
-      cout << "Error reading boundary type. Boundary type " <<  boundary_type << " not recognized.\n";
-      return 15;
+      finput >> filename1 >> r_grain >> theta >> boundary_type >> ntypes;
+      if ((boundary_type.compare("cylinder") != 0) && (boundary_type.compare("sphere") != 0))
+      {
+        cout << "Error reading boundary type. Boundary type \"" <<  boundary_type << "\" not recognized.\n";
+        return 3;
+      }
+      n_removed.resize(ntypes,0);
+      compound_ratio.n_types = ntypes;
+      compound_ratio.ratio.resize(compound_ratio.n_types,1);
+      unsigned int combinations = ((ntypes + 1) * ntypes) / 2;
+      double temp;
+      while (finput >> temp)
+      {
+        rcut.push_back(temp);
+        rcut_sq.push_back(temp * temp);
+      }
+      if (rcut.size() != combinations)
+      {
+        cout << "There are " << combinations << " total interaction radii needed.  You provided " << rcut.size() << ".\n";
+        return 3;
+      }
+
+      (boundary_type.compare("sphere") == 0) ? is_sphere = true : is_sphere = false;
+
+      cout << "Input information:"
+           << "\n\tData file: " << filename1
+           << "\n\tGrain radius: " << r_grain
+           << "\n\tMisorientation angle: " << theta
+           << "\n\tBoundary type: " << boundary_type
+           << "\n\tNumber of atom types: " << ntypes << "\n\tCutoff radii: ";
+      for (vector <double>::iterator it = rcut.begin(); it != rcut.end();)
+      {
+        cout << *it;
+        if (++it != rcut.end())
+        {
+          cout << "; ";
+        }
+        else
+        {
+          cout << endl;
+        }
+      }
+
     }
   }
-
-  (boundary_type.compare("sphere") == 0) ? is_sphere = true : is_sphere = false;
-
 
   // Calculate this once
   r_grain_sq = r_grain * r_grain;
@@ -166,7 +193,7 @@ int main(int argc, char **argv)
   if (!(iss >> axis))
   {
     cout << "Error determining rotation axis.\n";
-    return 9;
+    return 4;
   }
   size_t element_pos = filename1.find("LAMMPS_") + 7;
   size_t element_pos_end;
@@ -185,23 +212,39 @@ int main(int argc, char **argv)
   if (element_pos == string::npos)
   {
     cout << "Error determining element(s).\n";
-    return 9;
+    return 4;
   }
   else
   {
     int elem_num = 1;
     for (unsigned int i = element_pos; i < element_pos_end; ++i)
     {
-      if (islower(filename1[i]))
+      if (islower(filename1[i])) // if the current character is lower-case
       {
-        if ((elements.insert(pair<string,int>(filename1.substr(i-1,2), elem_num))).second) // check to see if insertion was successful
+        if (isdigit(filename1[i + 1]))
         {
-          ++elem_num;
+          compound_ratio.ratio[elem_num - 1] = filename1[i + 1] - '0';
+        }
+        int test = findByValue(elements, filename1.substr(i-1, 2));
+        if (test < 0)
+        {
+          if ((elements.insert(pair<int,string>(elem_num,filename1.substr(i-1, 2)))).second) // check to see if insertion was successful
+          {
+            ++elem_num;
+          }
+          else
+          {
+            cout << "Error inserting element " << filename1.substr(i-1, 2);
+          }
+        }
+        else
+        {
+          ++compound_ratio.ratio[test - 1];
         }
       }
       else
       {
-        if (islower(filename1[i+1]))
+        if (islower(filename1[i+1])) // if the next character is lower-case
         {
           continue;
         }
@@ -213,24 +256,65 @@ int main(int argc, char **argv)
           }
           else
           {
-            if ((elements.insert(pair<string, int> (filename1.substr(i,1), elem_num))).second) // check to see if insertion was successful
+            if (isdigit(filename1[i + 1]))
             {
-              ++elem_num;
+              compound_ratio.ratio[elem_num - 1] = filename1[i + 1] - '0';
+            }
+            int test = findByValue(elements, filename1.substr(i, 1));
+            if (test < 0)
+            {
+              if ((elements.insert(pair<int,string>(elem_num,filename1.substr(i, 1)))).second) // check to see if insertion was successful
+              {
+                ++elem_num;
+              }
+              else
+              {
+                cout << "Error inserting element " << filename1.substr(i, 1);
+              }
+            }
+            else
+            {
+              ++compound_ratio.ratio[test - 1];
             }
           }
         }
       }
     }
   }
+
+  cout << endl;
   chem_formula = filename1.substr(element_pos, element_pos_end - element_pos);
-  ntypes = elements.size();
-  cout << "Elements found (" << ntypes << "): ";
-  for (map<string, int>::iterator it = elements.begin(); it != elements.end();)
+  if (ntypes != elements.size())
   {
-    cout << (*it).first;
-    if (++it != elements.end())
+    cout << "Error determining element types. Input file ntypes = " << ntypes << " != found elements = " << elements.size() << "\n";
+    return 4;
+  }
+  else
+  {
+    cout << "Elements found (" << ntypes << "): ";
+    for (map<int, string>::iterator it = elements.begin(); it != elements.end();)
     {
-      cout << ", ";
+      cout << (*it).second;
+      if (++it != elements.end())
+      {
+        cout << ", ";
+      }
+      else
+      {
+        cout << endl;
+      }
+    }
+  }
+  cout << "The ratio of elements is calculated as: ";
+  map <int, string>::iterator elem_it = elements.begin();
+  for (vector <int>::iterator it = compound_ratio.ratio.begin(); it != compound_ratio.ratio.end();)
+  {
+
+    cout << *it << " " << (*elem_it).second;
+    ++elem_it;
+    if (++it != compound_ratio.ratio.end())
+    {
+      cout << ":";
     }
     else
     {
@@ -238,6 +322,7 @@ int main(int argc, char **argv)
     }
   }
 
+  // This may be able to be removed after this update.
   if (ntypes != 1 && ntypes != 2)
   {
     cout << "This script can currently only handle 1 or 2 types of atoms.  You have asked for " << ntypes << " types of atoms.\n";
@@ -448,50 +533,10 @@ int main(int argc, char **argv)
 
   // Generate the cell-linked list for fast calculations
   // First generate the number of cells in each direction (minimum is 1)
-  if (ntypes == 2)
-  {
-    ncellx = (int)(Lx / UO_RNN_CUT) + 1;
-    ncelly = (int)(Ly / UO_RNN_CUT) + 1;
-    ncellz = (int)(Lz / UO_RNN_CUT) + 1;
-  }
-  else //(ntypes == 1)
-  {
-    if (elements.find("Cu") != elements.end())
-    {
-      ncellx = (int)(Lx / CU_RNN_CUT) + 1;
-      ncelly = (int)(Ly / CU_RNN_CUT) + 1;
-      ncellz = (int)(Lz / CU_RNN_CUT) + 1;
-    }
-    else if (elements.find("Al") != elements.end())
-    {
-      ncellx = (int)(Lx / AL_RNN_CUT) + 1;
-      ncelly = (int)(Ly / AL_RNN_CUT) + 1;
-      ncellz = (int)(Lz / AL_RNN_CUT) + 1;
-    }
-    else if (elements.find("Au") != elements.end())
-    {
-      ncellx = (int)(Lx / AU_RNN_CUT) + 1;
-      ncelly = (int)(Ly / AU_RNN_CUT) + 1;
-      ncellz = (int)(Lz / AU_RNN_CUT) + 1;
-    }
-    else if (elements.find("Ni") != elements.end())
-    {
-      ncellx = (int)(Lx / NI_RNN_CUT) + 1;
-      ncelly = (int)(Ly / NI_RNN_CUT) + 1;
-      ncellz = (int)(Lz / NI_RNN_CUT) + 1;
-    }
-    else if (elements.find("Ag") != elements.end())
-    {
-      ncellx = (int)(Lx / AG_RNN_CUT) + 1;
-      ncelly = (int)(Ly / AG_RNN_CUT) + 1;
-      ncellz = (int)(Lz / AG_RNN_CUT) + 1;
-    }
-    else
-    {
-      cout << "Error: element cutoff not included.  Cannot continue.\n";
-      return 10;
-    }
-  }
+  ncellx = (int)(Lx / *max_element(rcut.begin(), rcut.end())) + 1;
+  ncelly = (int)(Ly / *max_element(rcut.begin(), rcut.end())) + 1;
+  ncellz = (int)(Lz / *max_element(rcut.begin(), rcut.end())) + 1;
+
   lcellx = Lx / ncellx; // Length of the cells in each direction
   lcelly = Ly / ncelly;
   lcellz = Lz / ncellz;
@@ -617,208 +662,143 @@ int main(int argc, char **argv)
   // Compare the distances of each atom
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
-    if (atoms[i].getType() == 1 && atoms[i].getMark() == 0) // unmarked U atoms
-    {
-      x1 = atoms[i].getX();
-      y1 = atoms[i].getY();
-      z1 = atoms[i].getZ();
-      for (int l = 1; l <= iatom[0][i]; ++l)
+    int cur_type = atoms[i].getType();
+    for (int j = 1; j <= ntypes; ++j)
+    { // First check atoms of the same type
+      if (atoms[i].getType() == j && atoms[i].getMark() == 0) // unmarked type j atoms
       {
-        int id = iatom[l][i];
-        if (atoms[id].getType() == 1 && atoms[id].getMark() == 0) // Only unmarked U atoms
+        x1 = atoms[i].getX();
+        y1 = atoms[i].getY();
+        z1 = atoms[i].getZ();
+        for (int l = 1; l <= iatom[0][i]; ++l)
         {
-          // Calculate the distance
-          rxij = x1 - atoms[id].getX();
-          ryij = y1 - atoms[id].getY();
-          rzij = z1 - atoms[id].getZ();
-
-          // Apply PBCs
-          rxij = rxij - anInt(rxij / Lx) * Lx;
-          ryij = ryij - anInt(ryij / Ly) * Ly;
-          rzij = rzij - anInt(rzij / Lz) * Lz;
-
-          drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-          if (ntypes == 2)
+          int id = iatom[l][i];
+          if (atoms[id].getType() == j && atoms[i].getMark() == 0) // unmarked type j atoms
           {
-            if (drij_sq < uu_rnn_cut_sq)
+            // Calculate the distance
+            rxij = x1 - atoms[id].getX();
+            ryij = y1 - atoms[id].getY();
+            rzij = z1 - atoms[id].getZ();
+
+            // Apply PBCs
+            rxij = rxij - anInt(rxij / Lx) * Lx;
+            ryij = ryij - anInt(ryij / Ly) * Ly;
+            rzij = rzij - anInt(rzij / Lz) * Lz;
+
+            drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+            if (drij_sq < rcut_sq[j - 1])
             {
               atoms[i].setMark(1);
-              ++n_1_removed;
+              ++n_removed[j - 1];
               break;
             }
           }
-          else //(ntypes == 1)
+        }
+      }
+
+      if (ntypes == 1)
+      {
+        break; // we're done for the single element case.
+      }
+
+      if (atoms[i].getType() == 1 && atoms[i].getMark() == 1)
+      {
+        distances.clear(); // Clear out the old values.
+        // Check each neighboring O atoms, and find the closest two and remove them
+        for (int l = 1; l <= iatom[0][i]; ++l)
+        {
+          int id = iatom[l][i];
+          if (atoms[id].getType() == 2 && atoms[id].getMark() == 0)
           {
-            if (elements.find("Cu") != elements.end())
+            // Calculate the distance
+            rxij = x1 - atoms[id].getX();
+            ryij = y1 - atoms[id].getY();
+            rzij = z1 - atoms[id].getZ();
+
+            // Apply PBCs
+            rxij = rxij - anInt(rxij / Lx) * Lx;
+            ryij = ryij - anInt(ryij / Ly) * Ly;
+            rzij = rzij - anInt(rzij / Lz) * Lz;
+
+            drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+            if (drij_sq < uo_rnn_cut_sq)
             {
-              if (drij_sq < cu_rnn_cut_sq)
-              {
-                atoms[i].setMark(1);
-                ++n_1_removed;
-                break;
-              }
-            }
-            else if (elements.find("Al") != elements.end())
-            {
-              if (drij_sq < al_rnn_cut_sq)
-              {
-                atoms[i].setMark(1);
-                ++n_1_removed;
-                break;
-              }
-            }
-            else if (elements.find("Au") != elements.end())
-            {
-              if (drij_sq < au_rnn_cut_sq)
-              {
-                atoms[i].setMark(1);
-                ++n_1_removed;
-                break;
-              }
-            }
-            else if (elements.find("Ni") != elements.end())
-            {
-              if (drij_sq < ni_rnn_cut_sq)
-              {
-                atoms[i].setMark(1);
-                ++n_1_removed;
-                break;
-              }
-            }
-            else if (elements.find("Ag") != elements.end())
-            {
-              if (drij_sq < ag_rnn_cut_sq)
-              {
-                atoms[i].setMark(1);
-                ++n_1_removed;
-                break;
-              }
-            }
-            else
-            {
-              cout << "Element error.\n";
-              return 9;
+              distances.push_back(make_pair(id, drij_sq));
             }
           }
         }
-      }
-    }
-
-    if (ntypes == 1)
-    {
-      break; // we're done for the single element case.
-    }
-
-    if (atoms[i].getType() == 1 && atoms[i].getMark() == 1)
-    {
-      distances.clear(); // Clear out the old values.
-      // Check each neighboring O atoms, and find the closest two and remove them
-      for (int l = 1; l <= iatom[0][i]; ++l)
-      {
-        int id = iatom[l][i];
-        if (atoms[id].getType() == 2 && atoms[id].getMark() == 0)
+        // sort the distances using the comparison function written above.
+        sort(distances.begin(), distances.end(), pairCmp);
+        for (unsigned int k = 0; k < distances.size(); ++k)
         {
-          // Calculate the distance
-          rxij = x1 - atoms[id].getX();
-          ryij = y1 - atoms[id].getY();
-          rzij = z1 - atoms[id].getZ();
-
-          // Apply PBCs
-          rxij = rxij - anInt(rxij / Lx) * Lx;
-          ryij = ryij - anInt(ryij / Ly) * Ly;
-          rzij = rzij - anInt(rzij / Lz) * Lz;
-
-          drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-          if (drij_sq < uo_rnn_cut_sq)
+          atom_id = distances[k].first; // we use this a lot over the next lines
+          // If the atom we are looking at is O and unmarked
+          if (atoms[atom_id].getType() == 2 &&
+          atoms[atom_id].getMark() == 0)
           {
-            distances.push_back(make_pair(id, drij_sq));
-          }
-        }
-      }
-      // sort the distances using the comparison function written above.
-      sort(distances.begin(), distances.end(), pairCmp);
-      for (unsigned int k = 0; k < distances.size(); ++k)
-      {
-        atom_id = distances[k].first; // we use this a lot over the next lines
-        // If the atom we are looking at is O and unmarked
-        if (atoms[atom_id].getType() == 2 &&
-            atoms[atom_id].getMark() == 0)
-        {
-          // mark this atom in BOTH lists
-          atoms[atom_id].setMark(1);
-          ++n_2_removed; // increase the counter for O removed
+            // mark this atom in BOTH lists
+            atoms[atom_id].setMark(1);
+            ++n_2_removed; // increase the counter for O removed
 
-          // if we have removed enough O atoms to maintain charge neutrality,
-          // exit the loop.  We can only remove 2 O atoms per U atom!
-          if (n_2_removed == 2 * n_1_removed)
+            // if we have removed enough O atoms to maintain charge neutrality,
+            // exit the loop.  We can only remove 2 O atoms per U atom!
+            if (n_2_removed == 2 * n_1_removed)
             break;
+          }
         }
       }
     }
-  }
 
-  // Now go through the list again and remove the O atoms that are too close
-  for (unsigned int i = 0; i < atoms.size(); ++i)
-  {
-    if (ntypes != 2)
+    // Now go through the list again and remove the O atoms that are too close
+    for (unsigned int i = 0; i < atoms.size(); ++i)
+    {
+      if (ntypes != 2)
       break;
 
-    if (atoms[i].getType() == 2 && atoms[i].getMark() == 0)
-    {
-      // Get the position of atom i
-      x1 = atoms[i].getX();
-      y1 = atoms[i].getY();
-      z1 = atoms[i].getZ();
-
-      for (int l = 1; l < iatom[0][i]; ++l)
+      if (atoms[i].getType() == 2 && atoms[i].getMark() == 0)
       {
-        int id = iatom[l][i];
+        // Get the position of atom i
+        x1 = atoms[i].getX();
+        y1 = atoms[i].getY();
+        z1 = atoms[i].getZ();
 
-        if (atoms[id].getType() == 2 && atoms[id].getMark() == 0) // Unmarked O atoms
+        for (int l = 1; l < iatom[0][i]; ++l)
         {
-          // Calculate the distance
-          rxij = x1 - atoms[id].getX();
-          ryij = y1 - atoms[id].getY();
-          rzij = z1 - atoms[id].getZ();
+          int id = iatom[l][i];
 
-          // Apply PBCs
-          rxij = rxij - anInt(rxij / Lx) * Lx;
-          ryij = ryij - anInt(ryij / Ly) * Ly;
-          rzij = rzij - anInt(rzij / Lz) * Lz;
-
-          drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-          if (drij_sq < oo_rnn_cut_sq)
+          if (atoms[id].getType() == 2 && atoms[id].getMark() == 0) // Unmarked O atoms
           {
-            atoms[i].setMark(1);
-            atoms[id].setMark(1);
-            n_2_removed += 2;
+            // Calculate the distance
+            rxij = x1 - atoms[id].getX();
+            ryij = y1 - atoms[id].getY();
+            rzij = z1 - atoms[id].getZ();
 
-            // Now go through and find the closest U atom to these two
-            x2 = atoms[id].getX();
-            y2 = atoms[id].getY();
-            z2 = atoms[id].getZ();
+            // Apply PBCs
+            rxij = rxij - anInt(rxij / Lx) * Lx;
+            ryij = ryij - anInt(ryij / Ly) * Ly;
+            rzij = rzij - anInt(rzij / Lz) * Lz;
 
-            for (int m = 1; m < iatom[0][i]; ++m)
+            drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+            if (drij_sq < oo_rnn_cut_sq)
             {
-              int jd = iatom[m][i];
-              if (atoms[jd].getType() == 1 && atoms[jd].getMark() == 0) // unmarked U atoms
+              atoms[i].setMark(1);
+              atoms[id].setMark(1);
+              n_2_removed += 2;
+
+              // Now go through and find the closest U atom to these two
+              x2 = atoms[id].getX();
+              y2 = atoms[id].getY();
+              z2 = atoms[id].getZ();
+
+              for (int m = 1; m < iatom[0][i]; ++m)
               {
-                //calculate the distances between the U atom and both O atoms
-                rxij = x1 - atoms[jd].getX();
-                ryij = y1 - atoms[jd].getY();
-                rzij = z1 - atoms[jd].getZ();
-
-                // Apply PBCs
-                rxij = rxij - anInt(rxij / Lx) * Lx;
-                ryij = ryij - anInt(ryij / Ly) * Ly;
-                rzij = rzij - anInt(rzij / Lz) * Lz;
-
-                drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-                if (drij_sq < uo_rnn_cut_sq) // This may not work because there may not be a U atom that is within the cutoff distance for both O atoms - needs to be rewritten
+                int jd = iatom[m][i];
+                if (atoms[jd].getType() == 1 && atoms[jd].getMark() == 0) // unmarked U atoms
                 {
-                  rxij = x2 - atoms[jd].getX();
-                  ryij = y2 - atoms[jd].getY();
-                  rzij = z2 - atoms[jd].getZ();
+                  //calculate the distances between the U atom and both O atoms
+                  rxij = x1 - atoms[jd].getX();
+                  ryij = y1 - atoms[jd].getY();
+                  rzij = z1 - atoms[jd].getZ();
 
                   // Apply PBCs
                   rxij = rxij - anInt(rxij / Lx) * Lx;
@@ -826,13 +806,26 @@ int main(int argc, char **argv)
                   rzij = rzij - anInt(rzij / Lz) * Lz;
 
                   drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-                  if (drij_sq < uo_rnn_cut_sq)
+                  if (drij_sq < uo_rnn_cut_sq) // This may not work because there may not be a U atom that is within the cutoff distance for both O atoms - needs to be rewritten
                   {
-                    // Only if both O atoms are close enough to the U atom is
-                    // this U atom removed.
-                    atoms[jd].setMark(1);
-                    ++n_1_removed;
-                    break;
+                    rxij = x2 - atoms[jd].getX();
+                    ryij = y2 - atoms[jd].getY();
+                    rzij = z2 - atoms[jd].getZ();
+
+                    // Apply PBCs
+                    rxij = rxij - anInt(rxij / Lx) * Lx;
+                    ryij = ryij - anInt(ryij / Ly) * Ly;
+                    rzij = rzij - anInt(rzij / Lz) * Lz;
+
+                    drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+                    if (drij_sq < uo_rnn_cut_sq)
+                    {
+                      // Only if both O atoms are close enough to the U atom is
+                      // this U atom removed.
+                      atoms[jd].setMark(1);
+                      ++n_1_removed;
+                      break;
+                    }
                   }
                 }
               }
@@ -842,7 +835,6 @@ int main(int argc, char **argv)
       }
     }
   }
-
   if (ntypes == 2)
   {
     cout << n_1_removed << " U atoms will be removed.\n";
@@ -869,10 +861,7 @@ int main(int argc, char **argv)
 
   fn4 << filename1.substr(0,filename1.find("N")).c_str()
       << axis << "_";
-  if (decimal) // Input is checked to determine if we print the decimal or not in the filename
-    fn4.precision(2);
-  else
-    fn4.precision(0);
+  fn4.precision(2);
   fn4 << fixed << theta << "degree_r";
   fn4.precision(0);
   fn4 << r_grain
@@ -885,7 +874,7 @@ int main(int argc, char **argv)
   if (fout3.fail()) // error check
   {
     cout << "Error opening the file " << filename4 << endl;
-    return -2;
+    return 2;
   }
 
   // write the base data to the file
@@ -941,7 +930,7 @@ int main(int argc, char **argv)
     cout << "Error! The final number of removed atoms is not balanced!\n"
          << "ntotal = " << ntotal << " != N - n_1_removed - n_2_removed = "
          << N - n_1_removed - n_2_removed << endl;
-    return -6;
+    return 6;
   }
 
   // Close the file streams
