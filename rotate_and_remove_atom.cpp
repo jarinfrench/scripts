@@ -54,6 +54,11 @@ bool pairCmp(pair<int, double> &a, pair<int, double> &b)
   return (a.second < b.second);
 }
 
+bool mapValueCmp(pair<pair<int,int>,double> a, pair<pair<int,int>,double> b)
+{
+  return (a.second < b.second);
+}
+
 template <typename K, typename V>
 int findByValue(map<K,V> mapOfElemen, V value)
 {
@@ -98,11 +103,11 @@ int main(int argc, char **argv)
   double x1, y1, z1, temp_x, temp_y, x2, y2, z2; // Store the original value and manipulate!
 
   // Containers
-  vector <double> rcut, rcut_sq; // cutoff radii for each interaction
   vector <int> n_removed; // number of atoms removed of each type
   vector <Atom> atoms; // contains the atoms we look at, and the entire set.
   vector <pair<int, double> > distances; // vector of id and distance.
   map <int, string> elements;
+  map <pair<int,int>, double> rcut, rcut_sq; // cutoff radii for each interaction
 
   // Variables used for the cell-linked list
   int n_atoms_per_cell; // self-explanatory
@@ -120,8 +125,8 @@ int main(int argc, char **argv)
          << "Note that the number of cutoff radii is dependent on the number of atom interactions,\n"
          << "so, for example, if there are two atom types, there are the two same-element interactions,\n"
          << "and there is also the interaction between the two different elements.  Include all the relevant,\n"
-         << "cutoff radii in the order of same-element interactions, followed by inter-element interactions.\n"
-         << "Keep the numbering consistent with the data file.\n";
+         << "cutoff radii in the order one element at a time, i.e. the cutoff radii for a 3 element system would\n"
+         << "be input as 1-1, 1-2, 1-3, 2-2, 2-3, 3-3.Maintain consisten numbering with the data file.\n";
     return 1;
   }
   else
@@ -147,10 +152,14 @@ int main(int argc, char **argv)
       compound_ratio.ratio.resize(compound_ratio.n_types,1);
       unsigned int combinations = ((ntypes + 1) * ntypes) / 2;
       double temp;
-      while (finput >> temp)
+      for (int i = 0; i < ntypes; ++i)
       {
-        rcut.push_back(temp);
-        rcut_sq.push_back(temp * temp);
+        for (int j = i; j < ntypes; ++j)
+        {
+          finput >> temp;
+          rcut.insert(make_pair(make_pair(i,j),temp));
+          rcut_sq.insert(make_pair(make_pair(i,j), temp * temp));
+        }
       }
       if (rcut.size() != combinations)
       {
@@ -166,9 +175,9 @@ int main(int argc, char **argv)
            << "\n\tMisorientation angle: " << theta
            << "\n\tBoundary type: " << boundary_type
            << "\n\tNumber of atom types: " << ntypes << "\n\tCutoff radii: ";
-      for (vector <double>::iterator it = rcut.begin(); it != rcut.end();)
+      for (map <pair<int,int>, double>::iterator it = rcut.begin(); it != rcut.end();)
       {
-        cout << *it;
+        cout << (*it).second;
         if (++it != rcut.end())
         {
           cout << "; ";
@@ -533,9 +542,9 @@ int main(int argc, char **argv)
 
   // Generate the cell-linked list for fast calculations
   // First generate the number of cells in each direction (minimum is 1)
-  ncellx = (int)(Lx / *max_element(rcut.begin(), rcut.end())) + 1;
-  ncelly = (int)(Ly / *max_element(rcut.begin(), rcut.end())) + 1;
-  ncellz = (int)(Lz / *max_element(rcut.begin(), rcut.end())) + 1;
+  ncellx = (int)(Lx / (*max_element(rcut.begin(), rcut.end(), mapValueCmp)).second) + 1;
+  ncelly = (int)(Ly / (*max_element(rcut.begin(), rcut.end(), mapValueCmp)).second) + 1;
+  ncellz = (int)(Lz / (*max_element(rcut.begin(), rcut.end(), mapValueCmp)).second) + 1;
 
   lcellx = Lx / ncellx; // Length of the cells in each direction
   lcelly = Ly / ncelly;
@@ -662,7 +671,6 @@ int main(int argc, char **argv)
   // Compare the distances of each atom
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
-    int cur_type = atoms[i].getType();
     for (int j = 1; j <= ntypes; ++j)
     { // First check atoms of the same type
       if (atoms[i].getType() == j && atoms[i].getMark() == 0) // unmarked type j atoms
@@ -686,7 +694,10 @@ int main(int argc, char **argv)
             rzij = rzij - anInt(rzij / Lz) * Lz;
 
             drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-            if (drij_sq < rcut_sq[j - 1])
+            int type1 = atoms[i].getType();
+            int type2 = atoms[id].getType();
+            pair <int,int> map_key = (type1 < type2) ? make_pair(type1,type2) : make_pair(type2,type1);
+            if (drij_sq < rcut_sq[map_key])
             {
               atoms[i].setMark(1);
               ++n_removed[j - 1];
@@ -701,49 +712,55 @@ int main(int argc, char **argv)
         break; // we're done for the single element case.
       }
 
-      if (atoms[i].getType() == 1 && atoms[i].getMark() == 1)
+      if (atoms[i].getType() == j && atoms[i].getMark() == 1) // Atoms we have just marked above
       {
-        distances.clear(); // Clear out the old values.
-        // Check each neighboring O atoms, and find the closest two and remove them
-        for (int l = 1; l <= iatom[0][i]; ++l)
+        for (int k = j + 1; k <= ntypes; ++k)
         {
-          int id = iatom[l][i];
-          if (atoms[id].getType() == 2 && atoms[id].getMark() == 0)
+          distances.clear(); // Clear out the old values.
+          // Check each neighboring atom of type k, and find the closest n and remove them to maintain the ratio
+          for (int l = 1; l <= iatom[0][i]; ++l)
           {
-            // Calculate the distance
-            rxij = x1 - atoms[id].getX();
-            ryij = y1 - atoms[id].getY();
-            rzij = z1 - atoms[id].getZ();
-
-            // Apply PBCs
-            rxij = rxij - anInt(rxij / Lx) * Lx;
-            ryij = ryij - anInt(ryij / Ly) * Ly;
-            rzij = rzij - anInt(rzij / Lz) * Lz;
-
-            drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-            if (drij_sq < uo_rnn_cut_sq)
+            int id = iatom[l][i];
+            if (atoms[id].getType() == k && atoms[id].getMark() == 0)
             {
-              distances.push_back(make_pair(id, drij_sq));
+              // Calculate the distance
+              rxij = x1 - atoms[id].getX();
+              ryij = y1 - atoms[id].getY();
+              rzij = z1 - atoms[id].getZ();
+
+              // Apply PBCs
+              rxij = rxij - anInt(rxij / Lx) * Lx;
+              ryij = ryij - anInt(ryij / Ly) * Ly;
+              rzij = rzij - anInt(rzij / Lz) * Lz;
+
+              drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+              int type1 = atoms[i].getType();
+              int type2 = atoms[id].getType();
+              pair <int,int> map_key = (type1 < type2) ? make_pair(type1,type2) : make_pair(type2,type1);
+              if (drij_sq < rcut_sq[map_key])
+              {
+                distances.push_back(make_pair(id, drij_sq));
+              }
             }
           }
-        }
-        // sort the distances using the comparison function written above.
-        sort(distances.begin(), distances.end(), pairCmp);
-        for (unsigned int k = 0; k < distances.size(); ++k)
-        {
-          atom_id = distances[k].first; // we use this a lot over the next lines
-          // If the atom we are looking at is O and unmarked
-          if (atoms[atom_id].getType() == 2 &&
-          atoms[atom_id].getMark() == 0)
+          // sort the distances using the comparison function written above.
+          sort(distances.begin(), distances.end(), pairCmp);
+          for (unsigned int k = 0; k < distances.size(); ++k)
           {
-            // mark this atom in BOTH lists
-            atoms[atom_id].setMark(1);
-            ++n_2_removed; // increase the counter for O removed
+            atom_id = distances[k].first; // we use this a lot over the next lines
+            // If the atom we are looking at is O and unmarked
+            if (atoms[atom_id].getType() == 2 &&
+            atoms[atom_id].getMark() == 0)
+            {
+              // mark this atom in BOTH lists
+              atoms[atom_id].setMark(1);
+              ++n_2_removed; // increase the counter for O removed
 
-            // if we have removed enough O atoms to maintain charge neutrality,
-            // exit the loop.  We can only remove 2 O atoms per U atom!
-            if (n_2_removed == 2 * n_1_removed)
-            break;
+              // if we have removed enough O atoms to maintain charge neutrality,
+              // exit the loop.  We can only remove 2 O atoms per U atom!
+              if (n_2_removed == 2 * n_1_removed)
+              break;
+            }
           }
         }
       }
