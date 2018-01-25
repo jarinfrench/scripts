@@ -112,8 +112,6 @@ int main(int argc, char **argv)
   double r_grain_sq; // squared values for convenience
   double theta, theta_conv; // angle of rotation
   double costheta, sintheta; // better to calculate this once.
-  double uo_rnn_cut_sq = UO_RNN_CUT * UO_RNN_CUT;
-  double oo_rnn_cut_sq = OO_RNN_CUT * OO_RNN_CUT;
 
   double scale_factor_a, scale_factor_b, scale_factor_c; // dimensional scaling values
   double Lx, Ly, Lz; // box size
@@ -126,7 +124,7 @@ int main(int argc, char **argv)
   double xlow, xhigh, ylow, yhigh, zlow, zhigh; // atom bounds
   int atom_id, atom_type; // id number and type number
   double atom_charge, x, y, z; // charge and position values
-  double x1, y1, z1, temp_x, temp_y, x2, y2, z2; // Store the original value and manipulate!
+  double x1, y1, z1, temp_x, temp_y; // Store the original value and manipulate!
 
   // Containers
   vector <int> n_removed; // number of atoms removed of each type
@@ -670,12 +668,22 @@ int main(int argc, char **argv)
                   // Now calculate the distance
                   drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
 
-                  if (drij_sq > uo_rnn_cut_sq)
+                  pair <int, int> key;
+                  if (atoms[id].getType() <= atoms[jd].getType())
+                  {
+                    key = make_pair(atoms[id].getType(),atoms[jd].getType());
+                  }
+                  else
+                  {
+                    key = make_pair(atoms[jd].getType(),atoms[id].getType());
+                  }
+
+                  if (drij_sq > (max_element(rcut_sq.begin(),rcut_sq.end(), mapValueCmp)->second))
                   {
                     continue; // move to the next atom if we're too far away
                   }
 
-                  if (drij_sq == 0.0) // This should never be hit, but just in case
+                  if (drij_sq < 1.0E-8) // This should never be hit, but just in case
                   {
                     continue; // This is the same atom!
                   }
@@ -747,7 +755,19 @@ int main(int argc, char **argv)
       }
       if (removed)
       {
+        for (unsigned int i = 0; i < neighbor_dataset.size(); ++i)
+        {
+          cout << "\t" << neighbor_dataset[i].ids.first << " " << neighbor_dataset[i].ids.second
+               << "\n\t" << neighbor_dataset[i].types.first << " " << neighbor_dataset[i].types.second
+               << "\n\t" << neighbor_dataset[i].distance << endl;
+        }
         sort(neighbor_dataset.begin(), neighbor_dataset.end(), compareNeighbors);
+        for (unsigned int i = 0; i < neighbor_dataset.size(); ++i)
+        {
+          cout << "\t" << neighbor_dataset[i].ids.first << " " << neighbor_dataset[i].ids.second
+               << "\n\t" << neighbor_dataset[i].types.first << " " << neighbor_dataset[i].types.second
+               << "\n\t" << neighbor_dataset[i].distance << endl;
+        }
         // Now we need to remove atoms to maintain the original ratio
         for (unsigned int it = 0; it < compound_ratio.ratio.size(); ++it)
         { // for each ratio
@@ -778,10 +798,10 @@ int main(int argc, char **argv)
   {
     for (unsigned int j = 0; j < compound_ratio.ratio.size(); ++j)
     {
-      if (i ==j)
+      /*if (i == j)
       {
         continue;
-      }
+      }*/
       if (compound_ratio.ratio[j] * n_removed[i] != compound_ratio.ratio[i] * n_removed[j])
       {
         cout << "Error: the element ratio has not been kept.\n";
@@ -789,7 +809,7 @@ int main(int argc, char **argv)
         return 5;
       }
     }
-    cout << n_removed[i] << " " << elements[i] << " atoms will be removed.\n";
+    cout << n_removed[i] << " " << elements[i+1] << " atoms will be removed.\n";
   }
 
   ofstream fout2(filename3.c_str());
