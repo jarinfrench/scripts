@@ -1,0 +1,6 @@
+bin/*
+python_modules/*
+java/*
+asa-code-1.0.1/*
+*.o
+tests/*
