@@ -180,9 +180,9 @@ int main(int argc, char **argv)
       compound_ratio.ratio.resize(compound_ratio.n_types,1);
       unsigned int combinations = ((ntypes + 1) * ntypes) / 2;
       double temp;
-      for (int i = 0; i < ntypes; ++i)
+      for (int i = 1; i <= ntypes; ++i) // We start at 1 to be consistent with the atom type numbering
       {
-        for (int j = i; j < ntypes; ++j)
+        for (int j = i; j <= ntypes; ++j)
         {
           finput >> temp;
           rcut.insert(make_pair(make_pair(i,j),temp));
@@ -668,16 +668,6 @@ int main(int argc, char **argv)
                   // Now calculate the distance
                   drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
 
-                  pair <int, int> key;
-                  if (atoms[id].getType() <= atoms[jd].getType())
-                  {
-                    key = make_pair(atoms[id].getType(),atoms[jd].getType());
-                  }
-                  else
-                  {
-                    key = make_pair(atoms[jd].getType(),atoms[id].getType());
-                  }
-
                   if (drij_sq > (max_element(rcut_sq.begin(),rcut_sq.end(), mapValueCmp)->second))
                   {
                     continue; // move to the next atom if we're too far away
@@ -739,39 +729,34 @@ int main(int argc, char **argv)
           rzij = rzij - anInt(rzij / Lz) * Lz;
 
           drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-          neighbor_data tmp;
-          tmp.ids = make_pair(i,id);
-          tmp.types = (j < k) ? make_pair(j,k) : make_pair(k,j); // make sure the lower index comes first
-          tmp.distance = drij_sq;
-          neighbor_dataset.push_back(tmp);
+          if (ntypes != 1)
+          { // This is only needed if there is more than 1 type of atom.
+            neighbor_data tmp;
+            tmp.ids = make_pair(i,id);
+            tmp.types = make_pair(j,k);
+            tmp.distance = drij_sq;
+            neighbor_dataset.push_back(tmp);
+          }
 
-          if (drij_sq < rcut_sq[make_pair(j,j)])
+          if (atoms[id].getType() == j) // We are really only interested in the atoms that are too close to the same type of atom.
           {
-            atoms[i].setMark(1); // if we are below the specified cutoff, mark for removal
-            ++n_removed[j - 1]; // count the number removed of this type
-            removed = true;
+            pair <int, int> key =  (j < k) ? make_pair(j,k) : make_pair(k,j); // make sure the lower index comes first
+            if (drij_sq < rcut_sq[key])
+            {
+              atoms[i].setMark(1); // if we are below the specified cutoff, mark for removal
+              ++n_removed[j - 1]; // count the number removed of this type
+              removed = true;
+            }
           }
         }
       }
-      if (removed)
+      if (removed && ntypes != 1)
       {
-        for (unsigned int i = 0; i < neighbor_dataset.size(); ++i)
-        {
-          cout << "\t" << neighbor_dataset[i].ids.first << " " << neighbor_dataset[i].ids.second
-               << "\n\t" << neighbor_dataset[i].types.first << " " << neighbor_dataset[i].types.second
-               << "\n\t" << neighbor_dataset[i].distance << endl;
-        }
         sort(neighbor_dataset.begin(), neighbor_dataset.end(), compareNeighbors);
-        for (unsigned int i = 0; i < neighbor_dataset.size(); ++i)
-        {
-          cout << "\t" << neighbor_dataset[i].ids.first << " " << neighbor_dataset[i].ids.second
-               << "\n\t" << neighbor_dataset[i].types.first << " " << neighbor_dataset[i].types.second
-               << "\n\t" << neighbor_dataset[i].distance << endl;
-        }
         // Now we need to remove atoms to maintain the original ratio
-        for (unsigned int it = 0; it < compound_ratio.ratio.size(); ++it)
+        for (int it = 1; it <= compound_ratio.ratio.size(); ++it)
         { // for each ratio
-          int ratio = compound_ratio.ratio[it];
+          int ratio = compound_ratio.ratio[it - 1];
           if (it == j) // if this is the atom we already removed, we don't want to remove an extra atom
           {
             ratio -= 1;
@@ -781,9 +766,9 @@ int main(int argc, char **argv)
             for (vector <neighbor_data>::iterator neigh_it = neighbor_dataset.begin();
                  neigh_it != neighbor_dataset.end(); ++neigh_it)
             { // check each neighbor's type.  If it matches the type we are looking for, remove it, and break from the loop
-              if ((*neigh_it).types.second == it && atoms[(*neigh_it).ids.second - 1].getMark() == 0)
+              if ((*neigh_it).types.second == it && atoms[(*neigh_it).ids.second].getMark() == 0)
               {
-                atoms[(*neigh_it).ids.second - 1].setMark(1);
+                atoms[(*neigh_it).ids.second].setMark(1);
                 ++n_removed[it - 1];
                 break;
               }
@@ -798,14 +783,10 @@ int main(int argc, char **argv)
   {
     for (unsigned int j = 0; j < compound_ratio.ratio.size(); ++j)
     {
-      /*if (i == j)
-      {
-        continue;
-      }*/
       if (compound_ratio.ratio[j] * n_removed[i] != compound_ratio.ratio[i] * n_removed[j])
       {
         cout << "Error: the element ratio has not been kept.\n";
-        cout << compound_ratio.ratio[j] << " " << n_removed[i] << " " << compound_ratio.ratio[i] << " " << n_removed[j] << endl;
+        cout << compound_ratio.ratio[j] << "*" << n_removed[i] << "!=" << compound_ratio.ratio[i] << "*" << n_removed[j] << endl;
         return 5;
       }
     }
