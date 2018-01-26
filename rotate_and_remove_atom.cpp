@@ -704,12 +704,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if (ntypes == 1)
-    {
-      break; // we're done for the single element case.
-    }
-
-    if (atoms[i].getType() == 1 && atoms[i].getMark() == 1)
+    if (atoms[i].getType() == 1 && atoms[i].getMark() == 1 && ntypes != 1)
     {
       distances.clear(); // Clear out the old values.
       // Check each neighboring O atoms, and find the closest two and remove them
@@ -747,6 +742,7 @@ int main(int argc, char **argv)
           // mark this atom in BOTH lists
           atoms[atom_id].setMark(1);
           ++n_2_removed; // increase the counter for O removed
+          cout << "Atom " << atom_id << " (type = " << atoms[atom_id].getType() << ") has been marked for removal.\n";
 
           // if we have removed enough O atoms to maintain charge neutrality,
           // exit the loop.  We can only remove 2 O atoms per U atom!
