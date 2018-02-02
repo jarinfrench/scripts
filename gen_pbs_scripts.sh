@@ -143,7 +143,7 @@ mpirun /home/frenjari/projects/lammps/lammps-17Nov16/src/lmp_openmpigccfftw_falc
 
 exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
 
-        sed "7s[.*[read_data LAMMPS_${element^^}_SC_${axis}_${theta}degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_${theta}degree.in
+        sed "7s[.*[read_data LAMMPS_${element}_${axis}_${theta}degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_${theta}degree.in
         if [[ "${element}" =~ ^UO2$ ]]; then
           sed -i "78s[.*[dump atompos1 all custom 10000 CG1.${theta}degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
           sed -i "90s[.*[dump atompos2 all custom 10000 anneal.${theta}degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
@@ -177,7 +177,7 @@ mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw_c
 
 exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
 
-        sed "7s[.*[read_data LAMMPS_${element^^}_${axis}_${theta}degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_${theta}degree.in
+        sed "7s[.*[read_data LAMMPS_${element}_${axis}_${theta}degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_${theta}degree.in
         if [[ "${element}" =~ ^UO2$ ]]; then
           sed -i "78s[.*[dump atompos1 all custom 10000 CG1.${theta}degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
           sed -i "90s[.*[dump atompos2 all custom 10000 anneal.${theta}degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_${theta}degree.in
@@ -189,6 +189,78 @@ exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
         fi
       fi
       done < "$FN"
+
+      for i in $(seq 1 $range);
+      do
+        if [[ "$destination" =~ ^inl$ ]]; then
+          echo "#!/bin/bash
+
+  # qsub script for Falcon
+
+  #PBS -j oe
+  #PBS -l select=4:ncpus=36:mpiprocs=36
+  #PBS -l walltime=01:00:00
+  #PBS -P neams
+
+  #PBS -M jarinf@vt.edu
+  #PBS -m bea
+  #PBS -N ${element}_${axis}_$((${i}*5))degree
+
+  source /etc/profile.d/modules.sh
+  module load OpenMPI
+
+  cd $``PBS_O_WORKDIR
+
+  mpirun /home/frenjari/projects/lammps/lammps-17Nov16/src/lmp_openmpigccfftw_falcon -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in > minimize_${axis}_$((${i}*5)).00degree.txt
+
+  exit;" >> lmp_minimize_${axis}_$((${i}*5)).00degree.pbs
+
+          sed "7s[.*[read_data LAMMPS_${element}_${axis}_$((${i}*5)).00degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          if [[ "${element}" =~ ^UO2$ ]]; then
+            sed -i "78s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+            sed -i "90s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+            sed -i "119s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          else
+            sed -i "49s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+            sed -i "61s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+            sed -i "69s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          fi
+        else
+          echo "#!/bin/bash
+
+  # qsub script for Cascades
+
+  #PBS -l nodes=1:ppn=32
+  #PBS -l walltime=8:00:00
+  #PBS -q normal_q
+  #PBS -A FeCr_Bai
+  #PBS -W group_list=cascades
+
+  #PBS -M jarinf@vt.edu
+  #PBS -m bea
+  #PBS -N ${element}_${axis}_$((${i}*5))degree
+
+  module purge
+  module load gcc openmpi
+
+  cd $``PBS_O_WORKDIR
+
+  mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw_cascades -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in > minimize_${axis}_$((${i}*5)).00degree.txt
+
+  exit;" >> lmp_minimize_${axis}_$((${i}*5)).00degree.pbs
+
+          sed "7s[.*[read_data LAMMPS_${element}_${axis}_$((${i}*5)).00degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          if [[ "${element}" =~ ^UO2$ ]]; then
+            sed -i "78s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+            sed -i "90s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+            sed -i "119s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          else
+            sed -i "49s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+            sed -i "61s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+            sed -i "69s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          fi
+        fi
+      done
     ;;
   n|N)
     echo "Generating the default files..."
@@ -214,19 +286,19 @@ module load OpenMPI
 
 cd $``PBS_O_WORKDIR
 
-mpirun /home/frenjari/projects/lammps/lammps-17Nov16/src/lmp_openmpigccfftw_falcon -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5))degree.in > minimize_${axis}_$((${i}*5))degree.txt
+mpirun /home/frenjari/projects/lammps/lammps-17Nov16/src/lmp_openmpigccfftw_falcon -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in > minimize_${axis}_$((${i}*5)).00degree.txt
 
-exit;" >> lmp_minimize_${axis}_$((${i}*5))degree.pbs
+exit;" >> lmp_minimize_${axis}_$((${i}*5)).00degree.pbs
 
-        sed "7s[.*[read_data LAMMPS_${element^^}_SC_${axis}_$((${i}*5))degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+        sed "7s[.*[read_data LAMMPS_${element}_${axis}_$((${i}*5)).00degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
         if [[ "${element}" =~ ^UO2$ ]]; then
-          sed -i "78s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "90s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "119s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "78s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          sed -i "90s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          sed -i "119s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
         else
-          sed -i "49s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "61s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "69s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "49s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          sed -i "61s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          sed -i "69s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
         fi
       else
         echo "#!/bin/bash
@@ -248,19 +320,19 @@ module load gcc openmpi
 
 cd $``PBS_O_WORKDIR
 
-mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw_cascades -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5))degree.in > minimize_${axis}_$((${i}*5))degree.txt
+mpirun -np $``PBS_NP /home/jarinf/LAMMPS/lammps-17Nov16/src/lmp_openmpigccfftw_cascades -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in > minimize_${axis}_$((${i}*5)).00degree.txt
 
-exit;" >> lmp_minimize_${axis}_$((${i}*5))degree.pbs
+exit;" >> lmp_minimize_${axis}_$((${i}*5)).00degree.pbs
 
-        sed "7s[.*[read_data LAMMPS_${element^^}_${axis}_$((${i}*5))degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+        sed "7s[.*[read_data LAMMPS_${element}_${axis}_$((${i}*5)).00degree_r${radius}A_removed.dat[" ${element}_structure_minimization.in > ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
         if [[ "${element}" =~ ^UO2$ ]]; then
-          sed -i "78s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "90s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "119s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "78s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          sed -i "90s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          sed -i "119s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5)).00degree.*.dump id type q x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
         else
-          sed -i "49s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "61s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
-          sed -i "69s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5))degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5))degree.in
+          sed -i "49s[.*[dump atompos1 all custom 10000 CG1.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          sed -i "61s[.*[dump atompos2 all custom 10000 anneal.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
+          sed -i "69s[.*[dump atompos3 all custom 10000 CG2.$((${i}*5)).00degree.*.dump id type x y z c_pe_layer1[" ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in
         fi
       fi
     done

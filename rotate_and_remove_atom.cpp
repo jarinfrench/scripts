@@ -24,7 +24,7 @@
 using namespace std;
 
 #define PI 3.14159265358979 // easier and faster to simply store these values here.
-#define UU_RNN_CUT 2.0 // Cutoff value for U-U atoms too close (Basak Potential)
+/*#define UU_RNN_CUT 2.0 // Cutoff value for U-U atoms too close (Basak Potential)
 #define UO_RNN_CUT 4.0 // Cutoff value for U-O atoms too close
 #define OO_RNN_CUT 0.63801 // Cutoff value for O-O atoms too close
 #define CU_RNN_CUT 1.0 // Cutoff value for Cu-Cu atoms too close (using Mishin potential)
@@ -32,6 +32,7 @@ using namespace std;
 #define AG_RNN_CUT 1.0 // Cutoff value for Ag-Ag atoms too close (using Mishin potential)
 #define AU_RNN_CUT 1.0 // Cutoff value for Au-Au atoms too close (using Foiles Au1 potential)
 #define NI_RNN_CUT 1.0 // Cutoff value for Ni-Ni atoms too close (using Foiles-Hoyt potential)
+*/
 
 struct ratio {
   int n_types;
@@ -54,19 +55,12 @@ double anInt(double x)
   return (double)(temp);
 }
 
-// Comparison function for comparing only the second values in a pair
-// Useful later in the program.
-bool pairCmp(pair<int, double> &a, pair<int, double> &b)
-{
-  return (a.second < b.second);
-}
-
 bool mapValueCmp(pair<pair<int,int>,double> a, pair<pair<int,int>,double> b)
 {
   return (a.second < b.second);
 }
 
-bool compareNeighbors(neighbor_data &a, neighbor_data &b)
+bool compareNeighbors(const neighbor_data &a, const neighbor_data &b)
 {
   if (a.types.first  == b.types.first)
   {
@@ -117,7 +111,6 @@ int main(int argc, char **argv)
   double Lx, Ly, Lz; // box size
   int ntotal, n_atom_id; // total number of atoms that have been read/written
   double rxij, ryij, rzij, drij_sq; //positional differences, total distance^2
-  int n_1_removed = 0, n_2_removed = 0;
 
   // Values from file
   int N, ntypes, ntypes_test; // number of atoms, and number of atom types
@@ -129,7 +122,6 @@ int main(int argc, char **argv)
   // Containers
   vector <int> n_removed; // number of atoms removed of each type
   vector <Atom> atoms; // contains the atoms we look at, and the entire set.
-  vector <pair<int, double> > distances; // vector of id and distance.
   vector <neighbor_data> neighbor_dataset;
   map <int, string> elements;
   map <pair<int,int>, double> rcut, rcut_sq; // cutoff radii for each interaction
@@ -142,11 +134,11 @@ int main(int argc, char **argv)
   int ncellx, ncelly, ncellz, idx, idy, idz; // Number of sub cells in each direction, cell number in each direction
   double lcellx, lcelly, lcellz; // length of sub cells in each direction
 
-  if (argc != 2) // check for input file
+  if (argc < 2) // check for input file
   {
     cout << "Please enter a valid input file containing (in order):\n"
          << "\tthe data file to be processed\n\tdesired grain radius\n\t"
-         << "rotation angle\n\tboundary type (cylinder|sphere)\n\tnumber of atom types\n\tcutoff radius\n"
+         << "boundary type (cylinder|sphere)\n\tnumber of atom types\n\tcutoff radius\n"
          << "Note that the number of cutoff radii is dependent on the\n"
          << "number of atom interactions, so, for example, if there are\n"
          << "two atom types, there are the two same-element interactions,\n"
@@ -169,7 +161,7 @@ int main(int argc, char **argv)
     }
     else
     {
-      finput >> filename1 >> r_grain >> theta >> boundary_type >> ntypes;
+      finput >> filename1 >> r_grain >> boundary_type >> ntypes;
       if ((boundary_type.compare("cylinder") != 0) && (boundary_type.compare("sphere") != 0))
       {
         cout << "Error reading boundary type. Boundary type \"" <<  boundary_type << "\" not recognized.\n";
@@ -197,12 +189,22 @@ int main(int argc, char **argv)
 
       (boundary_type.compare("sphere") == 0) ? is_sphere = true : is_sphere = false;
 
+      if (argc == 3)
+      {
+        theta = strtod(argv[2], NULL);
+      }
+      else
+      {
+        cout << "Please enter the misorientation angle between the two grains: ";
+        cin  >> theta;
+      }
+
       cout << "Input information:"
-           << "\n\tData file: " << filename1
-           << "\n\tGrain radius: " << r_grain
-           << "\n\tMisorientation angle: " << theta
-           << "\n\tBoundary type: " << boundary_type
-           << "\n\tNumber of atom types: " << ntypes << "\n\tCutoff radii: ";
+      << "\n\tData file: " << filename1
+      << "\n\tGrain radius: " << r_grain
+      << "\n\tMisorientation angle: " << theta
+      << "\n\tBoundary type: " << boundary_type
+      << "\n\tNumber of atom types: " << ntypes << "\n\tCutoff radii: ";
       for (map <pair<int,int>, double>::iterator it = rcut.begin(); it != rcut.end();)
       {
         cout << (*it).second;
@@ -215,7 +217,6 @@ int main(int argc, char **argv)
           cout << endl;
         }
       }
-
     }
   }
 
@@ -358,13 +359,6 @@ int main(int argc, char **argv)
       cout << endl;
     }
   }
-
-  // This may be able to be removed after this update.
-/*  if (ntypes != 1 && ntypes != 2)
-  {
-    cout << "This script can currently only handle 1 or 2 types of atoms.  You have asked for " << ntypes << " types of atoms.\n";
-    return 8;
-  }*/
 
   ostringstream fn2, fn3, fn4; // String streams for easy file naming
   fn2 << filename1.substr(0,filename1.find(".")).c_str()
@@ -738,7 +732,7 @@ int main(int argc, char **argv)
             neighbor_dataset.push_back(tmp);
           }
 
-          if (atoms[id].getType() == j) // We are really only interested in the atoms that are too close to the same type of atom.
+          if (atoms[id].getType() == j && !removed) // We are really only interested in the atoms that are too close to the same type of atom.
           {
             pair <int, int> key =  (j < k) ? make_pair(j,k) : make_pair(k,j); // make sure the lower index comes first
             if (drij_sq < rcut_sq[key])
@@ -766,9 +760,9 @@ int main(int argc, char **argv)
             for (vector <neighbor_data>::iterator neigh_it = neighbor_dataset.begin();
                  neigh_it != neighbor_dataset.end(); ++neigh_it)
             { // check each neighbor's type.  If it matches the type we are looking for, remove it, and break from the loop
-              if ((*neigh_it).types.second == it && atoms[(*neigh_it).ids.second].getMark() == 0)
+              if ((*neigh_it).types.second == it && atoms[(*neigh_it).ids.second - 1].getMark() == 0)
               {
-                atoms[(*neigh_it).ids.second].setMark(1);
+                atoms[(*neigh_it).ids.second - 1].setMark(1);
                 ++n_removed[it - 1];
                 break;
               }
@@ -820,9 +814,10 @@ int main(int argc, char **argv)
   }
 
   // write the base data to the file
+  int subtotal = accumulate(n_removed.begin(), n_removed.end(),0);
   fout3 << "These " << element << " coordinates are shifted and have atoms removed:[ID type x y z]\n"
         << "\n"
-        << N - n_1_removed - n_2_removed << "   atoms\n"
+        << N - subtotal << "   atoms\n"
         << ntypes << "   atom types\n"
         << xlow << " " << xhigh << "   xlo xhi\n"
         << ylow << " " << yhigh << "   ylo yhi\n"
@@ -867,7 +862,6 @@ int main(int argc, char **argv)
 
   }
 
-  int subtotal = accumulate(n_removed.begin(), n_removed.end(),0);
   if ((ntotal != N - subtotal)) // One last check
   {
     cout << "Error! The final number of removed atoms is not balanced!\n"

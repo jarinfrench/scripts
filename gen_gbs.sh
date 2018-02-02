@@ -18,7 +18,23 @@ else
   exit 4
 fi
 
-# based on the filename, the axis is determined.  Can only handle 100 to 133 at
+read -p "Please enter the number of atom types: " ntypes
+
+combinations=$(((($ntypes + 1) * $ntypes) / 2))
+
+read -p "Please enter the cutoff radii separated by a space: " cutoff
+
+countElems() { echo $#;}
+numElems=`countElems $cutoff`
+if [[ $numElems -ne $combinations ]]; then
+  echo "Please enter $combinations radii for this system."
+  exit 5
+fi
+
+echo $FN $radius $b_type $ntypes $cutoff > rotate_input.txt
+
+
+# based on the filename, the axis is determined.  Can only handle 100 to 135 at
 # this point.  Further modifications may be necessary to handle larger axes.
 axis=`echo $FN | grep -o "1[0-3][0-5]"`
 
@@ -41,21 +57,18 @@ case $angles in
   y|Y)
     read -e -p "Please enter the filename of the angles txt file: " FN2
     while read -r theta; do
-      echo "Rotating $theta degrees"
-      rotate_and_remove $FN $radius $theta $b_type
+      rotate_and_remove rotate_input.txt $theta
     done < "$FN2"
     for i in $(seq 1 $range);
     do
-      echo "Rotating $(($i*5)) degrees"
-      rotate_and_remove $FN $radius $(($i*5)) $b_type
+      rotate_and_remove rotate_input.txt $(($i*5))
     done
     ;;
   n|N)
     echo "Generating default layouts..."
     for i in $(seq 1 $range);
     do
-      echo "Rotating $(($i*5)) degrees"
-      rotate_and_remove $FN $radius $(($i*5)) $b_type
+      rotate_and_remove rotate_input.txt $(($i*5))
     done
     ;;
   *)
@@ -68,7 +81,10 @@ esac
 # Also move the file with marked atoms to the Marked directory (useful for
 # visualization in TecPlot)
 
+# Make the directories
+mkdir -p Marked/$axis Removed/$axis Rotated/$axis
+
 # Assumes that these directories already exist.
-mv *_marked*.dat Marked/
-mv *_removed*.dat Removed/
-mv *_rotated*.dat Rotated/
+mv *_marked*.dat Marked/$axis
+mv *_removed*.dat Removed/$axis
+mv *_rotated*.dat Rotated/$axis
