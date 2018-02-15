@@ -4,105 +4,86 @@
 #include <string>
 #include <cstdlib>
 #include <algorithm>
+#include <vector>
 
 using namespace std;
 
+struct fit{
+  string name;
+  double T1, T2;
+  double lin_y_int, lin_slope;
+  double parabolic_int, parabolic_lin, parabolic_term;
+};
 #define PI 3.141592653589793
 
-double latticeParam(double T, string atom_type, bool is_eam)
+double latticeParam(double T)
 {
-  // May need to make this function call on a separate data file containing the
-  // parameters for various elements/alloys
+  string db_file = "lattice_params.db", str;
+  vector <fit> fits;
+  int potential;
   // A is the y intercept, B is the linear coefficient, C is the parabolic
   // coefficient
   double A, B, C;
-  if (atom_type.compare("UO2") == 0 ) // If the strings match exactly, the returned value is 0
+
+  ifstream fin(db_file.c_str());
+  if (fin.fail())
   {
-    if (is_eam)
-    {
-      if (T >= 0.0 && T <= 1000.0)
-  	  {
-  	    A = 5.452371;
-  		  B = 5.67E-5;
-  		  C = 0.0;
-  	  }
-  	  else if (T > 1000.0 && T <= 3300.0)
-  	  {
-  		  A = 5.478309;
-  		  B = 1.2e-5;
-  		  C = 2.07e-8;
-      }
-      else
-      {
-        cout << "Temperature out of fitted range (0 K - 3300 K).\n";
-        exit(10); // We don't want to continue with execution if we're out of range.
-      }
-    }
-    else
-    {
-      if (T >= 0.0 && T <= 1000.0)
-      {
-        A = 5.45297739;
-        B = 5.89383E-5;
-        C = 0.0;
-      }
-      else if (T > 1000.0 && T <= 3300.00)
-      {
-        A = 5.44364863;
-        B = 6.18966E-5;
-        C = 5.27784E-9;
-      }
-      else
-      {
-        cout << "Temperature out of fitted range (0 K - 3300 K).\n";
-        exit(10); // We don't want to continue with execution if we're out of range.
-      }
-    }
+    cout << "Error opening database file \"" << db_file << "\"\n";
+    exit(11);
   }
-  else if (atom_type.compare("CU") == 0)
+
+  // first 6 lines are blank or comments
+  for (unsigned int i = 0; i < 6; ++i)
   {
-    if (T >= 0.0 && T <= 700.0)
-    {
-      A = 3.614;
-      B = 6.034E-5;
-      C = 0.0;
-    }
-    else if (T > 700.0 && T <= 1300.00)
-    {
-      A = 3.622;
-      B = 3.431E-5;
-      C = 2.31E-8;
-    }
-    else
-    {
-      cout << "Temperature out of fitted range (0 K - 1300 K).\n";
-      exit(10); // We don't want to continue with execution if we're out of range.
-    }
+    getline(fin,str);
   }
-  else if (atom_type.compare("AL") == 0)
+
+  // Read each fitted set
+  while (getline(fin,str))
   {
-    if (T >= 0.0 && T <= 400.0)
+    fit temp;
+    stringstream ss(str);
+    if (!(ss >> temp.name >> temp.T1 >> temp.lin_y_int >> temp.lin_slope
+             >> temp.parabolic_int >> temp.parabolic_lin >> temp.parabolic_term))
     {
-      A = 4.03169899;
-      B = 6.63996E-5;
-      C = 0.0 ;
+      cout << "Read error.\n";
+      exit(9);
     }
-    else if (T > 400.0 && T <= 900.0)
-    {
-      A = 4.039216034;
-      B = 3.44901E-5;
-      C = 3.60176E-8;
-    }
-    else
-    {
-      cout << "Temperature out of fitted range (0 K - 900 K).\n";
-      exit(10);
-    }
+    fits.push_back(temp);
+  }
+
+  cout << "There are " << fits.size() << " fits:\n";
+  for (unsigned int i = 0; i < fits.size(); ++i)
+  {
+    cout << "  " << i + 1 << " - " << fits[i].name << endl;
+  }
+  cout << "Please enter the number of the potential you want to use: ";
+  cin >> potential;
+  --potential;
+
+  if (potential > fits.size())
+  {
+    cout << "Not a valid number.  If there are additional potentials you want to use, add them to the \"" << db_file << "\" database file.\n";
+    exit(12);
+  }
+
+
+  if (T >= 0.0 && T <= fits[potential].T1)
+  {
+    A = fits[potential].lin_y_int;
+    B = fits[potential].lin_slope;
+    C = 0.0;
+  }
+  else if (T > fits[potential].T1 && T <= fits[potential].T2)
+  {
+    A = fits[potential].parabolic_int;
+    B = fits[potential].parabolic_lin;
+    C = fits[potential].parabolic_term;
   }
   else
   {
-    cout << "Only Al, Cu, and UO2 have been fitted.  Add to the latticeParam function if you want more data.\n";
-    exit(10);
+    cout << "Temperature out of fitted range (0 K - " << fits[potential].T2 << " K).\n";
+    exit(10); // We don't want to continue with execution if we're out of range.
   }
 
   return A + B * T + C * T * T;
@@ -110,15 +91,14 @@ double latticeParam(double T, string atom_type, bool is_eam)
 
 int main(int argc, char **argv)
 {
-  string filename, filename2, atom_types, str; // data file, junk variable.
-  double T, a0, area, scale_factor; // temperature, lattice parameter, area
+  string filename, filename2, str; // data file, junk variable.
+  double T, a0, a0_0, area, scale_factor; // temperature, lattice parameter, area
   int N1_0, N2_0, N1_next, N2_next; // Number of atoms in grains 1 and 2 at times 1 and 2
   double t0, t1, Lz; // time at 1, time at 2, height of cylindrical grain, GBE
-  bool is_eam = false;
   // NOTE: eGB is generally taken as 1.5.  I should use a value close to what
   // was calculated in the GBE calculations.
 
-  if (argc < 5 || argc > 6)
+  if (argc != 4)
   {
     cout << "Please enter the filename containing the number of atoms in each grain: ";
     cin  >> filename;
@@ -129,65 +109,25 @@ int main(int argc, char **argv)
     cout << "Please enter the height of the original cylinder (in Angstroms): ";
     cin  >> Lz;
 
-    cout << "Please enter the molecules in the simulation (i.e. UO2, Cu, Al): ";
-    cin  >> atom_types;
-
-    transform(atom_types.begin(), atom_types.end(), atom_types.begin(), ::toupper);
-
-    if (atom_types.compare("UO2") == 0)
-    {
-      cout << "Please enter \"EAM\" if using the EAM UO2 potential (enter \"No\" otherwise): ";
-      cin  >> str;
-      transform(str.begin(), str.end(), str.begin(), ::toupper);
-      if (str.compare("EAM") == 0)
-      {
-        is_eam = true;
-      }
-    }
+    cout << "Please enter the 0 K lattice parameter (in Angstroms): ";
+    cin >> a0_0;
   }
   else
   {
-    if (argc == 5)
-    {
-      filename = argv[1]; // get the filename
-      T = strtod(argv[2], NULL); // get the temperature.
-      Lz = strtod(argv[3], NULL); // get the cylinder height
-      atom_types = argv[4]; // get the molecule
-    }
-    else if (argc == 6)
-    {
-      filename = argv[1]; // get the filename
-      T = strtod(argv[2], NULL); // get the temperature.
-      Lz = strtod(argv[3], NULL); // get the cylinder height
-      atom_types = argv[4]; // get the molecule
-      str = argv[5]; // gets the parameter determining if using UO2 eam potential
-
-      transform(str.begin(), str.end(), str.begin(), ::toupper);
-      if (str.compare("EAM") == 0)
-      {
-        is_eam = true;
-      }
-    }
+    filename = argv[1]; // get the filename
+    T = strtod(argv[2], NULL); // get the temperature.
+    Lz = strtod(argv[3], NULL); // get the cylinder height
+    a0_0 = strtod(argv[4], NULL); // get the 0 K lattice parameter
   }
 
-  // No matter what the user entered, capitalize everything.
-  transform(atom_types.begin(), atom_types.end(), atom_types.begin(), ::toupper);
   cout << "Input parameters:"
        << "\n\tSimulation temperature: " << T
        << "\n\tCylinder thickness: " << Lz
-       << "\n\tAtom: " << atom_types << endl;
-  if (atom_types.compare("UO2") == 0)
-  {
-    cout << "\t - EAM potential: ";
-    if (is_eam)
-      cout << "Yes\n";
-    else
-      cout << "No\n";
-  }
+       << "\n\t0 K lattice parameter: " << a0_0 << endl;
 
-  a0 = latticeParam(T, atom_types, is_eam);
+  a0 = latticeParam(T);
   cout << "\tLattice parameter: " << a0 << endl;
-  scale_factor = a0 / 5.453; // Important to account for expansion of the lattice
+  scale_factor = a0 / a0_0; // Important to account for expansion of the lattice
   Lz *= scale_factor;
 
   // open up the file for reading

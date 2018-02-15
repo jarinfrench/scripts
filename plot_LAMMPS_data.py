@@ -5,6 +5,7 @@ from sys import argv
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import csv
+from myModules import *
 
 # This script is should be utilized AFTER using the parse_lammps_output.cpp
 # script.  This script reads in the data from that file, and then prompts
@@ -177,79 +178,83 @@ print("There are %d data sets:"%len(labels))
 for i in range(len(labels)):
     print("%d - %s"%(i + 1, labels[i]))
 
-print("Please enter the data you would like plotted against each other.")
-plotted = input("Use tuple format (ex: [[x_data,y_data], [x_data2,y_data2]]): ")
+plot_again = True
+while(plot_again):
+    print("Please enter the data you would like plotted against each other.")
+    plotted = input("Use tuple format (ex: [[x_data,y_data], [x_data2,y_data2]]): ")
 
-data_len = []
-for i in range(len(plotted)): # now we find the lengths of each data set being plotted
-    data_len.append([i,[depth(plotted[i][0]), depth(plotted[i][1])]])
+    data_len = []
+    for i in range(len(plotted)): # now we find the lengths of each data set being plotted
+        data_len.append([i,[depth(plotted[i][0]), depth(plotted[i][1])]])
 
-for i in range(len(plotted)):
-    try:
-        x = [j - 1 for j in plotted[i][0]] # index of x data and label
-    except:
-        x = plotted[i][0] - 1
-    try:
-        y = [j - 1 for j in plotted[i][1]] # index of y data and label
-    except:
-        y = plotted[i][1] - 1
+    for i in range(len(plotted)):
+        try:
+            x = [j - 1 for j in plotted[i][0]] # index of x data and label
+        except:
+            x = plotted[i][0] - 1
+        try:
+            y = [j - 1 for j in plotted[i][1]] # index of y data and label
+        except:
+            y = plotted[i][1] - 1
 
-    if not depth(y) == 1:
-        title_label_main = "["
-        for j in range(len(y)):
-            title_label_main += labels[y[j]]
-            if not j + 1 == len(y):
-                title_label_main += ", "
-            else:
-                title_label_main += "] + vs "
-    else:
-        title_label_main = labels[y] + " vs "
-    if not depth(x) == 1:
-        title_label_main += "["
-        for j in range(len(x)):
-            title_label_main += labels[x[j]]
-            if not j + 1 == len(x):
-                title_label_main += ", "
-            else:
-                title_label_main += "]"
-    else:
-        title_label_main += labels[x]
+        if not depth(y) == 1:
+            title_label_main = "["
+            for j in range(len(y)):
+                title_label_main += labels[y[j]]
+                if not j + 1 == len(y):
+                    title_label_main += ", "
+                else:
+                    title_label_main += "] + vs "
+        else:
+            title_label_main = labels[y] + " vs "
+        if not depth(x) == 1:
+            title_label_main += "["
+            for j in range(len(x)):
+                title_label_main += labels[x[j]]
+                if not j + 1 == len(x):
+                    title_label_main += ", "
+                else:
+                    title_label_main += "]"
+        else:
+            title_label_main += labels[x]
 
-    title_label_right = "LAMMPS version: " + version + "; N = " + str(N)
-    if depth(x) > 1:
-        labels_x = []
-        for j in range(len(x)):
-            labels_x .append(labels[x[j]])
-        x_label = determine_label(labels_x, lammps_thermo, unit_labels)
-    else:
-        x_label = labels[x] + " (" + determine_label([labels[x]], lammps_thermo, unit_labels)[0] + ")"
+        title_label_right = "LAMMPS version: " + version + "; N = " + str(N)
+        if depth(x) > 1:
+            labels_x = []
+            for j in range(len(x)):
+                labels_x .append(labels[x[j]])
+            x_label = determine_label(labels_x, lammps_thermo, unit_labels)
+        else:
+            x_label = labels[x] + " (" + determine_label([labels[x]], lammps_thermo, unit_labels)[0] + ")"
 
-    if depth(y) > 1:
-        labels_y = []
-        for j in range(len(y)):
-            labels_y .append(labels[y[j]])
-        y_label = determine_label(labels_y, lammps_thermo, unit_labels)
-    else:
-        y_label = labels[y] + " (" + determine_label([labels[y]], lammps_thermo, unit_labels)[0] + ")"
-    plt.figure(i+1)
+        if depth(y) > 1:
+            labels_y = []
+            for j in range(len(y)):
+                labels_y .append(labels[y[j]])
+            y_label = determine_label(labels_y, lammps_thermo, unit_labels)
+        else:
+            y_label = labels[y] + " (" + determine_label([labels[y]], lammps_thermo, unit_labels)[0] + ")"
+        plt.figure(i+1)
 
-    if depth(x) > 1 and depth(y) > 1:
-        for j in range(depth(x)):
-            for m in range(depth(y)):
-                plt.plot(data[x[j]], data[y[m]], label = labels[y[m]])
-    elif depth(x) > 1 and depth(y) == 1:
-        for j in range(depth(x)):
-            plt.plot(data[x[j]], data[y], label = labels[y])
-    elif depth(x) == 1 and depth(y) > 1:
-        for j in range(depth(y)):
-            plt.plot(data[x], data[y[j]], label = labels[y[j]])
-    else:
-        plt.plot(data[x], data[y], label=labels[y])
-    plt.title(title_label_main + "\n")
-    plt.suptitle("\n\n" + title_label_right, fontsize=8)
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    if depth(x) > 1 or depth(y) > 1:
-        plt.legend(loc='best')
+        if depth(x) > 1 and depth(y) > 1:
+            for j in range(depth(x)):
+                for m in range(depth(y)):
+                    plt.plot(data[x[j]], data[y[m]], label = labels[y[m]])
+        elif depth(x) > 1 and depth(y) == 1:
+            for j in range(depth(x)):
+                plt.plot(data[x[j]], data[y], label = labels[y])
+        elif depth(x) == 1 and depth(y) > 1:
+            for j in range(depth(y)):
+                plt.plot(data[x], data[y[j]], label = labels[y[j]])
+        else:
+            plt.plot(data[x], data[y], label=labels[y])
+        plt.title(title_label_main + "\n")
+        plt.suptitle("\n\n" + title_label_right, fontsize=8)
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        if depth(x) > 1 or depth(y) > 1:
+            plt.legend(loc='best')
 
-plt.show()
+    plt.show()
+
+    plot_again = promptForContinue()

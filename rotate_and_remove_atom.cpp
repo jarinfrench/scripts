@@ -220,6 +220,12 @@ int main(int argc, char **argv)
     }
   }
 
+  if ((*max_element(rcut.begin(), rcut.end(), mapValueCmp)).second < 1)
+  {
+    cout << "Error!  Not enough memory available!\n";
+    return 15;
+  }
+
   // Calculate this once
   r_grain_sq = r_grain * r_grain;
 

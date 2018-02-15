@@ -519,8 +519,9 @@ int main(int argc, char** argv)
         }
         // cos = dot(A,B) / (|A|*|B|)
         costheta_sq = ((xtemp * xtemp) / drij_sq);
-        symm[i] += (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
-        symm[id] += (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
+        double val = (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
+        symm[i] += val;
+        symm[id] += val;
       }
 
     }

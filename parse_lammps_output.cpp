@@ -151,14 +151,16 @@ int main(int argc, char** argv)
     return 1;
   }
 
+  // This makes sure the file exists
   fstream fout(filename2.c_str(), fstream::out);
   if (fout.fail())
   {
     cout << "Error: unable to open file \"" << filename2 << "\"" << endl;
     return 1;
   }
-  fout.close();
+  fout.close(); // We close this here...
 
+  // so we can reopen the file for both reading and writing at the same time
   fout.open(filename2.c_str(), fstream::in | fstream::out);
   fout.precision(5);
   fout.setf(ios::fixed);

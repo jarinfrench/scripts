@@ -16,17 +16,28 @@ int main(int argc, char **argv)
   int id, type, N;
   double charge, x, y, z, xlo, xhi, ylo, yhi, zlo, zhi, Lx, Ly, Lz;
 
-  if (argc != 3)
+  if (argc < 3)
   {
     cout << "Please enter the reference data: ";
     cin  >> file1;
     cout << "Please enter the filename of the data to process: ";
     cin  >> file2;
+    file3 = file1.substr(0,file1.find(".dump"))+"_tracked.dat";
   }
   else
   {
-    file1 = argv[1];
-    file2 = argv[2];
+    if (argc == 3)
+    {
+      file1 = argv[1];
+      file2 = argv[2];
+      file3 = file1.substr(0,file1.find(".dump"))+"_tracked.dat";
+    }
+    else if (argc == 4)
+    {
+      file1 = argv[1];
+      file2 = argv[2];
+      file3 = argv[3];
+    }
   }
 
   ifstream fin(file1.c_str());
@@ -43,7 +54,6 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  file3 = file1.substr(0,file1.find(".dump"))+"_tracked.dat";
   ofstream fout(file3.c_str());
   if (fout.fail())
   {
@@ -76,8 +86,20 @@ int main(int argc, char **argv)
   reference.resize(N, Atom());
   compared.resize(N, Atom());
 
-  while (fin >> id >> type >> charge >> x >> y >> z)
+  while (getline(fin,str))
   {
+    stringstream ss(str);
+    stringstream::pos_type pos = ss.tellg();
+    if (!(ss >> id >> type >> charge >> x >> y >> z))
+    {
+      ss.clear();
+      ss.seekg(pos,ss.beg);
+      if (!(ss >> id >> type >> x >> y >> z))
+      {
+        cout << "Read error.\n";
+        break;
+      }
+    }
     reference[id - 1] = Atom(id, type, charge, x, y, z);
     if (x < 11 * Lx / 20 && x > 9 * Lx / 20)
     {
