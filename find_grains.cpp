@@ -25,6 +25,7 @@ double anInt(double x)
 int main(int argc, char** argv)
 {
   string filename1, filename2, input_file, data_file, str; // filenames read from and written to, input file, data file, junk variable
+  //string structure;
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
   int N, n_type, n_atoms_read = 0; // number of atoms, atom types, number of atoms read
   vector <Atom> atoms; // all of the atoms from the file
@@ -40,9 +41,10 @@ int main(int argc, char** argv)
   double coeffs [2] = {3.0, 2.0}; // Coefficients of the symmetry parameter equation unrotated/rotated symmetry parameter values.
   double xtemp, ytemp, y2, cutoff, costheta_sq; // temp position variables, sin/cos of misorientation, cutoff value
   double total1 = 0.0; // symmetry parameters
-  vector <double> xx (12,0.0); // x positions in terms of a0 for nearest neighbors
-  vector <double> yy (12,0.0); // y positions in terms of a0 for nearest neighbors
-  vector <double> zz (12,0.0); // z positions in terms of a0 for nearest neighbors
+  // vector <double> xx; // x positions in terms of a0 for nearest neighbors
+  // vector <double> yy; // y positions in terms of a0 for nearest neighbors
+  // vector <double> zz; // z positions in terms of a0 for nearest neighbors
+  // vector <double> r_mk_x, r_mk_y, r_mk_z; // ideal positions for a number of angles
   vector <double> new_x_axis (3,0); // New x axis position
   vector <double> new_y_axis (3.0), new_rotated_y (3,0); // New y axis position, new rotated y
   vector <double> new_z_axis (3,0); // New z axis position
@@ -144,6 +146,45 @@ int main(int argc, char** argv)
   ss << abs(new_z_axis[0]) << abs(new_z_axis[1]) << abs(new_z_axis[2]);
   ss >> axis;
 
+  /*structure = "fcc";
+  if (structure.compare("fcc") == 0)
+  {
+    xx.resize(12, 0.0);
+    yy.resize(12, 0.0);
+    zz.resize(12, 0.0);
+    xx[0] =  0.5; yy[0] =   0.5; zz[0] =  0.0;
+    xx[1] =  0.5; yy[1] =  -0.5; zz[1] =  0.0;
+    xx[2] =  0.5; yy[2] =   0.0; zz[2] =  0.5;
+    xx[3] =  0.5; yy[3] =   0.0; zz[3] = -0.5;
+    xx[4] = -0.5; yy[4] =   0.5; zz[4] =  0.0;
+    xx[5] = -0.5; yy[5] =  -0.5; zz[5] =  0.0;
+    xx[6] = -0.5; yy[6] =   0.0; zz[6] =  0.5;
+    xx[7] = -0.5; yy[7] =   0.0; zz[7] = -0.5;
+    xx[8] =  0.0; yy[8] =   0.5; zz[8] =  0.5;
+    xx[9] =  0.0; yy[9] =   0.5; zz[9] = -0.5;
+    xx[10] = 0.0; yy[10] = -0.5; zz[10] = 0.5;
+    xx[11] = 0.0; yy[11] = -0.5; zz[11] = -0.5;
+  }
+  else if (structure.compare("bcc") == 0)
+  {
+    xx.resize(8, 0.0);
+    yy.resize(8, 0.0);
+    zz.resize(8, 0.0);
+    xx[0] =  0.5; yy[0] =   0.5; zz[0] =  0.5;
+    xx[1] =  0.5; yy[1] =   0.5; zz[1] = -0.5;
+    xx[2] =  0.5; yy[2] =  -0.5; zz[2] =  0.5;
+    xx[3] =  0.5; yy[3] =  -0.5; zz[3] = -0.5;
+    xx[4] = -0.5; yy[4] =   0.5; zz[4] =  0.5;
+    xx[5] = -0.5; yy[5] =   0.5; zz[5] = -0.5;
+    xx[6] = -0.5; yy[6] =  -0.5; zz[6] =  0.5;
+    xx[7] = -0.5; yy[7] =  -0.5; zz[7] = -0.5;
+  }
+  else
+  {
+    cout << "Unknown structure.\n";
+    //return 16;
+  }*/
+
   switch (axis)
   {
     // Note that these all assume a misorientation of 45 degrees.
@@ -155,6 +196,9 @@ int main(int argc, char** argv)
       sintheta = 0.0;
 
       cutoff = 1.38;
+      // r_mk_x.resize(90, 0.0);
+      // r_mk_y.resize(90. 0.0);
+      // r_mk_z.resize(90, 0.0);
       break;
 
     case 11:
@@ -164,6 +208,9 @@ int main(int argc, char** argv)
       sintheta = -1;
 
       cutoff = 1.45;
+      // r_mk_x.resize(180, 0.0);
+      // r_mk_y.resize(180. 0.0);
+      // r_mk_z.resize(180, 0.0);
       break;
 
     case 111:
@@ -171,6 +218,9 @@ int main(int argc, char** argv)
       sintheta = -sqrt(2.0 / 3.0);
 
       cutoff = 1.34;
+      // r_mk_x.resize(120, 0.0);
+      // r_mk_y.resize(120. 0.0);
+      // r_mk_z.resize(120, 0.0);
       break;
 
     default:
@@ -183,7 +233,22 @@ int main(int argc, char** argv)
       // Note that these cutoff values seem to work better for during the simulation.
       // For the initial crystal, values of 1.25, 1.2, 1.245, and 1.25 seem to
       // work better for the cutoff values (for 100, 110, 111, and default respectively)
+      // r_mk_x.resize(180, 0.0);
+      // r_mk_y.resize(180. 0.0);
+      // r_mk_z.resize(180, 0.0);
   }
+
+  /*for (unsigned int i = 0; i < r_mk_x.size(); ++i)
+  {
+    for (unsigned int j = 0; j < xx.size(); ++j)
+    {
+      double theta_temp = i * PI / 180.0;
+      r_mk_x[i] = cos(theta) * xx[j] - sin(theta) * yy[j];
+      r_mk_y[i] = sin(theta) * xx[j] + cos(theta) * yy[j];
+      r_mk_z[i] = zz[j];
+    }
+  }
+  */
 
   cout << "\tRotated coordinate system:\n"
        << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
@@ -524,7 +589,45 @@ int main(int argc, char** argv)
         symm[id] += val;
       }
 
+      /*double amax = -500000;
+      for (unsigned int j = 0; j < r_mk_x.size(); ++j)
+      {
+        double ornt_prt = 0.0;
+        for (int l = 1; l <= iatom[0][i]; ++l)
+        {
+          for (unsigned int k = 0; k < xx.size(); ++k)
+          {
+            double x_dist = rxij - r_mk_x[j];
+            double y_dist = ryij - r_mk_y[j];
+            double z_dist = rzij - r_mk_z[j];
+            ornt_prt += exp(-x_dist*x_dist);
+            ornt_prt += exp(-y_dist*y_dist);
+            ornt_prt += exp(-z_dist*z_dist);
+          }
+        }
+        if (ornt_prt >= amax)
+        {
+          amax = ornt_prt
+        }
+        of (ornt_prt >= amax)
+        {
+          alpha[i] = j;
+        }
+      }
+      */
     }
+    /* vector <double> nalpha(r_mk_x.size(), 0.0);
+    for (unsigned int i = 0; i < atoms.size(); ++i)
+    {
+      for (unsigned int j = 0; j < r_mk_x.size(); ++j)
+      {
+        if (alpha[i] == j)
+        {
+          ++nalpha[j];
+        }
+      }
+    }
+    */
     for (unsigned int i = 0; i < symm.size(); ++i)
     {
       symm[i] /= iatom[0][i];
