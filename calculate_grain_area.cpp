@@ -16,11 +16,10 @@ struct fit{
 };
 #define PI 3.141592653589793
 
-double latticeParam(double T)
+double latticeParam(double T, int potential = 0)
 {
-  string db_file = "lattice_params.db", str;
+  string db_file = "/home/jarinf/projects/scripts/lattice_params.db", str;
   vector <fit> fits;
-  int potential;
   // A is the y intercept, B is the linear coefficient, C is the parabolic
   // coefficient
   double A, B, C;
@@ -43,7 +42,7 @@ double latticeParam(double T)
   {
     fit temp;
     stringstream ss(str);
-    if (!(ss >> temp.name >> temp.T1 >> temp.lin_y_int >> temp.lin_slope
+    if (!(ss >> temp.name >> temp.T1 >> temp.lin_y_int >> temp.lin_slope >> temp.T2
              >> temp.parabolic_int >> temp.parabolic_lin >> temp.parabolic_term))
     {
       cout << "Read error.\n";
@@ -52,19 +51,24 @@ double latticeParam(double T)
     fits.push_back(temp);
   }
 
-  cout << "There are " << fits.size() << " fits:\n";
-  for (unsigned int i = 0; i < fits.size(); ++i)
+  if (potential == 0)
   {
-    cout << "  " << i + 1 << " - " << fits[i].name << endl;
+    cout << "There are " << fits.size() << " fits:\n";
+    for (unsigned int i = 0; i < fits.size(); ++i)
+    {
+      cout << "  " << i + 1 << " - " << fits[i].name << endl;
+    }
+    cout << "Please enter the number of the potential you want to use: ";
+    cin >> potential;
   }
-  cout << "Please enter the number of the potential you want to use: ";
-  cin >> potential;
-  --potential;
 
-  if (potential > fits.size())
+  --potential;
+  while (potential > fits.size() || potential < 0)
   {
     cout << "Not a valid number.  If there are additional potentials you want to use, add them to the \"" << db_file << "\" database file.\n";
-    exit(12);
+    cout << "Please enter the number of the potential you want to use: ";
+    cin >> potential;
+    --potential;
   }
 
 
@@ -94,11 +98,12 @@ int main(int argc, char **argv)
   string filename, filename2, str; // data file, junk variable.
   double T, a0, a0_0, area, scale_factor; // temperature, lattice parameter, area
   int N1_0, N2_0, N1_next, N2_next; // Number of atoms in grains 1 and 2 at times 1 and 2
+  int potential;
   double t0, t1, Lz; // time at 1, time at 2, height of cylindrical grain, GBE
   // NOTE: eGB is generally taken as 1.5.  I should use a value close to what
   // was calculated in the GBE calculations.
 
-  if (argc != 4)
+  if (argc < 5)
   {
     cout << "Please enter the filename containing the number of atoms in each grain: ";
     cin  >> filename;
@@ -114,19 +119,36 @@ int main(int argc, char **argv)
   }
   else
   {
-    filename = argv[1]; // get the filename
-    T = strtod(argv[2], NULL); // get the temperature.
-    Lz = strtod(argv[3], NULL); // get the cylinder height
-    a0_0 = strtod(argv[4], NULL); // get the 0 K lattice parameter
+    if (argc == 5)
+    {
+      filename = argv[1]; // get the filename
+      T = strtod(argv[2], NULL); // get the temperature.
+      Lz = strtod(argv[3], NULL); // get the cylinder height
+      a0_0 = strtod(argv[4], NULL); // get the 0 K lattice parameter
+      a0 = latticeParam(T);
+    }
+    else if (argc == 6)
+    {
+      filename = argv[1]; // get the filename
+      T = strtod(argv[2], NULL); // get the temperature.
+      Lz = strtod(argv[3], NULL); // get the cylinder height
+      a0_0 = strtod(argv[4], NULL); // get the 0 K lattice parameter
+      istringstream potential_input(argv[5]);
+      if (!(potential_input >> potential))
+      {
+        cout << "Error: potential number not valid.  Please enter a positive integer for argument 5.\n";
+        return 11;
+      }
+      a0 = latticeParam(T, potential);
+    }
   }
 
   cout << "Input parameters:"
        << "\n\tSimulation temperature: " << T
        << "\n\tCylinder thickness: " << Lz
-       << "\n\t0 K lattice parameter: " << a0_0 << endl;
+       << "\n\t0 K lattice parameter: " << a0_0
+       << "\n\tLattice parameter: " << a0 << endl;
 
-  a0 = latticeParam(T);
-  cout << "\tLattice parameter: " << a0 << endl;
   scale_factor = a0 / a0_0; // Important to account for expansion of the lattice
   Lz *= scale_factor;
 

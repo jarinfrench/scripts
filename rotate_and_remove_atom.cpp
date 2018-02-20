@@ -220,7 +220,7 @@ int main(int argc, char **argv)
     }
   }
 
-  if ((*max_element(rcut.begin(), rcut.end(), mapValueCmp)).second < 1)
+  if ((*max_element(rcut.begin(), rcut.end(), mapValueCmp)).second < 0.5)
   {
     cout << "Error!  Not enough memory available!\n";
     return 15;
