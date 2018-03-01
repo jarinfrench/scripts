@@ -9,6 +9,18 @@
 
 using namespace std;
 
+bool checkUnwrapped(const vector <Atom> & a)
+{
+  for (unsigned int i = 0; i < a.size(); ++i)
+  {
+    if (a[i].getXu() != 0 || a[i].getYu() != 0 || a[i].getZu() != 0)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 void processFile(ifstream & fin, vector <Atom> & atoms)
 {
   string str;
@@ -53,6 +65,18 @@ void processFile(ifstream & fin, vector <Atom> & atoms)
     atoms[atom_id - 1].setMark(grain_num);
     ++n_read;
   }
+
+  if (checkUnwrapped(atoms))
+  {
+    cout << "WARNING: All unwrapped coordinate values are zero.  Proceeding using wrapped coordinates.\n";
+    for (unsigned int i = 0; i < atoms.size(); ++i)
+    {
+      atoms[i].setXu(atoms[i].getX());
+      atoms[i].setYu(atoms[i].getY());
+      atoms[i].setZu(atoms[i].getZ());
+    }
+  }
+
   if (n_read != atoms.size())
   {
     cout << "Error reading file.  n_read = " << n_read << " != atoms.size() = " << atoms.size() << endl;
