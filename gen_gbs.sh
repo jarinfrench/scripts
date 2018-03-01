@@ -36,7 +36,9 @@ echo $FN $radius $b_type $ntypes $cutoff > rotate_input.txt
 
 # based on the filename, the axis is determined.  Can only handle 100 to 135 at
 # this point.  Further modifications may be necessary to handle larger axes.
-axis=`echo $FN | grep -o "1[0-3][0-5]"`
+# Currently assumes (as of 1 March 2018) that the axis is immediately before a
+# period, and that no other set of three numbers immediately precedes a period.
+axis=`echo $FN | grep -o "1[0-9][0-9]\." | cut -d. -f1`
 
 # Utilize the symmetry of the axis.
 if [ $axis -eq 111 ]; then
