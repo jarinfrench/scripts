@@ -110,29 +110,35 @@ int main(int argc, char **argv)
 {
   string filename1, filename2, input_file, output_file, str;
   vector <Atom> atoms_1, atoms_2;
-  bool input;
+  bool input, compare_to_one_file = false;
 
   if (argc == 2)
   {
     input_file = argv[1];
     input = true;
+    char comp;
+    cout << "Would you like to compare all files to the first file? ";
+    cin  >> comp;
+
+    if (comp == 'y' || comp == 'Y')
+      compare_to_one_file = true;
   }
   else if (argc == 3)
   {
     filename1 = argv[1];
     filename2 = argv[2];
     input = false;
-    output_file = "displacement_data.dat";
+    output_file = filename1.substr(0,filename1.find("_")) + "to"+filename2.substr(0,filename2.find("_")) + "_displacement_data.dat";
   }
   else
   {
     cout << "Please enter the reference system: ";
     cin  >> filename1;
 
-    cout << "Please enter the current system: ";
+    cout << "Please enter the compared system: ";
     cin  >> filename2;
 
-    output_file = "displacement_data.dat";
+    output_file = filename1.substr(0,filename1.find("_")) + "to"+filename2.substr(0,filename2.find("_")) + "_displacement_data.dat";
 
     input = false;
   }
@@ -141,8 +147,6 @@ int main(int argc, char **argv)
   {
     ifstream fin_input(input_file.c_str());
     fin_input >> filename1;
-
-    output_file = filename1.substr(0,filename1.find("_")) + "_displacement_data.dat";
 
     ifstream fin(filename1.c_str());
     if (fin.fail())
@@ -158,6 +162,7 @@ int main(int argc, char **argv)
 
     while (fin_input >> filename2)
     {
+      output_file = filename1.substr(0,filename1.find("_")) + "to"+filename2.substr(0,filename2.find("_")) + "_displacement_data.dat";
       ifstream fin2(filename2.c_str());
       output_file = filename2.substr(0,filename2.find("_")) + "_displacement_data.dat";
 
@@ -185,6 +190,12 @@ int main(int argc, char **argv)
       }
 
       writeData(fout, atoms_1, atoms_2);
+      // Here we implement an option to compare with only one data file
+      if (!compare_to_one_file)
+      {
+        atoms_1 = atoms_2;
+      }
+
       fout.close();
     }
   }
