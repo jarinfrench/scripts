@@ -117,11 +117,11 @@ int main(int argc, char **argv)
     input_file = argv[1];
     input = true;
     char comp;
-    cout << "Would you like to compare all files to the first file? ";
-    cin  >> comp;
+    //cout << "Would you like to compare all files to the first file? ";
+    //cin  >> comp;
 
-    if (comp == 'y' || comp == 'Y')
-      compare_to_one_file = true;
+    //if (comp == 'y' || comp == 'Y')
+    //  compare_to_one_file = true;
   }
   else if (argc == 3)
   {
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
     {
       output_file = filename1.substr(0,filename1.find("_")) + "to"+filename2.substr(0,filename2.find("_")) + "_displacement_data.dat";
       ifstream fin2(filename2.c_str());
-      output_file = filename2.substr(0,filename2.find("_")) + "_displacement_data.dat";
+      //output_file = filename2.substr(0,filename2.find("_")) + "_displacement_data.dat";
 
       if (fin2.fail())
       {
@@ -194,6 +194,7 @@ int main(int argc, char **argv)
       if (!compare_to_one_file)
       {
         atoms_1 = atoms_2;
+        filename1 = filename2;
       }
 
       fout.close();

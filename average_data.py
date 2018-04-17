@@ -40,7 +40,7 @@ f2 = open(average_data_file,'w')
 # Now let's read the actual data
 data = [None] * num_files
 for rows in izip(*f): # for each row in each file
-    if not all(a.startswith("#") for a in rows):
+    if not all(a.startswith("#") for a in rows) and not all(a[0].isalpha() for a in rows):
         for i in range(num_files):
             temp = rows[i].split() # Split the data by spaces
             data_app = []

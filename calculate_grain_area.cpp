@@ -71,6 +71,7 @@ double latticeParam(double T, int potential = 0)
     --potential;
   }
 
+  cout << "\tUsing the " << fits[potential].name << " potential.\n";
 
   if (T >= 0.0 && T <= fits[potential].T1)
   {

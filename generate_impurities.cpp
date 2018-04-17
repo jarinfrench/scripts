@@ -396,7 +396,7 @@ int main(int argc, char** argv)
   if (n_O_removed != 2 * n_U_removed)
   {
     cout << "Error maintaining charge neutrality!\n"
-         << "n_O_removed = " << n_O_removed << " != 2 * n_U_removed = " << 2 * n_U_removed;
+         << "n_O_removed = " << n_O_removed << " != 2 * n_U_removed = " << 2 * n_U_removed << endl;;
     return 6;
   }
 
