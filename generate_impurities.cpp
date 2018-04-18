@@ -127,8 +127,6 @@ int main(int argc, char** argv)
 
   // Read the data!
   getline(fin, str); // Get the header line
-  fout1 << "These UO2 coordinates have vacancies: [ID type charge x y z]\n\n";
-  fout2 << "These UO2 coordinates have Xe interstitials: [ID type charge x y z]\n\n";
 
   // Get the number of atoms
   fin >> N >> str;
@@ -137,6 +135,10 @@ int main(int argc, char** argv)
   N_sub = N - 2 * n2; // Calculate how many atoms are left after we replace UO2 with Xe
   atoms.resize(N, Atom());
 
+  cout << "There will be " << n2 << " Xe substitutions made.\n";
+
+  fout1 << "These UO2 coordinates have " << n2 << " vacancies: [ID type charge x y z]\n\n";
+  fout2 << "These UO2 coordinates have " << n2 << " Xe interstitials: [ID type charge x y z]\n\n";
   fout1 << N_vac << "  atoms\n"; // remove a U atom with it's two O neighbors
   fout2 << N_sub << "  atoms\n"; // same as above, but replace U with Xe
 
