@@ -39,12 +39,12 @@ int main(int argc, char** argv)
 
   // Variables for the symmetry parameters
   double coeffs [2] = {3.0, 2.0}; // Coefficients of the symmetry parameter equation unrotated/rotated symmetry parameter values.
-  double xtemp, ytemp, y2, cutoff = 0.0, costheta_sq; // temp position variables, sin/cos of misorientation, cutoff value
+  double xtemp, ytemp, ztemp, y2, cutoff = 0.0, costheta_sq; // temp position variables, sin/cos of misorientation, cutoff value
   double total1 = 0.0; // symmetry parameters
   vector <double> new_x_axis (3,0), old_x_axis (3,0); // New x axis position, old x in terms of new frame
   vector <double> new_y_axis (3.0), old_y_axis (3,0); // New y axis position, old y
-  vector <double> new_z_axis (3,0); // New z axis position, old z
-  double magnitude_old_x, magnitude_old_y; // magnitude of the old x, y, and z axes.
+  vector <double> new_z_axis (3,0), old_z_axis (3,0); // New z axis position, old z
+  double magnitude_old_x, magnitude_old_y, magnitude_old_z; // magnitude of the old x, y, and z axes.
   int axis; // Miller indices of rotation axis
   double costheta, sintheta;
 
@@ -147,13 +147,19 @@ int main(int argc, char** argv)
   old_y_axis[1] = new_y_axis[1];
   old_y_axis[2] = new_z_axis[1];
 
+  old_z_axis[0] = new_x_axis[2];
+  old_z_axis[1] = new_y_axis[2];
+  old_z_axis[2] = new_z_axis[2];
+
   magnitude_old_x = sqrt(old_x_axis[0] * old_x_axis[0] + old_x_axis[1] * old_x_axis[1] + old_x_axis[2] * old_x_axis[2]);
   magnitude_old_y = sqrt(old_y_axis[0] * old_y_axis[0] + old_y_axis[1] * old_y_axis[1] + old_y_axis[2] * old_y_axis[2]);
+  magnitude_old_z = sqrt(old_z_axis[0] * old_z_axis[0] + old_z_axis[1] * old_z_axis[1] + old_z_axis[2] * old_z_axis[2]);
 
   for (unsigned int i = 0; i < old_x_axis.size(); ++i)
   {
     old_x_axis[i] /= magnitude_old_x;
     old_y_axis[i] /= magnitude_old_y;
+    old_z_axis[i] /= magnitude_old_z;
   }
 
   stringstream ss;
@@ -516,8 +522,9 @@ int main(int argc, char** argv)
 
         xtemp = old_x_axis[0] * rxij + old_x_axis[1] * ryij + old_x_axis[2] * rzij;
         ytemp = old_y_axis[0] * rxij + old_y_axis[1] * ryij + old_y_axis[2] * rzij;
+        ztemp = old_z_axis[0] * rxij + old_z_axis[1] * ryij + old_z_axis[2] * rzij;
         // Calculate the magnitude of the distance
-        drij_sq = xtemp * xtemp + ytemp * ytemp;
+        drij_sq = xtemp * xtemp + ytemp * ytemp + ztemp * ztemp;
 
         if (drij_sq < 1.0E-8) // Handles the case where the projected position of the atom is right on top of the current atom.
         {
@@ -526,7 +533,7 @@ int main(int argc, char** argv)
           continue;
         }
         // cos = dot(A,B) / (|A|*|B|)
-        costheta_sq = (old_x_axis[0] * xtemp + old_x_axis[1] * ytemp) / ((old_x_axis[0] * old_x_axis[0] + old_x_axis[1] * old_x_axis[1]) * drij_sq);
+        costheta_sq = (old_x_axis[0] * xtemp + old_x_axis[1] * ytemp + old_x_axis[2] * ztemp) / (magnitude_old_x * magnitude_old_x * drij_sq);
         double val = (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
         symm[i] += val;
       }
