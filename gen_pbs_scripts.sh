@@ -58,11 +58,11 @@ if [[ "$destination" =~ ^inl$ ]]; then # Using INL
 #PBS -N ${element}_no_GB
 
 source /etc/profile.d/modules.sh
-module load OpenMPI
+module load MVAPICH2/2.2-GCC-4.9.3
 
 cd $``PBS_O_WORKDIR
 
-mpirun /home/frenjari/projects/lammps/lammps-11Aug17/src/lmp_openmpigccfftw_falcon -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_no_GB.in > minimize_${axis}_no_GB.txt
+mpirun /home/frenjari/projects/lammps/lammps-11Aug17/src/lmp_mvapich2gccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_no_GB.in > minimize_${axis}_no_GB.txt
 
 exit;" > lmp_minimize_${axis}_no_GB.pbs
 
@@ -135,11 +135,11 @@ case $usefile in
 #PBS -N ${element}_${axis}_${theta}degree
 
 source /etc/profile.d/modules.sh
-module load OpenMPI
+module load MVAPICH2/2.2-GCC-4.9.3
 
 cd $``PBS_O_WORKDIR
 
-mpirun /home/frenjari/projects/lammps/lammps-11Aug17/src/lmp_openmpigccfftw_falcon -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_${theta}degree.in > minimize_${axis}_${theta}degree.txt
+mpirun /home/frenjari/projects/lammps/lammps-11Aug17/src/lmp_mvapich2gccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_${theta}degree.in > minimize_${axis}_${theta}degree.txt
 
 exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
 
@@ -207,11 +207,11 @@ exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
   #PBS -N ${element}_${axis}_$((${i}*5))degree
 
   source /etc/profile.d/modules.sh
-  module load OpenMPI
+  module load MVAPICH2/2.2-GCC-4.9.3
 
   cd $``PBS_O_WORKDIR
 
-  mpirun /home/frenjari/projects/lammps/lammps-11Aug17/src/lmp_openmpigccfftw_falcon -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in > minimize_${axis}_$((${i}*5)).00degree.txt
+  mpirun /home/frenjari/projects/lammps/lammps-11Aug17/src/lmp_mvapich2gccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in > minimize_${axis}_$((${i}*5)).00degree.txt
 
   exit;" >> lmp_minimize_${axis}_$((${i}*5)).00degree.pbs
 
@@ -282,11 +282,11 @@ exit;" >> lmp_minimize_${axis}_${theta}degree.pbs
 #PBS -N ${element}_${axis}_$((${i}*5))degree
 
 source /etc/profile.d/modules.sh
-module load OpenMPI
+module load MVAPICH2/2.2-GCC-4.9.3
 
 cd $``PBS_O_WORKDIR
 
-mpirun /home/frenjari/projects/lammps/lammps-11Aug17/src/lmp_openmpigccfftw_falcon -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in > minimize_${axis}_$((${i}*5)).00degree.txt
+mpirun /home/frenjari/projects/lammps/lammps-11Aug17/src/lmp_mvapich2gccfftw -var SEED \`bash -c 'echo $``RANDOM'\` < ${element}_structure_minimize_${axis}_$((${i}*5)).00degree.in > minimize_${axis}_$((${i}*5)).00degree.txt
 
 exit;" >> lmp_minimize_${axis}_$((${i}*5)).00degree.pbs
 

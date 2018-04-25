@@ -6,6 +6,7 @@
 #include <vector>
 #include <cmath> // for cos, sin
 #include <cstdlib>
+#include <cassert>
 #include "atom.h"
 
 using namespace std;
@@ -45,6 +46,7 @@ int main(int argc, char** argv)
   vector <double> new_y_axis (3.0), old_y_axis (3,0); // New y axis position, old y
   vector <double> new_z_axis (3,0), old_z_axis (3,0); // New z axis position, old z
   double magnitude_old_x, magnitude_old_y, magnitude_old_z; // magnitude of the old x, y, and z axes.
+  double magnitude_new_x, magnitude_new_y, magnitude_new_z; // magnitude of the new x, y, and z axes.
   int axis; // Miller indices of rotation axis
   double costheta, sintheta;
 
@@ -136,17 +138,35 @@ int main(int argc, char** argv)
     cout << "Error reading new z axis.\n";
     return 9;
   }
-  // norm_z = sqrt(new_z_axis[0] * new_z_axis[0] + new_z_axis[1] * new_z_axis[1] + new_z_axis[2] * new_z_axis[2]);
+  cout << "\tRotated coordinate system:\n"
+       << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
+       << "\t  y = " << new_y_axis[0] << " " << new_y_axis[1] << " " << new_y_axis[2] << endl
+       << "\t  z = " << new_z_axis[0] << " " << new_z_axis[1] << " " << new_z_axis[2] << endl;
 
+  magnitude_new_x = sqrt(new_x_axis[0] * new_x_axis[0] + new_x_axis[1] * new_x_axis[1] + new_x_axis[2] * new_x_axis[2]);
+  magnitude_new_y = sqrt(new_y_axis[0] * new_y_axis[0] + new_y_axis[1] * new_y_axis[1] + new_y_axis[2] * new_y_axis[2]);
+  magnitude_new_z = sqrt(new_z_axis[0] * new_z_axis[0] + new_z_axis[1] * new_z_axis[1] + new_z_axis[2] * new_z_axis[2]);
+
+  for (unsigned int i = 0; i < new_x_axis.size(); ++i)
+  {
+    new_x_axis[i] /= magnitude_new_x;
+    new_y_axis[i] /= magnitude_new_y;
+    new_z_axis[i] /= magnitude_new_z;
+  }
+
+  // These are the N, P, and Q vectors (as discussed in https://math.stackexchange.com/q/1872814)
   // extract the orientation of the original x, y, and z axes
+  // This is P
   old_x_axis[0] = new_x_axis[0];
   old_x_axis[1] = new_y_axis[0];
   old_x_axis[2] = new_z_axis[0];
 
+  // This is Q
   old_y_axis[0] = new_x_axis[1];
   old_y_axis[1] = new_y_axis[1];
   old_y_axis[2] = new_z_axis[1];
 
+  // This is N
   old_z_axis[0] = new_x_axis[2];
   old_z_axis[1] = new_y_axis[2];
   old_z_axis[2] = new_z_axis[2];
@@ -155,12 +175,17 @@ int main(int argc, char** argv)
   magnitude_old_y = sqrt(old_y_axis[0] * old_y_axis[0] + old_y_axis[1] * old_y_axis[1] + old_y_axis[2] * old_y_axis[2]);
   magnitude_old_z = sqrt(old_z_axis[0] * old_z_axis[0] + old_z_axis[1] * old_z_axis[1] + old_z_axis[2] * old_z_axis[2]);
 
+  // Normalize the orientation of <100> in the new reference frame
   for (unsigned int i = 0; i < old_x_axis.size(); ++i)
   {
     old_x_axis[i] /= magnitude_old_x;
     old_y_axis[i] /= magnitude_old_y;
     old_z_axis[i] /= magnitude_old_z;
   }
+
+  assert(old_x_axis[0] * old_y_axis[0] + old_x_axis[1] * old_y_axis[1] + old_x_axis[2] * old_y_axis[2] < 1E-8);
+  assert(old_x_axis[0] * old_z_axis[0] + old_x_axis[1] * old_z_axis[1] + old_x_axis[2] * old_z_axis[2] < 1E-8);
+  assert(old_y_axis[0] * old_z_axis[0] + old_y_axis[1] * old_z_axis[1] + old_y_axis[2] * old_z_axis[2] < 1E-8);
 
   stringstream ss;
   ss << abs(new_z_axis[0]) << abs(new_z_axis[1]) << abs(new_z_axis[2]);
@@ -207,10 +232,6 @@ int main(int argc, char** argv)
       // work better for the cutoff values (for 100, 110, 111, and default respectively)
   }*/
 
-  cout << "\tRotated coordinate system:\n"
-       << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
-       << "\t  y = " << new_y_axis[0] << " " << new_y_axis[1] << " " << new_y_axis[2] << endl
-       << "\t  z = " << new_z_axis[0] << " " << new_z_axis[1] << " " << new_z_axis[2] << endl;
 
   int aa = 1;
   while (getline(fin_input, filename1) && aa <= n_files)
@@ -475,8 +496,8 @@ int main(int argc, char** argv)
                     }
 
                     // Create the neighbor list
-                    iatom[0][id] += 1; //for atom id
-                    iatom[(iatom[0][id])][id] = jd;
+                    iatom[0][id] += 1; //for atom id - number of neighbors
+                    iatom[(iatom[0][id])][id] = jd; // point to the next atom
                     iatom[0][jd] += 1; // for atom jd
                     iatom[(iatom[0][jd])][jd] = id;
                   } // m
@@ -503,6 +524,14 @@ int main(int argc, char** argv)
       x = atoms[i].getX();
       y = atoms[i].getY();
       z = atoms[i].getZ();
+
+      // Get the position of the atom in the <100> reference frame
+      xtemp = old_x_axis[0] * x + old_x_axis[1] * y + old_x_axis[2] * z;
+      ytemp = old_y_axis[0] * x + old_y_axis[1] * y + old_y_axis[2] * z;
+
+      x = xtemp;
+      y = ytemp;
+
       total1 = 0.0; // reset the total
       // We start at l = 1 because if we start at l = 0, we just re-use the same
       // atom over and over.
@@ -510,21 +539,20 @@ int main(int argc, char** argv)
       {
         unsigned int id = iatom[l][i];
 
+        // Get the position of the atom in the <100> reference frame
+        xtemp = old_x_axis[0] * atoms[id].getX() + old_x_axis[1] * atoms[id].getY() + old_x_axis[2] * atoms[id].getZ();
+        ytemp = old_y_axis[0] * atoms[id].getX() + old_y_axis[1] * atoms[id].getY() + old_y_axis[2] * atoms[id].getZ();
+
         // calculate the distances
-        rxij = atoms[id].getX() - x;
-        ryij = atoms[id].getY() - y;
-        rzij = atoms[id].getZ() - z;
+        rxij = xtemp - x;
+        ryij = ytemp - y;
 
         // Apply PBCs
         rxij = rxij - anInt(rxij / Lx) * Lx;
         ryij = ryij - anInt(ryij / Ly) * Ly;
-        rzij = rzij - anInt(rzij / Lz) * Lz;
 
-        xtemp = old_x_axis[0] * rxij + old_x_axis[1] * ryij + old_x_axis[2] * rzij;
-        ytemp = old_y_axis[0] * rxij + old_y_axis[1] * ryij + old_y_axis[2] * rzij;
-        ztemp = old_z_axis[0] * rxij + old_z_axis[1] * ryij + old_z_axis[2] * rzij;
-        // Calculate the magnitude of the distance
-        drij_sq = xtemp * xtemp + ytemp * ytemp + ztemp * ztemp;
+        // Calculate the magnitude of the distance, projected onto the (001) plane
+        drij_sq = rxij * rxij + ryij * ryij;
 
         if (drij_sq < 1.0E-8) // Handles the case where the projected position of the atom is right on top of the current atom.
         {
@@ -533,7 +561,7 @@ int main(int argc, char** argv)
           continue;
         }
         // cos = dot(A,B) / (|A|*|B|)
-        costheta_sq = (old_x_axis[0] * xtemp + old_x_axis[1] * ytemp + old_x_axis[2] * ztemp) / (magnitude_old_x * magnitude_old_x * drij_sq);
+        costheta_sq = (rxij * rxij) / drij_sq;
         double val = (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
         symm[i] += val;
       }
