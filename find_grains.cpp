@@ -183,10 +183,6 @@ int main(int argc, char** argv)
     old_z_axis[i] /= magnitude_old_z;
   }
 
-  assert(old_x_axis[0] * old_y_axis[0] + old_x_axis[1] * old_y_axis[1] + old_x_axis[2] * old_y_axis[2] < 1E-8);
-  assert(old_x_axis[0] * old_z_axis[0] + old_x_axis[1] * old_z_axis[1] + old_x_axis[2] * old_z_axis[2] < 1E-8);
-  assert(old_y_axis[0] * old_z_axis[0] + old_y_axis[1] * old_z_axis[1] + old_y_axis[2] * old_z_axis[2] < 1E-8);
-
   stringstream ss;
   ss << abs(new_z_axis[0]) << abs(new_z_axis[1]) << abs(new_z_axis[2]);
   ss >> axis;
@@ -231,7 +227,7 @@ int main(int argc, char** argv)
       // For the initial crystal, values of 1.25, 1.2, 1.245, and 1.25 seem to
       // work better for the cutoff values (for 100, 110, 111, and default respectively)
   }*/
-
+  cutoff = 1.25;
 
   int aa = 1;
   while (getline(fin_input, filename1) && aa <= n_files)
@@ -526,11 +522,11 @@ int main(int argc, char** argv)
       z = atoms[i].getZ();
 
       // Get the position of the atom in the <100> reference frame
-      xtemp = old_x_axis[0] * x + old_x_axis[1] * y + old_x_axis[2] * z;
+      /*xtemp = old_x_axis[0] * x + old_x_axis[1] * y + old_x_axis[2] * z;
       ytemp = old_y_axis[0] * x + old_y_axis[1] * y + old_y_axis[2] * z;
 
       x = xtemp;
-      y = ytemp;
+      y = ytemp;*/
 
       total1 = 0.0; // reset the total
       // We start at l = 1 because if we start at l = 0, we just re-use the same
@@ -540,19 +536,35 @@ int main(int argc, char** argv)
         unsigned int id = iatom[l][i];
 
         // Get the position of the atom in the <100> reference frame
-        xtemp = old_x_axis[0] * atoms[id].getX() + old_x_axis[1] * atoms[id].getY() + old_x_axis[2] * atoms[id].getZ();
-        ytemp = old_y_axis[0] * atoms[id].getX() + old_y_axis[1] * atoms[id].getY() + old_y_axis[2] * atoms[id].getZ();
+        /*xtemp = old_x_axis[0] * atoms[id].getX() + old_x_axis[1] * atoms[id].getY() + old_x_axis[2] * atoms[id].getZ();
+        ytemp = old_y_axis[0] * atoms[id].getX() + old_y_axis[1] * atoms[id].getY() + old_y_axis[2] * atoms[id].getZ();*/
 
         // calculate the distances
-        rxij = xtemp - x;
-        ryij = ytemp - y;
+        // rxij = xtemp - x;
+        // ryij = ytemp - y;
+
+        rxij = atoms[id].getX() - x;
+        ryij = atoms[id].getY() - y;
+        rzij = atoms[id].getZ() - z;
 
         // Apply PBCs
         rxij = rxij - anInt(rxij / Lx) * Lx;
         ryij = ryij - anInt(ryij / Ly) * Ly;
+        rzij = rzij - anInt(rzij / Lz) * Lz;
 
+        // Project this vector onto the (001) plane
+        // NOTE: without this, the <111> works well, and the <100> and <110> do not work well
+        // NOTE: With this, the <111> does not work well, and the <100> and <110> do.
+        /*xtemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[0];
+        ytemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[1];
+        ztemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[2];
+
+        rxij -= xtemp;
+        ryij -= ytemp;
+        rzij -= ztemp;
+*/
         // Calculate the magnitude of the distance, projected onto the (001) plane
-        drij_sq = rxij * rxij + ryij * ryij;
+        drij_sq = rxij * rxij + ryij * ryij + rzij * rzij;
 
         if (drij_sq < 1.0E-8) // Handles the case where the projected position of the atom is right on top of the current atom.
         {
@@ -561,7 +573,8 @@ int main(int argc, char** argv)
           continue;
         }
         // cos = dot(A,B) / (|A|*|B|)
-        costheta_sq = (rxij * rxij) / drij_sq;
+        double dotp = (rxij * old_x_axis[0] + ryij * old_x_axis[1] + rzij * old_x_axis[2]);
+        costheta_sq = (dotp * dotp) / drij_sq;
         double val = (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
         symm[i] += val;
       }
