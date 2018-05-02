@@ -40,15 +40,12 @@ int main(int argc, char** argv)
 
   // Variables for the symmetry parameters
   double coeffs [2] = {3.0, 2.0}; // Coefficients of the symmetry parameter equation unrotated/rotated symmetry parameter values.
-  double xtemp, ytemp, ztemp, y2, cutoff = 0.0, costheta_sq; // temp position variables, sin/cos of misorientation, cutoff value
-  double total1 = 0.0; // symmetry parameters
+  double xtemp, ytemp, ztemp, cutoff = 1.25, costheta_sq; // temp position variables, cutoff value, square of cosine
   vector <double> new_x_axis (3,0), old_x_axis (3,0); // New x axis position, old x in terms of new frame
-  vector <double> new_y_axis (3.0), old_y_axis (3,0); // New y axis position, old y
+  vector <double> new_y_axis (3.0); // New y axis position, old y
   vector <double> new_z_axis (3,0), old_z_axis (3,0); // New z axis position, old z
-  double magnitude_old_x, magnitude_old_y, magnitude_old_z; // magnitude of the old x, y, and z axes.
+  double magnitude_old_x, magnitude_old_z; // magnitude of the old x, y, and z axes.
   double magnitude_new_x, magnitude_new_y, magnitude_new_z; // magnitude of the new x, y, and z axes.
-  int axis; // Miller indices of rotation axis
-  double costheta, sintheta;
 
   // Input file parameters
   int n_files; // Number of files to be read, rotation axis
@@ -154,17 +151,11 @@ int main(int argc, char** argv)
     new_z_axis[i] /= magnitude_new_z;
   }
 
-  // These are the N, P, and Q vectors (as discussed in https://math.stackexchange.com/q/1872814)
-  // extract the orientation of the original x, y, and z axes
+  // extract the orientation of the original x, and z axes for use later
   // This is P
   old_x_axis[0] = new_x_axis[0];
   old_x_axis[1] = new_y_axis[0];
   old_x_axis[2] = new_z_axis[0];
-
-  // This is Q
-  old_y_axis[0] = new_x_axis[1];
-  old_y_axis[1] = new_y_axis[1];
-  old_y_axis[2] = new_z_axis[1];
 
   // This is N
   old_z_axis[0] = new_x_axis[2];
@@ -172,62 +163,14 @@ int main(int argc, char** argv)
   old_z_axis[2] = new_z_axis[2];
 
   magnitude_old_x = sqrt(old_x_axis[0] * old_x_axis[0] + old_x_axis[1] * old_x_axis[1] + old_x_axis[2] * old_x_axis[2]);
-  magnitude_old_y = sqrt(old_y_axis[0] * old_y_axis[0] + old_y_axis[1] * old_y_axis[1] + old_y_axis[2] * old_y_axis[2]);
   magnitude_old_z = sqrt(old_z_axis[0] * old_z_axis[0] + old_z_axis[1] * old_z_axis[1] + old_z_axis[2] * old_z_axis[2]);
 
   // Normalize the orientation of <100> in the new reference frame
   for (unsigned int i = 0; i < old_x_axis.size(); ++i)
   {
     old_x_axis[i] /= magnitude_old_x;
-    old_y_axis[i] /= magnitude_old_y;
     old_z_axis[i] /= magnitude_old_z;
   }
-
-  stringstream ss;
-  ss << abs(new_z_axis[0]) << abs(new_z_axis[1]) << abs(new_z_axis[2]);
-  ss >> axis;
-
-  /*switch (axis)
-  {
-    // Note that these all assume a misorientation of 45 degrees.
-    case 1:
-    case 10:
-    case 100:
-      //theta = 0.0;
-      costheta = 1.0;
-      sintheta = 0.0;
-
-      cutoff = 1.38;
-      break;
-
-    case 11:
-    case 101:
-    case 110:
-      costheta = 0;
-      sintheta = -1;
-
-      cutoff = 1.45;
-      break;
-
-    case 111:
-      costheta = sqrt(1.0 / 3.0);
-      sintheta = -sqrt(2.0 / 3.0);
-
-      cutoff = 1.34;
-      break;
-
-    default:
-      cout << "This axis is not implemented explicitly. Using default values.\n";
-      double theta_x = acos(new_z_axis[2] / norm_z);
-      costheta = cos(theta_x);
-      sintheta = -sin(theta_x);
-
-      cutoff = 1.35;
-      // Note that these cutoff values seem to work better for during the simulation.
-      // For the initial crystal, values of 1.25, 1.2, 1.245, and 1.25 seem to
-      // work better for the cutoff values (for 100, 110, 111, and default respectively)
-  }*/
-  cutoff = 1.25;
 
   int aa = 1;
   while (getline(fin_input, filename1) && aa <= n_files)
@@ -488,6 +431,7 @@ int main(int argc, char** argv)
 
                     if (drij_sq < 1.0E-8) // This should never be hit, but just in case
                     {
+                      cout << "Same atom is being compared... something is wrong.\n";
                       continue; // This is the same atom!
                     }
 
@@ -521,49 +465,34 @@ int main(int argc, char** argv)
       y = atoms[i].getY();
       z = atoms[i].getZ();
 
-      // Get the position of the atom in the <100> reference frame
-      /*xtemp = old_x_axis[0] * x + old_x_axis[1] * y + old_x_axis[2] * z;
-      ytemp = old_y_axis[0] * x + old_y_axis[1] * y + old_y_axis[2] * z;
-
-      x = xtemp;
-      y = ytemp;*/
-
-      total1 = 0.0; // reset the total
       // We start at l = 1 because if we start at l = 0, we just re-use the same
       // atom over and over.
       for (int l = 1; l <= iatom[0][i]; ++l)
       {
         unsigned int id = iatom[l][i];
 
-        // Get the position of the atom in the <100> reference frame
-        /*xtemp = old_x_axis[0] * atoms[id].getX() + old_x_axis[1] * atoms[id].getY() + old_x_axis[2] * atoms[id].getZ();
-        ytemp = old_y_axis[0] * atoms[id].getX() + old_y_axis[1] * atoms[id].getY() + old_y_axis[2] * atoms[id].getZ();*/
-
-        // calculate the distances
-        // rxij = xtemp - x;
-        // ryij = ytemp - y;
-
         rxij = atoms[id].getX() - x;
         ryij = atoms[id].getY() - y;
         rzij = atoms[id].getZ() - z;
 
-        // Apply PBCs
+        // Apply PBCs.  Note that applying PBCs with the positions projected
+        // in the <100> reference frame messes up the calculations!
         rxij = rxij - anInt(rxij / Lx) * Lx;
         ryij = ryij - anInt(ryij / Ly) * Ly;
         rzij = rzij - anInt(rzij / Lz) * Lz;
 
         // Project this vector onto the (001) plane
-        // NOTE: without this, the <111> works well, and the <100> and <110> do not work well
-        // NOTE: With this, the <111> does not work well, and the <100> and <110> do.
-        /*xtemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[0];
+        // NOTE: In order for this method to work well, the correct cutoff distance needs to be used!
+        xtemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[0];
         ytemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[1];
         ztemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[2];
 
         rxij -= xtemp;
         ryij -= ytemp;
         rzij -= ztemp;
-*/
-        // Calculate the magnitude of the distance, projected onto the (001) plane
+
+
+        // Calculate the magnitude of the distance
         drij_sq = rxij * rxij + ryij * ryij + rzij * rzij;
 
         if (drij_sq < 1.0E-8) // Handles the case where the projected position of the atom is right on top of the current atom.
@@ -574,7 +503,7 @@ int main(int argc, char** argv)
         }
         // cos = dot(A,B) / (|A|*|B|)
         double dotp = (rxij * old_x_axis[0] + ryij * old_x_axis[1] + rzij * old_x_axis[2]);
-        costheta_sq = (dotp * dotp) / drij_sq;
+        costheta_sq = (dotp * dotp) / (drij_sq);
         double val = (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
         symm[i] += val;
       }
@@ -663,7 +592,7 @@ int main(int argc, char** argv)
       return 6;
     }
 
-    cout << "Processing of file \"" << filename1 << "\" completed.\n";
+    cout << "Processing of file \"" << filename1 << "\" completed.\r";
     ++aa;
   }
 
