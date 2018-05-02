@@ -498,7 +498,7 @@ int main(int argc, char** argv)
         if (drij_sq < 1.0E-8) // Handles the case where the projected position of the atom is right on top of the current atom.
         {
           symm[i] += 1;
-          cout << "Note: drij_sq = 0.0\n";
+          //cout << "Note: drij_sq = 0.0\n";
           continue;
         }
         // cos = dot(A,B) / (|A|*|B|)
@@ -592,10 +592,14 @@ int main(int argc, char** argv)
       return 6;
     }
 
-    cout << "Processing of file \"" << filename1 << "\" completed.\r";
+    cout << "\r";
+    cout << "Processing of file \"" << filename1 << "\" completed.";
+    cout.flush();
+
     ++aa;
   }
 
+  cout << "\n";
   fin_input.close();
   fout_data.close();
   return 0;
