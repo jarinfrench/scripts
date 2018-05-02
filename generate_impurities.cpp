@@ -61,7 +61,7 @@ int main(int argc, char** argv)
     cout << "Please enter the rotated grain file name: ";
     cin  >> file1;
 
-    cout << "Please enter the percent of impurities to generate (0-1): ";
+    cout << "Please enter the percent of impurities (0-1) or the number of impurities (>=1) to generate: ";
     cin  >> impurity;
 
     cout << "Please enter the seed for the random number generator: ";
@@ -86,9 +86,9 @@ int main(int argc, char** argv)
   }
 
   // Make sure we aren't doing anything weird with the impurity level
-  if (impurity >= 1 || impurity <= 0)
+  if (impurity <= 0)
   {
-    cout << "Invalid value of impurity percentage: 0 < impurity < 1\n";
+    cout << "Invalid value of impurity: 0 < impurity\n";
     return 3;
   }
 
@@ -127,16 +127,25 @@ int main(int argc, char** argv)
 
   // Read the data!
   getline(fin, str); // Get the header line
-  fout1 << "These UO2 coordinates have vacancies: [ID type charge x y z]\n\n";
-  fout2 << "These UO2 coordinates have Xe interstitials: [ID type charge x y z]\n\n";
 
   // Get the number of atoms
   fin >> N >> str;
-  n2 = anInt(N / 3.0 * impurity);
+  if (impurity >= 1)
+  {
+    n2 = impurity;
+  }
+  else
+  {
+    n2 = anInt(N / 3.0 * impurity);
+  }
   N_vac = N - 3 * n2; // calculate the number of UO2 vacancies
   N_sub = N - 2 * n2; // Calculate how many atoms are left after we replace UO2 with Xe
   atoms.resize(N, Atom());
 
+  cout << "There will be " << n2 << " Xe substitutions (" << (double)(n2) / (double)(N) * 100.0 << "at%) made.\n";
+
+  fout1 << "These UO2 coordinates have " << n2 << " vacancies: [ID type charge x y z]\n\n";
+  fout2 << "These UO2 coordinates have " << n2 << " Xe interstitials (" << (double)(n2) / (double)(N) * 100.0 << "at%Xe): [ID type charge x y z]\n\n";
   fout1 << N_vac << "  atoms\n"; // remove a U atom with it's two O neighbors
   fout2 << N_sub << "  atoms\n"; // same as above, but replace U with Xe
 
