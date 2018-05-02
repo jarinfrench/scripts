@@ -592,10 +592,14 @@ int main(int argc, char** argv)
       return 6;
     }
 
-    cout << "Processing of file \"" << filename1 << "\" completed.\r";
+    cout << "\r";
+    cout << "Processing of file \"" << filename1 << "\" completed.";
+    cout.flush();
+
     ++aa;
   }
 
+  cout << "\n";
   fin_input.close();
   fout_data.close();
   return 0;
