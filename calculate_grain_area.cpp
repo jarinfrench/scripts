@@ -1,8 +1,10 @@
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <cstdlib>
+#include <cmath>
 #include <algorithm>
 #include <vector>
 
@@ -117,6 +119,8 @@ int main(int argc, char **argv)
 
     cout << "Please enter the 0 K lattice parameter (in Angstroms): ";
     cin >> a0_0;
+
+    a0 = latticeParam(T);
   }
   else
   {
@@ -167,6 +171,8 @@ int main(int argc, char **argv)
     cout << "Error: unable to open file area_data.txt.\n";
     return 1;
   }
+  double n_extra;
+  n_extra = exp(-1 / (8.617E-5 * T)) / (exp(-1 / (8.617E-5 * T)) + 1);
   fout << "# This is the area data for T = " << T << " K [time(ps) area(Angstroms^2)]\n";
 
   getline(fin, str); // get the comment line
@@ -177,11 +183,12 @@ int main(int argc, char **argv)
          << "This script requires that the second line in the data file contain the timestep 0 information!\n";
     return 2;
   }
+  fout << "# Note that at this temperature a possiblity of " << setprecision(0) << fixed << n_extra * (N1_0 + N2_0) << " atoms will be misassigned.\n";
 
   fin >> str >> str >> str; // ignore the minimization step
 
   // Output the converted values
-  fout << t0 * 0.002 << " " << N1_0 * a0 * a0 * a0 / (4 * Lz) << " " << N2_0 * a0 * a0 * a0 / (4 * Lz) << endl;
+  fout << setprecision(0) << t0 * 0.002 << " " << setprecision(2) << N1_0 * a0 * a0 * a0 / (4 * Lz) << " " << N2_0 * a0 * a0 * a0 / (4 * Lz) << endl;
   while (fin >> t1 >> N1_next >> N2_next)
   {
     if (t1 < t0)
@@ -191,7 +198,7 @@ int main(int argc, char **argv)
     }
     area = N1_next * a0 * a0 * a0 / (4 * Lz);
 
-    fout << t1 * 0.002 << " " << area;
+    fout << setprecision(0) << t1 * 0.002 << " " <<  setprecision(2) << area;
 
     area = N2_next * a0 * a0 * a0 / (4 * Lz);
 
