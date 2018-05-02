@@ -158,7 +158,8 @@ int main(int argc, char **argv)
     processFile(fin, atoms_1);
     fin.close();
 
-    cout << "Processing of file \"" << filename1 << "\" complete.\n";
+    cout << "Processing of file \"" << filename1 << "\" complete.";
+    cout.flush();
 
     while (fin_input >> filename2)
     {
@@ -174,7 +175,8 @@ int main(int argc, char **argv)
 
       processFile(fin2,atoms_2);
       fin2.close();
-      cout << "Processing of file \"" << filename2 << "\" complete.\n";
+      cout << "\r";
+      cout << "Processing of file \"" << filename2 << "\" complete.";
 
       if (atoms_1.size() != atoms_2.size())
       {
