@@ -25,7 +25,7 @@ double anInt(double x)
 
 int main(int argc, char** argv)
 {
-  string filename1, filename2, input_file, data_file, str; // filenames read from and written to, input file, data file, junk variable
+  string filename1, filename2, input_file, str; // filenames read from and written to, input file, data file, junk variable
   //string structure;
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
   int N, n_type, n_atoms_read = 0; // number of atoms, atom types, number of atoms read
@@ -40,7 +40,7 @@ int main(int argc, char** argv)
 
   // Variables for the symmetry parameters
   double coeffs [2] = {3.0, 2.0}; // Coefficients of the symmetry parameter equation unrotated/rotated symmetry parameter values.
-  double xtemp, ytemp, ztemp, cutoff = 1.25, costheta_sq; // temp position variables, cutoff value, square of cosine
+  double xtemp, ytemp, ztemp, costheta_sq; // temp position variables, cutoff value, square of cosine
   vector <double> new_x_axis (3,0), old_x_axis (3,0); // New x axis position, old x in terms of new frame
   vector <double> new_y_axis (3.0); // New y axis position, old y
   vector <double> new_z_axis (3,0), old_z_axis (3,0); // New z axis position, old z
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
 
   // Input file parameters
   int n_files; // Number of files to be read, rotation axis
-  double theta, r_cut, a0; // misorientation angle, cutoff distance (in terms of a0), lattice parameter
+  double theta, r_cut, a0, cutoff; // misorientation angle, cutoff distance (in terms of a0), lattice parameter
 
   // Variables used for the cell-linked list
   int n_atoms_per_cell; // self-explanatory
@@ -93,11 +93,16 @@ int main(int argc, char** argv)
   // The way this is written, any values after a0 are ignored (I think)
   getline(fin_input, str);
   stringstream ss_input(str);
-  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> a0))
+  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> cutoff >> a0))
   {
     cout << "Error reading the input file.  Did you forget a value?\n"
-         << "Format of the first line of the input file is:\n"
-         << "<number of files> <misorientation angle> <number of atom types> <cutoff distance in Angstroms> <lattice parameter in Angstroms>\n";
+         << "The first line of the input file must contain the following six items:\n"
+         << "\t1. The number of files to be processed.\n"
+         << "\t2. The misorientation angle of the grains with respect to each other.\n"
+         << "\t3. The number of atom types in the simulation.\n"
+         << "\t4. The cutoff distance for determining grain assignment in terms of the lattice parameter.\n"
+         << "\t5. The cutoff value for which orientation parameters are assigned to each grain.\n"
+         << "\t6. The lattice parameter in Angstroms.\n";
     return 9;
   }
   cout << "Input parameters:\n"
@@ -105,6 +110,7 @@ int main(int argc, char** argv)
        << "\ttheta = " << theta << endl
        << "\tn_types = " << n_type << endl
        << "\tr_cut = " << r_cut << endl
+       << "\tcutoff = " << cutoff << endl
        << "\ta0 = " << a0 << endl;
   r_cut_sq = r_cut * r_cut;
 
@@ -247,7 +253,7 @@ int main(int argc, char** argv)
     ofstream fout(filename2.c_str());
     if (fout.fail())
     {
-      cout << "Error opening file " << filename2 << endl;
+      cout << "\nError opening file " << filename2 << endl;
       return 1;
     }
 
@@ -288,13 +294,13 @@ int main(int argc, char** argv)
       }
       else
       {
-        cout << "This case is not handled.  n_types = " << n_type << " != (1|2)\n";
+        cout << "\nThis case is not handled.  n_types = " << n_type << " != (1|2)\n";
         return 10;
       }
 
       if (type > n_type)
       {
-        cout << "Error: unexpected atom type.\n"
+        cout << "\nError: unexpected atom type.\n"
              << "n_types = " << n_type << " < this atom's type = " << type << endl;
         return 2;
       }
@@ -317,7 +323,7 @@ int main(int argc, char** argv)
     // Compare to N
     if (n_atoms_read != N)
     {
-      cout << "Error: number of atoms read does not match number of atoms in the simulation.\n"
+      cout << "\nError: number of atoms read does not match number of atoms in the simulation.\n"
            << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
       return 3;
     }
@@ -429,12 +435,6 @@ int main(int argc, char** argv)
                       continue; // move to the next atom if we're too far away
                     }
 
-                    if (drij_sq < 1.0E-8) // This should never be hit, but just in case
-                    {
-                      cout << "Same atom is being compared... something is wrong.\n";
-                      continue; // This is the same atom!
-                    }
-
                     // Create the neighbor list
                     iatom[0][id] += 1; //for atom id - number of neighbors
                     iatom[(iatom[0][id])][id] = jd; // point to the next atom
@@ -510,7 +510,19 @@ int main(int argc, char** argv)
     }
     for (unsigned int i = 0; i < symm.size(); ++i)
     {
-      symm[i] /= iatom[0][i];
+      // On the off chance that no neighbors have been assigned to this atom,
+      // we estimate the symmetry parameter to be the previous atom's value.
+      // This assumes that atoms with ID's close to each other are close to
+      // each other in the simulation, which may not always be the case.
+      if (iatom[0][i] == 0 && i != 0)
+      {
+        cout << "\nWarning: no neighbors detected for atom " << i << ".  Using the symmetry parameter of the previous atom = " << symm[i - 1] << endl;
+        symm[i] = symm[i - 1];
+      }
+      else
+      {
+        symm[i] /= iatom[0][i];
+      }
 
       if (atoms[i].getType() != 1)
       {
@@ -572,7 +584,7 @@ int main(int argc, char** argv)
       }
       else
       {
-        cout << "Error: n_types != (1|2), n_types = " << n_type << endl;
+        cout << "\nError: n_types != (1|2), n_types = " << n_type << endl;
         return 10;
       }
 
@@ -587,7 +599,7 @@ int main(int argc, char** argv)
     }
     if (n_atoms_read != N)
     {
-      cout << "Error: number of atoms written does not match number of atoms in the simulation.\n"
+      cout << "\nError: number of atoms written does not match number of atoms in the simulation.\n"
            << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
       return 6;
     }
