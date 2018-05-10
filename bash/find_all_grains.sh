@@ -32,17 +32,17 @@ for i in 100 110 111; do
                 fi
               else
                 if [ "$i" -eq 100 ]; then
-                  echo "$(ls *.dump | wc -l) 45.00 2 0.866 5.453" > base_vals.txt
+                  echo "$(ls *.dump | wc -l) 45.00 2 0.866 1.25 5.453" > base_vals.txt
                   echo "1 0 0" >> base_vals.txt
                   echo "0 1 0" >> base_vals.txt
                   echo "0 0 1" >> base_vals.txt
                 elif [ "$i" -eq 110 ]; then
-                  echo "$(ls *.dump | wc -l) 45.00 2 0.866 5.453" > base_vals.txt
+                  echo "$(ls *.dump | wc -l) 45.00 2 0.866 1.25 5.453" > base_vals.txt
                   echo "0 0 1" >> base_vals.txt
                   echo "1 -1 0" >> base_vals.txt
                   echo "1 1 0" >> base_vals.txt
                 elif [ "$i" -eq 111 ]; then
-                  echo "$(ls *.dump | wc -l) 45.00 2 1.2 5.453" > base_vals.txt
+                  echo "$(ls *.dump | wc -l) 45.00 2 1.2 1.25 5.453" > base_vals.txt
                   echo "1 -1 0" >> base_vals.txt
                   echo "1 1 -2" >> base_vals.txt
                   echo "1 1 1" >> base_vals.txt
@@ -51,6 +51,15 @@ for i in 100 110 111; do
                 find_grains base_vals.txt
                 mkdir interfaces
                 mv *_interface* interfaces
+
+                t=$(echo $k | cut -c 2-)
+                height=$(cat UO2_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
+                if [ "$j" == "basak" ]; then
+                  potential=2
+                elif [ "$j" == "eam" ]; then
+                  potential=1
+                fi
+                calculate_grain_area data.txt $t $height 5.453 $potential
               fi
               cd ..
             done
