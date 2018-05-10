@@ -3,12 +3,12 @@ csv2tecplot extract_energy find_grains find_new_positions dump2LAMMPS_input dump
 xyz2dat generate_impurities debug
 	mv rotate_and_remove calculate_GBE calculate_grain_area calculate_MSD calculate_displacement \
 	csv2tecplot extract_energy find_grains dump2LAMMPS_input dump2tec parse_lammps_output \
-	xyz2dat generate_impurities find_new_positions bin/
+	xyz2dat generate_impurities find_new_positions ../bin/
 
 debug : rotate_and_remove_dbg calculate_GBE_dbg calculate_grain_area_dbg calculate_displacement_dbg \
 calculate_MSD_dbg csv2tecplot_dbg extract_energy_dbg find_grains_dbg find_new_positions_dbg\
 dump2LAMMPS_input_dbg dump2tec_dbg parse_lammps_output_dbg xyz2dat_dbg generate_impurities_dbg
-	mv *_dbg bin/
+	mv *_dbg ../bin/
 
 rotate_and_remove : rotate_and_remove_atom.cpp atom.o
 	g++ -O3 -o rotate_and_remove rotate_and_remove_atom.cpp atom.o
@@ -98,4 +98,4 @@ xyz2dat_dbg : xyz2dat.cpp
 	g++ -ggdb -g -o xyz2dat_dbg xyz2dat.cpp
 
 clean :
-	cd bin/ && ls -I '*.*' | xargs rm && cd .. && rm *.o
+	cd ../bin/ && ls -I '*.*' | xargs rm && cd ../src && rm *.o
