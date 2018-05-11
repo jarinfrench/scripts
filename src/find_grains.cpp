@@ -39,7 +39,7 @@ int main(int argc, char** argv)
   unsigned int n_grain_1, n_grain_2; // counter for number of atoms in each grain
 
   // Variables for the symmetry parameters
-  double coeffs [2] = {3.0, 2.0}; // Coefficients of the symmetry parameter equation unrotated/rotated symmetry parameter values.
+  double coeffs [2] = {3.0, 2.0}; // Coefficients of the symmetry parameter equation
   double xtemp, ytemp, ztemp, costheta_sq; // temp position variables, cutoff value, square of cosine
   vector <double> new_x_axis (3,0), old_x_axis (3,0); // New x axis position, old x in terms of new frame
   vector <double> new_y_axis (3.0); // New y axis position, old y
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
 
   // Input file parameters
   int n_files; // Number of files to be read, rotation axis
-  double theta, r_cut, a0, cutoff; // misorientation angle, cutoff distance (in terms of a0), lattice parameter
+  double theta, r_cut, a0, fi_cut; // misorientation angle, cutoff distance (in terms of a0), orientation parameter cutoff lattice parameter
 
   // Variables used for the cell-linked list
   int n_atoms_per_cell; // self-explanatory
@@ -89,19 +89,19 @@ int main(int argc, char** argv)
   fout_data << "# Data consists of: [timestep, atoms in grain 1, atoms in grain 2]\n";
 
   // Get the important information from the input file:
-  // Number of files, misorientation angle, number of atom types, cutoff distance, lattice parameter
+  // Number of files, misorientation angle, number of atom types, cutoff distance, orientation parameter cutoff, lattice parameter
   // The way this is written, any values after a0 are ignored (I think)
   getline(fin_input, str);
   stringstream ss_input(str);
-  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> cutoff >> a0))
+  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> fi_cut >> a0))
   {
     cout << "Error reading the input file.  Did you forget a value?\n"
          << "The first line of the input file must contain the following six items:\n"
          << "\t1. The number of files to be processed.\n"
          << "\t2. The misorientation angle of the grains with respect to each other.\n"
          << "\t3. The number of atom types in the simulation.\n"
-         << "\t4. The cutoff distance for determining grain assignment in terms of the lattice parameter.\n"
-         << "\t5. The cutoff value for which orientation parameters are assigned to each grain.\n"
+         << "\t4. The cutoff distance (r_cut) for determining grain assignment in terms of the lattice parameter.\n"
+         << "\t5. The cutoff value (fi_cut) for which orientation parameters are assigned to each grain.\n"
          << "\t6. The lattice parameter in Angstroms.\n";
     return 9;
   }
@@ -110,7 +110,7 @@ int main(int argc, char** argv)
        << "\ttheta = " << theta << endl
        << "\tn_types = " << n_type << endl
        << "\tr_cut = " << r_cut << endl
-       << "\tcutoff = " << cutoff << endl
+       << "\tfi_cut = " << fi_cut << endl
        << "\ta0 = " << a0 << endl;
   r_cut_sq = r_cut * r_cut;
 
@@ -528,7 +528,7 @@ int main(int argc, char** argv)
       {
         continue;
       }
-      if (symm[i] <= cutoff)
+      if (symm[i] <= fi_cut)
       {
         atoms[i].setMark(1);
         ++n_grain_1;
