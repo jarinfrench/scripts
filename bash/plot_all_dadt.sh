@@ -33,6 +33,6 @@ for i in $(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5}' | uniq
     continue
   fi
   ls -v ${i}_[1-9]* | xargs average_data.py
-  gnuplot5 -e T=$temp -e "el='${element}'" -e r=$rad -e "basename='$i'" mobility.plt
+  gnuplot -e T=$temp -e "el='${element}'" -e r=$rad -e "basename='$i'" mobility.plt
   num=$(($num+1))
 done
