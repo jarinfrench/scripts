@@ -26,7 +26,8 @@ for i in 100 110 111; do
                   elif [ "$j" == "eam" ]; then
                     potential=1
                   fi
-                  calculate_grain_area data.txt $t $height 5.453 $potential
+                  calculate_grain_area data.txt $t ${height} 5.453 ${potential}
+                  calculate_force_and_velocity.py $t ${height} 5.453 ${potential}
                 else
                   echo -e "\033[0;32m\tArea data file already found in ${i}/45degree/${j}/${k}${l}/${m}\033[0m"
                 fi
@@ -59,7 +60,8 @@ for i in 100 110 111; do
                 elif [ "$j" == "eam" ]; then
                   potential=1
                 fi
-                calculate_grain_area data.txt $t $height 5.453 $potential
+                calculate_grain_area data.txt $t ${height} 5.453 ${potential}
+                calculate_force_and_velocity.py $t ${height} 5.453 ${potential}
               fi
               cd ..
             done
