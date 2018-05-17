@@ -70,6 +70,7 @@ for i in 100 110 111; do
           t=$(echo $j | cut -c 2-)
           height=$(cat ${element}_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
           calculate_grain_area data.txt $t $height ${lattice_param} $potential
+          calculate_force_and_velocity.py $t ${height} ${lattice_param} $potential
         else
           echo -e "\033[0;32m\tArea data file already found in ${i}/${j}${k}\033[0m"
         fi
@@ -97,7 +98,8 @@ for i in 100 110 111; do
         if ! [ -a "area_data.txt" ]; then
           t=$(echo $j | cut -c 2-)
           height=$(cat ${element}_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
-          calculate_grain_area data.txt $t $height ${lattice_param} $potential
+          calculate_grain_area data.txt $t ${height} ${lattice_param} $potential
+          calculate_force_and_velocity.py $t ${height} ${lattice_param} $potential
         else
           echo -e "\033[0;32m\tArea data file already found in ${i}/${j}${k}\033[0m"
         fi
