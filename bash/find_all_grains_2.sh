@@ -66,14 +66,10 @@ for i in 100 110 111; do
       echo -e "\nProcessing directory ${i}/${j}${k}"
       if [ -d "interfaces" ]; then
         echo "Directory \"interfaces\" already found in ${i}/${j}${k}"
-        if ! [ -a "area_data.txt" ]; then
-          t=$(echo $j | cut -c 2-)
-          height=$(cat ${element}_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
-          calculate_grain_area data.txt $t $height ${lattice_param} $potential
-          calculate_force_and_velocity.py $t ${height} ${lattice_param} $potential
-        else
-          echo -e "\033[0;32m\tArea data file already found in ${i}/${j}${k}\033[0m"
-        fi
+        t=$(echo $j | cut -c 2-)
+        height=$(cat ${element}_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
+        calculate_grain_area data.txt $t $height ${lattice_param} $potential
+        calculate_force_and_velocity.py $t ${height} ${lattice_param} -p $potential
       else
         if [ "$(ls *.dump 2>/dev/null | wc -l)" -eq 0 ]; then
           cd ..
@@ -103,7 +99,7 @@ for i in 100 110 111; do
           t=$(echo $j | cut -c 2-)
           height=$(cat ${element}_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
           calculate_grain_area data.txt $t ${height} ${lattice_param} $potential
-          calculate_force_and_velocity.py $t ${height} ${lattice_param} $potential
+          calculate_force_and_velocity.py $t ${height} ${lattice_param} -p $potential
         else
           echo -e "\033[0;32m\tArea data file already found in ${i}/${j}${k}\033[0m"
         fi
