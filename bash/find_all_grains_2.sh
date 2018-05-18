@@ -75,6 +75,10 @@ for i in 100 110 111; do
           echo -e "\033[0;32m\tArea data file already found in ${i}/${j}${k}\033[0m"
         fi
       else
+        if [ "$(ls *.dump 2>/dev/null | wc -l)" -eq 0 ]; then
+          cd ..
+          continue
+        fi
         if [ "$i" -eq 100 ]; then
           echo "$(ls *.dump | wc -l) 45.00 1 ${cut100} ${cutoff} ${lattice_param}" > base_vals.txt
           echo "1 0 0" >> base_vals.txt

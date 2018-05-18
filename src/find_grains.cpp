@@ -510,13 +510,17 @@ int main(int argc, char** argv)
     }
     for (unsigned int i = 0; i < symm.size(); ++i)
     {
+      if (atoms[i].getType() != 1) // We are making a major assumption here that the atom assigned as type 1 has the important crystallographic structure
+      {
+        continue;
+      }
       // On the off chance that no neighbors have been assigned to this atom,
       // we estimate the symmetry parameter to be the previous atom's value.
       // This assumes that atoms with ID's close to each other are close to
       // each other in the simulation, which may not always be the case.
-      if (iatom[0][i] == 0 && i != 0)
+      else if (iatom[0][i] == 0 && i != 0)
       {
-        cout << "\nWarning: no neighbors detected for atom " << i << ".  Using the symmetry parameter of the previous atom = " << symm[i - 1] << endl;
+        cout << "\nWarning: no neighbors detected for atom " << atoms[i].getId() << ".  Using the symmetry parameter of the previous atom = " << symm[i - 1] << endl;
         symm[i] = symm[i - 1];
       }
       else
