@@ -34,7 +34,7 @@ def calculateLatticeParam(T, potential = 0):
 
 
     name, T1, yInt, slope, T2, yInt2, linC, paraC = data[potential - 1].split()
-    print("Using {name} potential".format(name = name))
+    print("Using the {name} potential".format(name = name))
 
     if T < 0 or T > float(T2):
         print("Temperature out of fitted range.")
@@ -50,11 +50,11 @@ def calculateLatticeParam(T, potential = 0):
 def calculateR (N,a0,Lz):
     return math.sqrt(N*a0**3/(4*math.pi*Lz))
 
-def calculateForce(r):
+def calculateForce(r, gamma):
     if r == 0:
         return 0
     else:
-        return 1.6/r
+        return gamma/(r * 0.1) # The 0.1 converts the value to GPa
 
 def calculateVelocity(ns,ts,a0,Lz):
     coeff = math.sqrt(a0**3/(4*math.pi*Lz))
@@ -62,13 +62,14 @@ def calculateVelocity(ns,ts,a0,Lz):
         print("Error calculating velocity of grain boundary")
     sqrtN = [math.sqrt(n) for n in ns]
     fit = polyfit(ts, sqrtN,1)
-    return coeff * fit[0]
+    return coeff * fit[0] * 100 # The 100 converts the value to m/s
 
 
 parser = argparse.ArgumentParser(description="Calculates the velocity and forces for an assumed cylindrical grain boundary given a data file in the format <timestep> <n grain 1> <n grain 2>")
 parser.add_argument('t', metavar = 'T', type = float, help = "Temperature of the simulation")
 parser.add_argument('l', metavar = 'Lz', type = float, help = "Thickness of the grain")
 parser.add_argument('a', metavar = 'a0', type = float, help = "Lattice parameter at 0 K")
+parser.add_argument('gamma', type = float, help = "Random grain boundary energy value")
 parser.add_argument('-p', '--potential', type = int, help = "Number of the potential to use from the database file", default = 0)
 
 args = parser.parse_args()
@@ -109,10 +110,10 @@ for n, i in enumerate(threes(data)):
         r.append(calculateR(n2s[1], args.a, args.l))
         vel.append(calculateVelocity(n2s, ts, args.a, args.l))
 
-    force.append(calculateForce(r[n]))
+    force.append(calculateForce(r[n], args.gamma))
 
 with open(dataOutfile, 'w') as f:
     f.write("# Grain radius, Force on the grain, and instantaneous velocity of the boundary.\n")
     f.write("# Note that a negative velocity indicates grain shrinking.\n")
     for i in range(len(force)):
-        f.write("{rad},{force},{vel}\n".format(rad=r[i], force=force[i], vel=vel[i]))
+        f.write("{rad} {force} {vel}\n".format(rad=r[i], force=force[i], vel=vel[i]))

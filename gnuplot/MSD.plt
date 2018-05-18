@@ -30,7 +30,7 @@ if (!exists("filename")) {
 } else {
     print "filename = ".filename
     axis = system('echo "'.filename.'" | egrep -o "_[0-9][0-9][0-9]_" | cut -c 2-4')
-    potential = system('echo "'.filename.'" | egrep -o "_[eb]a[sm]*_" | cut -c 2- | head -c -2')
+    potential = system('echo "'.filename.'" | egrep -o "_[eb]a[sm][a_](k_)?" | cut -c 2- | head -c -2')
     print "potential = ".potential
 }
 print "\n"
