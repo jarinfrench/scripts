@@ -1,67 +1,41 @@
-#! /usr/bin/python
+#! /usr/bin/env python3
 
-from __future__ import division, print_function
-from itertools import izip
 import numpy as np
 from sys import argv, exit
-import argparse
+import argparse, itertools, contextlib, natsort
 
-# parser = argparse.ArgumentParser(usage = '%(prog)s [-h] file file [file ...]', description = "Averages values across multiple into one file.")
-# parser.add_argument('file1', metavar = 'file', nargs = '1', help = "The files to average together")
-# parser.add_argument('file2', metavar = 'file', nargs = '+', help = argparse.SUPPRESS)
-# args = parser.parse_args()
-# args.file = args.file1 + args.file2
+parser = argparse.ArgumentParser(usage = '%(prog)s [-h] file file [file ...]', description = "Averages values across multiple files into one file.")
+parser.add_argument('file1', metavar = 'file', nargs = 1, help = "The files to average together")
+parser.add_argument('file2', metavar = 'file', nargs = '+', help = argparse.SUPPRESS)
+parser.add_argument('-n','--not-constant', action = 'store_true', help = "Flag specifying whether the first value is constant across all files or not")
+args = parser.parse_args()
+args.files = natsort.natsorted(args.file1 + args.file2)
 
-# get our filenames and number of files
-if len(argv) == 1:
-    num_files = int(input("Please specify the number of files to average together: "))
-    files = [None] * num_files
-    for i in range(num_files):
-        files[i] = raw_input("Please specify file " + repr(i+1) + ": ")
-else:
-    num_files = len(argv) - 1
-    files = [None] * num_files
-    for i in range(num_files):
-        files[i] = argv[i+1]
-
-if num_files == 1:
-    print("Cannot average only one file")
-    exit(10)
-
-# open up a file stream for each file
-f = [open(i, 'r') for i in files]
 diff = []
-for j in range(num_files - 1):
-    diff.append([i for i in xrange(len(files[0])) if files[0][i] != files[j+1][i]])
+for j in range(len(args.files) - 1):
+    diff.append([i for i in range(len(args.files[0])) if args.files[0][i] != args.files[j+1][i]])
 if min(min(diff)) == 0:
     average_data_file = "average.txt"
 else:
-    average_data_file = files[0][:min(min(diff))] + "average.txt"
+    average_data_file = args.files[0][:min(min(diff))] + "average.txt"
 
 f2 = open(average_data_file,'w')
 
-# Now let's read the first line of each file and discard it (it's a comment line)
-# for i in range(num_files):
-    # comment = f[i].readline()
-
-# Now let's read the actual data
-data = [None] * num_files
-for rows in izip(*f): # for each row in each file
-    if not all(a.startswith("#") for a in rows) and not all(a[0].isalpha() for a in rows):
-        for i in range(num_files):
-            temp = rows[i].split() # Split the data by spaces
-            data_app = []
-            for j in range(len(temp)): # for however many elements there are in temp
-                data_app.append(float(temp[j])) # combine them into one list as a float
-                data[i] = data_app # and put that list into data
-        if all(v[0] == data[0][0] for v in data):
-            string = "%d"%data[0][0]
-            for i in range(len(temp)-1):
-                string += " %7.5f"%(np.mean([v[i+1] for v in data]))
-            f2.write(string+"\n")
-        else:
-            print("Error: unable to average values because timesteps are different!")
-            exit(10)
-for i in range(num_files):
-    f[i].close()
+with contextlib.ExitStack() as stack:
+    fs = [stack.enter_context(open(i, 'r')) for i in args.files]
+    for rows in itertools.zip_longest(*fs):
+        if all(i.startswith("#") for i in rows):
+            continue
+        try:
+            data = [i.split() for i in rows]
+        except:
+            break
+        if not args.not_constant:
+            if not all(v[0] == data[0][0] for v in data):
+                print("Error: unable to average values because the first values are different.  If this is expected, include the -n or --not-constant flag.")
+                exit(10)
+        string = ""
+        for i in range(len(data[0])):
+            string += "{val} ".format(val=np.mean([float(v[i]) for v in data]))
+        f2.write(string + "\n")
 f2.close()
