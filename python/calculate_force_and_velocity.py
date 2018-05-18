@@ -25,7 +25,7 @@ def calculateLatticeParam(T, potential = 0):
     if potential == 0:
         print("There are %d fits:" %len(data))
         for i in range(len(data)):
-            print("  %d - %s"%(i+1,data[i].split()[0]))
+            print("  {num} - {name}".format(num = i + 1, name = data[i].split()[0]))
         potential = int(input("Please specify the fit to use: "))
 
     while potential > len(data) or potential < 1:
@@ -34,7 +34,7 @@ def calculateLatticeParam(T, potential = 0):
 
 
     name, T1, yInt, slope, T2, yInt2, linC, paraC = data[potential - 1].split()
-    print("Using potential %s"%name)
+    print("Using {name} potential".format(name = name))
 
     if T < 0 or T > float(T2):
         print("Temperature out of fitted range.")
@@ -51,7 +51,10 @@ def calculateR (N,a0,Lz):
     return math.sqrt(N*a0**3/(4*math.pi*Lz))
 
 def calculateForce(r):
-    return 1.6/r
+    if r == 0:
+        return 0
+    else:
+        return 1.6/r
 
 def calculateVelocity(ns,ts,a0,Lz):
     coeff = math.sqrt(a0**3/(4*math.pi*Lz))

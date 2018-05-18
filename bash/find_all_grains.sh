@@ -18,19 +18,16 @@ for i in 100 110 111; do
               cd ${m}
               if [ -d "interfaces" ]; then
                 echo "Directory \"interfaces\" already found in ${i}/45degree/${j}/${k}${l}/${m}"
-                if ! [ -a "area_data.txt" ]; then
-                  t=$(echo $k | cut -c 2-)
-                  height=$(cat UO2_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
-                  if [ "$j" == "basak" ]; then
-                    potential=2
-                  elif [ "$j" == "eam" ]; then
-                    potential=1
-                  fi
-                  calculate_grain_area data.txt $t ${height} 5.453 ${potential}
-                  calculate_force_and_velocity.py $t ${height} 5.453 ${potential}
-                else
-                  echo -e "\033[0;32m\tArea data file already found in ${i}/45degree/${j}/${k}${l}/${m}\033[0m"
+                t=$(echo $k | cut -c 2- | awk -F '/' '{print $1}')
+                height=$(cat UO2_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
+                if [ "$j" == "basak" ]; then
+                  potential=2
+                elif [ "$j" == "eam" ]; then
+                  potential=1
                 fi
+                calculate_grain_area data.txt $t ${height} 5.453 ${potential}
+                calculate_force_and_velocity.py $t ${height} 5.453 -p ${potential}
+                echo -e "\n"
               else
                 if [ "$(ls *.dump 2>/dev/null | wc -l)" -eq 0 ]; then
                   cd ..
@@ -57,7 +54,7 @@ for i in 100 110 111; do
                 mkdir interfaces
                 mv *_interface* interfaces
 
-                t=$(echo $k | cut -c 2-)
+                t=$(echo $k | cut -c 2- | awk -F '/' '{print $1}')
                 height=$(cat UO2_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
                 if [ "$j" == "basak" ]; then
                   potential=2
@@ -65,7 +62,8 @@ for i in 100 110 111; do
                   potential=1
                 fi
                 calculate_grain_area data.txt $t ${height} 5.453 ${potential}
-                calculate_force_and_velocity.py $t ${height} 5.453 ${potential}
+                calculate_force_and_velocity.py $t ${height} 5.453 -p ${potential}
+                echo -e "\n"
               fi
               cd ..
             done
