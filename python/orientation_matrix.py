@@ -64,6 +64,7 @@ from math import cos, sin, pi, atan2, sqrt # Trig functions
 from os.path import exists # For checking existence of a file
 from numpy import array, linalg
 from myModules import * # imports my functions from the file myModules.py
+import argparse
 
 # Helper functions
 def displayHelp():
@@ -235,6 +236,68 @@ def writeMat(m, _z1, _x, _z2, grain, axis):
 if "--help" in argv: # Help info
     displayHelp()
     exit()
+
+# # Note!  Some additional logic is needed here to know how to parse the input arguments correctly given the number of positional arguments!
+# num_positional = 0
+# for i in args[1:]:
+#     if not i.startswith('-'):
+#         num_positional += 1
+#     else:
+#         continue
+# parser = argparse.ArgumentParser(description="Calculates the orientation matrices for any given misorientation for any of the high-symmetry rotation axes.")
+#
+# # This is specifically for the axis and misorientation approach to generating the orientation matrices
+# if num_positional == 2:
+#     parser.add_argument('_axis', metavar = 'axis', type = int, help = "The axis of orientation")
+#     parser.add_argument('_misorientation', metavar = 'misorientation', type = float, help = "The angle of misorientation")
+# elif num_positional == 3:
+#     # This is specifically using the ZXZ Bunge Euler angle notation to generate the orientation matrices
+#     parser.add_argument('_z1', metavar = 'Z1', type = float, help = "The first rotation angle (about the initial Z axis)")
+#     parser.add_argument('_x', metavar = 'X', type = float, help = "The second rotation angle (about the intermediary X axis)")
+#     parser.add_argument('_z2', metavar = 'Z2', type = float, help = "The final rotation angle about the intermediary Z axis)")
+# else:
+#     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+#     description = '''
+#     This script will calculate the orientation matrices for any given misorientation
+#     for any of the high-symmetry axes.
+#     Arguments:
+#
+#         axis: The axis of orientation (type: int)
+#         misorientation: The angle of misorientation (type: float)
+#             --------OR--------
+#         (with option -e or --euler)
+#         Z1: The first rotation angle  (Z ) (type: float)
+#         X:  The second rotation angle (X') (type: float)
+#         Z2: The third rotation angle  (Z") (type: float)
+#
+#     If the option -e or --euler-angles is entered, the calculation skips to simply
+#     output the orientation matrices.  Otherwise, the Euler angles are calculated from
+#     the axis, orientation, and grain boundary normal, and then the orientation matrix is
+#     created through the use of the Rodrigues Rotation Formula, which is:
+#     R = I + sin(theta) * K + (1 - cos(theta))*K^2
+#     where I is the identity matrix, theta is the misorientation angle, and K is
+#     the skew-symmetric matrix formed by the axis of rotation:
+#     K = 0  -kz  ky
+#         kz  0  -kx
+#        -ky  kx  0
+#     where the vector k is the unit vector defining the axis of rotation, or using
+#     a set of predefined rotations for each axis (default is the predefined rotations).
+#     The Euler angles are calculated in this case simply for the file to be written
+#     to.  If the user does not specify to save, then the angles are not used for
+#     anything.)'''
+#
+# parser.add_argument('-e', '--euler', type = float, nargs = 3, help = "Returns the Bunge orientation matrix based on the orientation angles provided.")
+# parser.add_argument('-f', '--file', help = "Reads the file and uses the Euler angles from them to calculate the orientation matrix")
+# parser.add_argument('--rrf', action = 'store_true', help = "Calculate the orientation matrices using the Rodrigues Rotation Formula")
+# parser.add_argument('-a', '--angles', action = 'store_true', help = "Display the Euler angles.  Can be used in conjunction with -q or --quiet to display only the Euler angles")
+# parser.add_argument('-s', '--save', action = 'store_true', help = "Saves the resultant orientation matrix to a database (orientation_matrix_database.m) with the accompanying Euler angles")
+# parser.add_argument('-q', '--quiet', action = 'store_true', help = "Suppresses output of the orientation matrices to the terminal")
+#
+# parser.epilog = '''Output:
+# For an Euler angle set, the ouput is simply its orientation matrix.
+# For the misorientations, the first matrix is the 'P' orientation matrix, and
+# the second matrix is the 'Q' orientation matrix (see Bulatov et al., Acta Mater
+# 65 (2014) 161-175).'''
 
 orientation_matrix = []
 save, argv = check4Save(argv) # Save the file?  Delete the save argument

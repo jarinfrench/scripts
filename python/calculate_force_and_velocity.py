@@ -71,7 +71,7 @@ parser.add_argument('l', metavar = 'Lz', type = float, help = "Thickness of the 
 parser.add_argument('a', metavar = 'a0', type = float, help = "Lattice parameter at 0 K")
 parser.add_argument('-p', '--potential', type = int, help = "Number of the potential to use from the database file", default = 0)
 
-args=parser.parse_args()
+args = parser.parse_args()
 
 # May change this to be an argument
 dataFile = "data.txt" # data file containing the timestep, and number of atoms in each grain

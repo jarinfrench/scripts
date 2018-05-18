@@ -4,6 +4,13 @@ from __future__ import division, print_function
 from itertools import izip
 import numpy as np
 from sys import argv, exit
+import argparse
+
+# parser = argparse.ArgumentParser(usage = '%(prog)s [-h] file file [file ...]', description = "Averages values across multiple into one file.")
+# parser.add_argument('file1', metavar = 'file', nargs = '1', help = "The files to average together")
+# parser.add_argument('file2', metavar = 'file', nargs = '+', help = argparse.SUPPRESS)
+# args = parser.parse_args()
+# args.file = args.file1 + args.file2
 
 # get our filenames and number of files
 if len(argv) == 1:
