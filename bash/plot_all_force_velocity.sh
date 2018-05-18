@@ -20,7 +20,7 @@ num=1
 for i in ${files}; do
   echo "Processing file $num of $num_files"
   temp=$(echo $i | awk -F '_' '{print $1}' | cut -c 2-)
-  if [[ "${element}" ~= ^UO2$ ]]; then
+  if [[ "${element}" =~ ^UO2$ ]]; then
     rad_char=$(echo $i | awk -F '_' '{print $3}')
     if [ "$rad_char" == "large" ]; then
       rad=100
@@ -34,7 +34,7 @@ for i in ${files}; do
       echo "Error!"
       continue
     fi
-  elif [[ "${element,,}" ~= ^(al|cu|fe)$ ]]; then
+  elif [[ "${element,,}" =~ ^(al|cu|fe)$ ]]; then
     rad=$(echo $i | awk -F '_' '{print $3}' | cut -c 2-) # At the moment, this is only 50, but this should change, and I may change the file name formatting of the Al, Cu, and Fe files.
   else
     echo "Something weird happened.  What element are we using again?"
@@ -47,5 +47,6 @@ for i in ${files}; do
     continue
   fi
 
-  ls -v ${i}_[1-9]* | xargs average_data.py
-  gnuplot -e T=$temp -e "el='${element}'" -e r=$rad -e "filename='$i'" plot_vel_vs_force.plt
+  ls -v ${i}_[1-9]* | xargs average_data.py -n
+  gnuplot -e T=$temp -e "el='${element}'" -e r=$rad -e "basename='$i'" plot_vel_vs_force.plt --persist
+done

@@ -24,7 +24,11 @@ f2 = open(average_data_file,'w')
 with contextlib.ExitStack() as stack:
     fs = [stack.enter_context(open(i, 'r')) for i in args.files]
     for rows in itertools.zip_longest(*fs):
-        if all(i.startswith("#") for i in rows):
+        try:
+            cont = all(i.startswith("#") for i in rows)
+        except:
+            break
+        if cont:
             continue
         try:
             data = [i.split() for i in rows]
