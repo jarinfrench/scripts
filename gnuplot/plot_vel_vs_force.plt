@@ -51,8 +51,9 @@ set key inside bottom right
 average_file = system("ls ".basename."_average.txt")
 
 num_list = system("ls -v ".basename."_[0-9]*.txt | egrep -o [0-9][0-9]?\.txt$ | cut -d. -f1")
-plot for [i in num_list] basename."_".i.".txt" u 2:3 title "Run ".i, \
-basename."_average.txt" u 2:3 title "Average"
+# NOTE: This is going to require updating the average_data.py file to handle blank lines without issues!
+plot for [i in num_list] basename."_".i.".txt" index 0 u 4:5 title "Run ".i, \
+basename."_average.txt" index 0 u 4:5 title "Average"
 
 call "export.plt" basename."_force_vs_velocity.png"
 replot

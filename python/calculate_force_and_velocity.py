@@ -3,6 +3,7 @@
 from __future__ import division, print_function
 from sys import exit, argv
 from numpy import polyfit
+import matplotlib.pyplot as plt
 import math, itertools, argparse
 
 def threes(iterator):
@@ -46,6 +47,11 @@ def calculateLatticeParam(T, potential = 0):
     else:
         print("Error calculating lattice parameter")
 
+# def onClick(event):
+#     global coords
+#     coords = (event.xdata, event.ydata)
+#     fig.canvas.mpl_disconnect(cid)
+#     return
 
 def calculateR (N,a0,Lz):
     return math.sqrt(N*a0**3/(4*math.pi*Lz))
@@ -71,6 +77,7 @@ parser.add_argument('l', metavar = 'Lz', type = float, help = "Thickness of the 
 parser.add_argument('a', metavar = 'a0', type = float, help = "Lattice parameter at 0 K")
 parser.add_argument('gamma', type = float, help = "Random grain boundary energy value")
 parser.add_argument('-p', '--potential', type = int, help = "Number of the potential to use from the database file", default = 0)
+parser.add_argument('-g', '--graph', action = "store_true", help = "Option to display a graph showing the grain growth (N vs t) for help in determining when growth stops")
 
 args = parser.parse_args()
 
@@ -89,6 +96,8 @@ with open(dataFile,'r') as f:
 vel = []
 force = []
 r = []
+t = []
+ns = []
 
 for n, i in enumerate(threes(data)):
     ts  = [int(i[0].split()[0]) * 0.002, int(i[1].split()[0]) * 0.002, int(i[2].split()[0]) * 0.002]
@@ -106,14 +115,30 @@ for n, i in enumerate(threes(data)):
     if use1:
         r.append(calculateR(n1s[1], args.a, args.l))
         vel.append(calculateVelocity(n1s, ts, args.a, args.l))
+        ns.append(n1s[1])
     else:
         r.append(calculateR(n2s[1], args.a, args.l))
         vel.append(calculateVelocity(n2s, ts, args.a, args.l))
+        ns.append(n2s[1])
 
     force.append(calculateForce(r[n], args.gamma))
+    t.append(ts[1])
 
+if args.graph:
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(t,ns,'ro')
+    plt.show()
+    # cid = fig.canvas.mpl_connect('button_press_event', onClick)
+    # print(coords)
+    tstop = int(input("Estimate the time where growth stops: "))
+
+written = False
 with open(dataOutfile, 'w') as f:
-    f.write("# Grain radius, Force on the grain, and instantaneous velocity of the boundary.\n")
+    f.write("# Time, number of atoms in the grain, grain radius, force on the grain, and instantaneous velocity of the boundary.\n")
     f.write("# Note that a negative velocity indicates grain shrinking.\n")
     for i in range(len(force)):
-        f.write("{rad} {force} {vel}\n".format(rad=r[i], force=force[i], vel=vel[i]))
+        if args.graph and t[i] > tstop and not written:
+            f.write("\n\n# Note that after this point, growth appears to stop\n")
+            written = True
+        f.write("{time} {num} {rad} {force} {vel}\n".format(time = t[i], num = ns[i], rad = r[i], force = force[i], vel = vel[i]))
