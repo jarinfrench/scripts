@@ -20,17 +20,28 @@ else:
     average_data_file = args.files[0][:min(min(diff))] + "average.txt"
 
 f2 = open(average_data_file,'w')
+warn_string_base = "\n# Empty line(s) found in file "
+warn = False
 
 with contextlib.ExitStack() as stack:
     fs = [stack.enter_context(open(i, 'r')) for i in args.files]
     for rows in itertools.zip_longest(*fs):
         try:
             cont = all(i.startswith("#") for i in rows)
-        except:
+        except: # If we have reached the end of any file, we stop averaging
             break
         if cont:
             continue
         try:
+            for n,i in enumerate(rows):
+                while not i.split():
+                    if not warn:
+                        warn_string = warn_string_base + repr(n + 1) + "\n"
+                        warn = True
+                    tmp = list(rows)
+                    tmp[n] = fs[n].readline()
+                    rows = tuple(tmp)
+                    i = rows[n]
             data = [i.split() for i in rows]
         except:
             break
@@ -38,6 +49,9 @@ with contextlib.ExitStack() as stack:
             if not all(v[0] == data[0][0] for v in data):
                 print("Error: unable to average values because the first values are different.  If this is expected, include the -n or --not-constant flag.")
                 exit(10)
+        if warn:
+            f2.write(warn_string)
+            warn = False
         string = ""
         for i in range(len(data[0])):
             string += "{val} ".format(val=np.mean([float(v[i]) for v in data]))
