@@ -127,6 +127,7 @@ int main(int argc, char **argv)
         reference[id - 1].setMark(1);
       }
     }
+    fin.close();
 
     while (getline(fin_input, file2))
     {
@@ -203,7 +204,10 @@ int main(int argc, char **argv)
 
       cout << "\rFile " << file2 << " processed.";
       cout.flush();
+      fin2.close();
+      fout.close();
     }
+    fin_input.close();
     cout << endl;
   } // end if is input
   else
@@ -325,6 +329,9 @@ int main(int argc, char **argv)
         << compared[i].getMark() << endl;
       }
     }
+    fin.close();
+    fin2.close();
+    fout.close();
   }
 
   return 0;
