@@ -87,6 +87,11 @@ for i in 100 110 111; do
         echo -e "\nProcessing directory ${i}/${j}${k}"
         if [ -d "interfaces" ]; then
           echo "Directory \"interfaces\" already found in ${i}/${j}${k}"
+          if ! [ -d "tracked_data" ]; then
+            ls -v *.dump >> tracked_input.txt
+            mkdir tracked_data
+            find_new_positions tracked_input.txt
+          fi
           t=$(echo $j | cut -c 2- | awk -F '/' '{print $1}')
           height=$(cat ${element}_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
           calculate_grain_area data.txt $t $height ${lattice_param} $potential
@@ -116,9 +121,12 @@ for i in 100 110 111; do
             echo "1 1 1" >> base_vals.txt
           fi
           ls -v *.dump >> base_vals.txt
+          ls -v *.dump >> tracked_input.txt
           find_grains base_vals.txt
-          mkdir interfaces
+          find_new_positions tracked_input.txt
+          mkdir interfaces tracked_data
           mv *_interface* interfaces
+          mv *_tracked* tracked_data
           if ! [ -a "area_data.txt" ]; then
             t=$(echo $j | cut -c 2- | awk -F '/' '{print $1}')
             height=$(cat ${element}_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
@@ -152,6 +160,11 @@ for i in 100 110 111; do
               cd ${m}
               if [ -d "interfaces" ]; then
                 echo "Directory \"interfaces\" already found in ${i}/45degree/${j}/${k}${l}/${m}"
+                if ! [ -d "tracked_data" ]; then
+                  ls -v *.dump >> tracked_input.txt
+                  mkdir tracked_data
+                  find_new_positions tracked_input.txt
+                fi
                 t=$(echo $k | cut -c 2- | awk -F '/' '{print $1}')
                 height=$(cat UO2_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
                 if [ "$j" == "basak" ]; then
@@ -187,9 +200,12 @@ for i in 100 110 111; do
                   echo "1 1 1" >> base_vals.txt
                 fi
                 ls -v *.dump >> base_vals.txt
+                ls -v *.dump >> tracked_input.txt
                 find_grains base_vals.txt
-                mkdir interfaces
+                find_new_positions tracked_input.txt
+                mkdir interfaces tracked_data
                 mv *_interface* interfaces
+                mv *_tracked* tracked_data
 
                 t=$(echo $k | cut -c 2- | awk -F '/' '{print $1}')
                 height=$(cat UO2_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
