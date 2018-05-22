@@ -73,7 +73,8 @@ def plotN(t,n1,n2,use1,fig):
         ax.plot(t,n1,'ro')
     else:
         ax.plot(t,n2,'ro')
-    plt.text(0.05, 0.9, "Press 't' to toggle between n1 and n2", transform = ax.transAxes)
+    plt.text(0.45, 0.6, "Press 't' to toggle between n1 and n2", transform = ax.transAxes)
+    plt.text(0.45, 0.55, "Click where the growth stops", transform = ax.transAxes)
 
 
 def calculateR (N,a0,Lz):
