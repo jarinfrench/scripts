@@ -34,7 +34,7 @@ with contextlib.ExitStack() as stack:
             continue
         try:
             for n,i in enumerate(rows):
-                while not i.split():
+                while not i.split() or i.startswith("#"):
                     if not warn:
                         warn_string = warn_string_base + repr(n + 1) + "\n"
                         warn = True

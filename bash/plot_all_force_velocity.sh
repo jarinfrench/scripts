@@ -47,6 +47,8 @@ for i in ${files}; do
     continue
   fi
 
-  ls -v ${i}_[1-9]* | xargs average_data.py -n
+  num=$(($num+1))
+
+  ls -v ${i}_[1-9]* | xargs average_data.py
   gnuplot -e T=$temp -e "el='${element}'" -e r=$rad -e "basename='$i'" plot_vel_vs_force.plt --persist
 done
