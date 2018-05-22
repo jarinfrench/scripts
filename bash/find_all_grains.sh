@@ -90,7 +90,10 @@ for i in 100 110 111; do
           t=$(echo $j | cut -c 2- | awk -F '/' '{print $1}')
           height=$(cat ${element}_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
           calculate_grain_area data.txt $t $height ${lattice_param} $potential
-          calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p $potential -g
+          if ! [ -a "force_velocity_data.txt" ]; then
+            calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p $potential -g
+          fi
+          find_new_positions 0.dump $(ls -v *.dump | tail -n 1) tracked_positions.dat
         else
           if [ "$(ls *.dump 2>/dev/null | wc -l)" -eq 0 ]; then
             cd ..
@@ -120,7 +123,10 @@ for i in 100 110 111; do
             t=$(echo $j | cut -c 2- | awk -F '/' '{print $1}')
             height=$(cat ${element}_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
             calculate_grain_area data.txt $t ${height} ${lattice_param} $potential
-            calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p $potential -g
+            if ! [ -a "force_velocity_data.txt" ]; then
+              calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p $potential -g
+            fi
+            find_new_positions 0.dump $(ls -v *.dump | tail -n 1) tracked_positions.dat
           else
             echo -e "\033[0;32m\tArea data file already found in ${i}/${j}${k}\033[0m"
           fi
@@ -154,7 +160,10 @@ for i in 100 110 111; do
                   potential=1
                 fi
                 calculate_grain_area data.txt $t ${height} ${lattice_param} ${potential}
-                calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p ${potential} -g
+                if ! [ -a "force_velocity_data.txt" ]; then
+                  calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p $potential -g
+                fi
+                find_new_positions 0.dump $(ls -v *.dump | tail -n 1) tracked_positions.dat
                 echo -e "\n"
               else
                 if [ "$(ls *.dump 2>/dev/null | wc -l)" -eq 0 ]; then
@@ -190,7 +199,10 @@ for i in 100 110 111; do
                   potential=1
                 fi
                 calculate_grain_area data.txt $t ${height} ${lattice_param} ${potential}
-                calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p ${potential} -g
+                if ! [ -a "force_velocity_data.txt" ]; then
+                  calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p $potential -g
+                fi
+                find_new_positions 0.dump $(ls -v *.dump | tail -n 1) tracked_positions.dat
                 echo -e "\n"
               fi
               cd ..
