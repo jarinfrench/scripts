@@ -2,7 +2,7 @@
 
 from __future__ import division, print_function
 from sys import exit, argv
-from numpy import polyfit
+import numpy as np
 import matplotlib.pyplot as plt
 import math, itertools, argparse
 
@@ -47,11 +47,34 @@ def calculateLatticeParam(T, potential = 0):
     else:
         print("Error calculating lattice parameter")
 
-# def onClick(event):
-#     global coords
-#     coords = (event.xdata, event.ydata)
-#     fig.canvas.mpl_disconnect(cid)
-#     return
+def onClick(event):
+    global ix,iy
+    if event.inaxes == ax.axes:
+        ix,iy = (event.xdata, event.ydata)
+        fig.canvas.mpl_disconnect(cid)
+        plt.close()
+    return
+
+def onButtonPress(event):
+    global use1
+    if event.key == 't':
+        use1 = not use1
+        plotN(t,n1,n2,use1,fig)
+        plt.show()
+
+def onClose(event):
+    exit(0)
+
+def plotN(t,n1,n2,use1,fig):
+    plt.clf()
+    global ax
+    ax = fig.add_subplot(111)
+    if use1:
+        ax.plot(t,n1,'ro')
+    else:
+        ax.plot(t,n2,'ro')
+    plt.text(0.05, 0.9, "Press 't' to toggle between n1 and n2", transform = ax.transAxes)
+
 
 def calculateR (N,a0,Lz):
     return math.sqrt(N*a0**3/(4*math.pi*Lz))
@@ -67,7 +90,7 @@ def calculateVelocity(ns,ts,a0,Lz):
     if not len(ns) == 3 or not len(ts) == 3:
         print("Error calculating velocity of grain boundary")
     sqrtN = [math.sqrt(n) for n in ns]
-    fit = polyfit(ts, sqrtN,1)
+    fit = np.polyfit(ts, sqrtN,1)
     return coeff * fit[0] * 100 # The 100 converts the value to m/s
 
 
@@ -78,6 +101,7 @@ parser.add_argument('a', metavar = 'a0', type = float, help = "Lattice parameter
 parser.add_argument('gamma', type = float, help = "Random grain boundary energy value")
 parser.add_argument('-p', '--potential', type = int, help = "Number of the potential to use from the database file", default = 0)
 parser.add_argument('-g', '--graph', action = "store_true", help = "Option to display a graph showing the grain growth (N vs t) for help in determining when growth stops")
+parser.add_argument('-u', '--use',  choices = [1, 2], help = "If the data set to be used in calculating the data (between n1 and n2) is known, specify with this option")
 
 args = parser.parse_args()
 
@@ -97,41 +121,46 @@ vel = []
 force = []
 r = []
 t = []
-ns = []
+n1 = []
+n2 = []
+ts = []
+n1s = []
+n2s = []
 
+# separate out the data in the ways we will use it
 for n, i in enumerate(threes(data)):
-    ts  = [int(i[0].split()[0]) * 0.002, int(i[1].split()[0]) * 0.002, int(i[2].split()[0]) * 0.002]
-    n1s = [float(i[0].split()[1]), float(i[1].split()[1]), float(i[2].split()[1])]
-    n2s = [float(i[0].split()[2]), float(i[1].split()[2]), float(i[2].split()[2])]
+    ts.append([int(i[0].split()[0]) * 0.002, int(i[1].split()[0]) * 0.002, int(i[2].split()[0]) * 0.002])
+    n1s.append([int(i[0].split()[1]), int(i[1].split()[1]), int(i[2].split()[1])])
+    n2s.append([int(i[0].split()[2]), int(i[1].split()[2]), int(i[2].split()[2])])
+    t.append(int(i[1].split()[0]) * 0.002)
+    n1.append(int(i[1].split()[1]))
+    n2.append(int(i[1].split()[2]))
 
-    if n == 0:
-        fit1 = polyfit(ts,n1s,1)
-        fit2 = polyfit(ts,n2s,1)
-        if fit1[0] > fit2[0]:
-            use1 = False
-        else:
-            use1 = True
-
-    if use1:
-        r.append(calculateR(n1s[1], args.a, args.l))
-        vel.append(calculateVelocity(n1s, ts, args.a, args.l))
-        ns.append(n1s[1])
-    else:
-        r.append(calculateR(n2s[1], args.a, args.l))
-        vel.append(calculateVelocity(n2s, ts, args.a, args.l))
-        ns.append(n2s[1])
-
-    force.append(calculateForce(r[n], args.gamma))
-    t.append(ts[1])
+if args.use == None or args.use == 1:
+    use1 = True
+else:
+    use1 = False
 
 if args.graph:
     fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(t,ns,'ro')
+    plotN(t,n1,n2,use1,fig)
+    cid = fig.canvas.mpl_connect('button_press_event', onClick)
+    cid2 = fig.canvas.mpl_connect('key_press_event', onButtonPress)
+    fig.canvas.mpl_connect('close_event', onClose)
     plt.show()
-    # cid = fig.canvas.mpl_connect('button_press_event', onClick)
-    # print(coords)
-    tstop = int(input("Estimate the time where growth stops: "))
+
+for i in range(len(n1)):
+    if use1:
+        r.append(calculateR(n1[i], args.a, args.l))
+        vel.append(calculateVelocity(n1s[i], ts[i], args.a, args.l))
+    else:
+        r.append(calculateR(n2[i], args.a, args.l))
+        vel.append(calculateVelocity(n2s[i], ts[i], args.a, args.l))
+
+    force.append(calculateForce(r[i], args.gamma))
+
+idx = (np.abs(t - ix)).argmin()
+tstop = t[idx]
 
 written = False
 with open(dataOutfile, 'w') as f:
@@ -141,4 +170,4 @@ with open(dataOutfile, 'w') as f:
         if args.graph and t[i] > tstop and not written:
             f.write("\n\n# Note that after this point, growth appears to stop\n")
             written = True
-        f.write("{time} {num} {rad} {force} {vel}\n".format(time = t[i], num = ns[i], rad = r[i], force = force[i], vel = vel[i]))
+        f.write("{time} {num} {rad} {force} {vel}\n".format(time = t[i], num = (n1[i] if use1 else n2[i]), rad = r[i], force = force[i], vel = vel[i]))
