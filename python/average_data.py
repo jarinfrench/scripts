@@ -36,7 +36,7 @@ with contextlib.ExitStack() as stack:
             for n,i in enumerate(rows):
                 while not i.split() or i.startswith("#"):
                     if not warn:
-                        warn_string = warn_string_base + repr(n + 1) + "\n"
+                        warn_string = warn_string_base + args.files[n] + "\n"
                         warn = True
                     tmp = list(rows)
                     tmp[n] = fs[n].readline()
