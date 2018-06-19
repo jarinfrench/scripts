@@ -43,11 +43,24 @@ elif [[ "${element}" =~ ^Cu$ ]]; then
   cutoff=1.25
   gamma=0.9
 elif [[ "${element}" =~ ^UO2$ ]]; then
+  while true; do
+    read -p "Please enter the misorientation (20|45): " misorientation
+    if [[ "${misorientation}" -eq 20 ]] || [[ "${misorientation}" -eq 45 ]]; then
+      break
+    fi
+  done
   lattice_param=5.453
-  cut100=0.866
-  cut110=0.866
-  cut111=1.2
-  cutoff=1.25
+  if [[ "${misorientation}" -eq 45 ]]; then
+    cut100=0.866
+    cut110=0.866
+    cut111=1.2
+    cutoff=1.2
+  elif [[ "${misorientation}" -eq 20 ]]; then
+    cut100=1.11237 # second nearest neighbors
+    cut110=0.853553 # first nearest neighbors
+    cut111=1.11237 # second nearest neighbors
+    # note that cutoff is different for all three of these axes, so must be set separately
+  fi
   gamma=1.6
 else
   potential=0
@@ -61,8 +74,8 @@ else
   done
   if [[ "${crystal_type}" == 1 ]]; then
     cut100=0.866
-    cut110=0.866
-    cut111=1.2
+    cut110=1.207
+    cut111=1.207
     cutoff=1.25
   elif [[ "${crystal_type}" == 2 ]]; then
     cut100=0.933
@@ -145,7 +158,7 @@ for i in 100 110 111; do
     done
     cd ..
   else
-    cd 45degree
+    cd ${misorientation}degree
     for j in basak eam; do
       cd ${j}
       for k in $(ls -vd T*/); do
@@ -159,11 +172,12 @@ for i in 100 110 111; do
             for m in $(ls -d dir*/ 2>/dev/null); do
               cd ${m}
               if [ -d "interfaces" ]; then
-                echo "Directory \"interfaces\" already found in ${i}/45degree/${j}/${k}${l}/${m}"
+                echo "Directory \"interfaces\" already found in ${i}/20degree/${j}/${k}${l}/${m}"
                 if ! [ -d "tracked_data" ]; then
                   ls -v *.dump >> tracked_input.txt
                   mkdir tracked_data
                   find_new_positions tracked_input.txt
+                  mv *_tracked* tracked_data
                 fi
                 t=$(echo $k | cut -c 2- | awk -F '/' '{print $1}')
                 height=$(cat UO2_minimized_* | head -n 7 | tail -n 1 | awk '{print $2}')
@@ -173,9 +187,9 @@ for i in 100 110 111; do
                   potential=1
                 fi
                 calculate_grain_area data.txt $t ${height} ${lattice_param} ${potential}
-                if ! [ -a "force_velocity_data.txt" ]; then
-                  calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p $potential -g
-                fi
+                # if ! [ -a "force_velocity_data.txt" ]; then
+                #   calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p $potential -g
+                # fi
                 find_new_positions 0.dump $(ls -v *.dump | tail -n 1) tracked_positions.dat
                 echo -e "\n"
               else
@@ -184,17 +198,26 @@ for i in 100 110 111; do
                   continue
                 fi
                 if [ "$i" -eq 100 ]; then
-                  echo "$(ls *.dump | wc -l) 45.00 2 ${cut100} ${cutoff} ${lattice_param}" > base_vals.txt
+                  if [[ "${misorientation}" -eq 20 ]]; then
+                    cutoff=1.175
+                  fi
+                  echo "$(ls *.dump | wc -l) 20.00 2 ${cut100} ${cutoff} ${lattice_param}" > base_vals.txt
                   echo "1 0 0" >> base_vals.txt
                   echo "0 1 0" >> base_vals.txt
                   echo "0 0 1" >> base_vals.txt
                 elif [ "$i" -eq 110 ]; then
-                  echo "$(ls *.dump | wc -l) 45.00 2 ${cut110} ${cutoff} ${lattice_param}" > base_vals.txt
+                  if [[ "${misorientation}" -eq 20 ]]; then
+                    cutoff=1.325
+                  fi
+                  echo "$(ls *.dump | wc -l) 20.00 2 ${cut110} 1.25 ${lattice_param}" > base_vals.txt
                   echo "0 0 1" >> base_vals.txt
                   echo "1 -1 0" >> base_vals.txt
                   echo "1 1 0" >> base_vals.txt
                 elif [ "$i" -eq 111 ]; then
-                  echo "$(ls *.dump | wc -l) 45.00 2 ${cut111} ${cutoff} ${lattice_param}" > base_vals.txt
+                  if [[ "${misorientation}" -eq 20 ]]; then
+                    cutoff=1.15
+                  fi
+                  echo "$(ls *.dump | wc -l) 20.00 2 ${cut111} ${cutoff} ${lattice_param}" > base_vals.txt
                   echo "1 -1 0" >> base_vals.txt
                   echo "1 1 -2" >> base_vals.txt
                   echo "1 1 1" >> base_vals.txt
@@ -215,9 +238,6 @@ for i in 100 110 111; do
                   potential=1
                 fi
                 calculate_grain_area data.txt $t ${height} ${lattice_param} ${potential}
-                if ! [ -a "force_velocity_data.txt" ]; then
-                  calculate_force_and_velocity.py $t ${height} ${lattice_param} ${gamma} -p $potential -g
-                fi
                 find_new_positions 0.dump $(ls -v *.dump | tail -n 1) tracked_positions.dat
                 echo -e "\n"
               fi

@@ -28,6 +28,7 @@ int main(int argc, char** argv)
   string filename1, filename2, input_file, str; // filenames read from and written to, input file, data file, junk variable
   //string structure;
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
+  double xy, xz, yz; // Tilt factors for triclinic systems
   int N, n_type, n_atoms_read = 0; // number of atoms, atom types, number of atoms read
   vector <Atom> atoms; // all of the atoms from the file
   vector <double> symm; // a vector to hold the calculated symmetry parameters
@@ -217,9 +218,18 @@ int main(int argc, char** argv)
       fin >> N;
       fin.ignore();
       getline(fin, str); //get ITEM: BOX BOUNDS
-      fin >> xlow >> xhigh;
-      fin >> ylow >> yhigh;
-      fin >> zlow >> zhigh;
+      if (str.find("xy") == string::npos)
+      {
+        fin >> xlow >> xhigh;
+        fin >> ylow >> yhigh;
+        fin >> zlow >> zhigh;
+      }
+      else  // We also get the triclinic tilt factors for triclinic systems
+      {
+        fin >> xlow >> xhigh >> xy;
+        fin >> ylow >> yhigh >> xz;
+        fin >> zlow >> zhigh >> yz;
+      }
       fin.ignore();
       getline(fin, str); // Gets ITEM: ATOMS <data types>
       filename2 = filename1.substr(0,filename1.find(".dump")) + "_interface.dat";
@@ -233,8 +243,13 @@ int main(int argc, char** argv)
       fin >> xlow >> xhigh >> str >> str;
       fin >> ylow >> yhigh >> str >> str;
       fin >> zlow >> zhigh >> str >> str;
-      fin >> str;
       fin.ignore();
+      getline(fin,str);
+      if (str.find("xy") != string::npos) // Triclinic tilt factors
+      {
+        fin >> xy >> xz >> yz >> str >> str >> str;
+        fin.ignore();
+      }
       getline(fin, str);
       filename2 = filename1.substr(0,filename1.find(".dat")) + "_interface.dat";
     }
