@@ -36,6 +36,7 @@ int main(int argc, char** argv)
   double impurity; // Number of vacancies to generate.
   int N, N_vac, N_sub, ntypes, ntotal = 0, n2; // Number of: atoms, vacancies/subs, atom types, atoms read, U to remove
   double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounding box / box dimensions
+  double xy, xz, yz; // Triclinic tilt terms
   int atom_id, atom_id2, atom_type; // atom id number, type number
   double atom_charge; // atom charge.
   double x, y, z; // position of atom.
@@ -158,6 +159,14 @@ int main(int argc, char** argv)
   fin >> xlow >> xhigh >> str >> str;
   fin >> ylow >> yhigh >> str >> str;
   fin >> zlow >> zhigh >> str >> str;
+
+  fin.ignore();
+  getline(fin,str);
+  if (str.find("xy") != string::npos)
+  {
+    fin >> xy >> xz >> yz >> str >> str >> str;
+    fin.ignore();
+  }
 
   fout1.precision(6);
   fout2.precision(6);

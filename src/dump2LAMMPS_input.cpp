@@ -16,6 +16,7 @@ int main(int argc, char **argv)
   string filename1, filename2, str, element; // Filename of read and written file.  Also a junk variable to hold stuff
   int N,  n_total = 0; // Number of atoms, number read
   double xlow, xhigh, ylow, yhigh, zlow, zhigh; // Box bounds
+  double xy, xz, yz; // tilt factors as required for triclinic systems
   int id, type; // Atom id number and type number
   double charge, x, y, z; // atom charge, and x, y and z positions
   double r_grain;
@@ -115,9 +116,18 @@ int main(int argc, char **argv)
 
   fin.ignore();
   getline(fin, str); // Gets the line "ITEM: BOX BOUNDS pp pp pp"
-  fin >> xlow >> xhigh;
-  fin >> ylow >> yhigh;
-  fin >> zlow >> zhigh;
+  if (str.find("xy") == string::npos)
+  {
+    fin >> xlow >> xhigh;
+    fin >> ylow >> yhigh;
+    fin >> zlow >> zhigh;
+  }
+  else
+  {
+    fin >> xlow >> xhigh >> xy;
+    fin >> ylow >> yhigh >> xz;
+    fin >> zlow >> zhigh >> yz;
+  }
 
   fout.precision(6);
   fout << xlow << "\t" << xhigh << "\txlo xhi\n";

@@ -98,9 +98,9 @@ int main(int argc, char **argv)
 {
   // External values
   string filename1, filename2, filename3, filename4, input_file, str; //filenames and line variable
-  string element, chem_formula; // element type
+  string chem_formula; // element type
   string boundary_type;
-  bool is_sphere;
+  bool is_sphere, is_triclinic = false;
   int axis;
   double r_grain; //radius of the grain, with buffer zone
   double r_grain_sq; // squared values for convenience
@@ -115,6 +115,8 @@ int main(int argc, char **argv)
   // Values from file
   int N, ntypes, ntypes_test; // number of atoms, and number of atom types
   double xlow, xhigh, ylow, yhigh, zlow, zhigh; // atom bounds
+  double xy, xz, yz; // Triclinic tilt factors
+  double xmin = 0, ymin = 0, zmin = 0; // minimum values in the x, y, and z directions
   int atom_id, atom_type; // id number and type number
   double atom_charge, x, y, z; // charge and position values
   double x1, y1, z1, temp_x, temp_y; // Store the original value and manipulate!
@@ -472,7 +474,21 @@ int main(int argc, char **argv)
   fout << ylow << "\t" << yhigh << "\tylo yhi\n";
   fout << zlow << "\t" << zhigh << "\tzlo zhi\n";
 
-  fin  >> str; // Read the extra stuff
+  fin.ignore();
+  getline(fin, str); // Read the extra stuff
+  if (str.find("xy") != string::npos) // Checks if we have a triclinic system
+  {
+    fout << str << endl;
+    stringstream tmp(str);
+    tmp >> xy >> xz >> yz >> str >> str >> str;
+    fin  >> str;
+    is_triclinic = true;
+    fin.ignore();
+  }
+  else
+  {
+    getline(fin, str); // required in order to line up the different input file structures.
+  }
 
   fout << "\nAtoms\n\n"; // We now want to write the atoms down
 
@@ -480,7 +496,6 @@ int main(int argc, char **argv)
   n_atom_id = 0; // number written so far
   atoms.resize(N, Atom());
 
-  fin.ignore();
   getline(fin,str); // gets the blank line before the data.
   while (getline(fin, str)) // read the data
   {
@@ -493,10 +508,14 @@ int main(int argc, char **argv)
       if (!(ss >> atom_id >> atom_type >> x >> y >> z))
       {
         cout << "Read error.\n";
-        break;
+        return 12;
       }
       atom_charge = 0.0;
     }
+
+    if (x < xmin) xmin = x;
+    if (y < ymin) ymin = y;
+    if (z < zmin) zmin = z;
 
     ++ntotal; // Increment the number of atoms
 
@@ -602,9 +621,9 @@ int main(int argc, char **argv)
     //if (atoms[i].getType() != 1) continue; // Only want U atoms
     // Assign this atom to a cell
     // Rounds towards 0 with a type cast
-    idx = (int)(atoms[i].getX() / lcellx); // assign the x cell
-    idy = (int)(atoms[i].getY() / lcelly); // assign the y cell
-    idz = (int)(atoms[i].getZ() / lcellz); // assign the z cell
+    idx = (int)((atoms[i].getX() - xmin) / lcellx); // assign the x cell
+    idy = (int)((atoms[i].getY() - ymin) / lcelly); // assign the y cell
+    idz = (int)((atoms[i].getZ() - zmin) / lcellz); // assign the z cell
     // Check if we went out of bounds
     // C++ indexes from 0, so we have to subtract 1 from the maximum value to
     // stay within our memory bounds
@@ -821,14 +840,19 @@ int main(int argc, char **argv)
 
   // write the base data to the file
   int subtotal = accumulate(n_removed.begin(), n_removed.end(),0);
-  fout3 << "These " << element << " coordinates are shifted and have atoms removed:[ID type x y z]\n"
+  fout3 << "These " << chem_formula << " coordinates are shifted and have atoms removed:[ID type x y z]\n"
         << "\n"
         << N - subtotal << "   atoms\n"
         << ntypes << "   atom types\n"
         << xlow << " " << xhigh << "   xlo xhi\n"
         << ylow << " " << yhigh << "   ylo yhi\n"
-        << zlow << " " << zhigh << "   zlo zhi\n"
-        << "\nAtoms\n\n";
+        << zlow << " " << zhigh << "   zlo zhi\n";
+  if (is_triclinic)
+  {
+    fout3 << xy << " " << xz << " " << yz << "  xy xz yz\n";
+  }
+
+  fout3 << "\nAtoms\n\n";
 
   // Now write the atoms to the files.  filename3 has all the atoms including
   // the rotated ones and the tag. filename4 has the correct number of atoms.

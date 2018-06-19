@@ -12,6 +12,7 @@
 #include <cmath> // for cos/sin
 #include <algorithm> // for min/max_element
 #include <complex>
+#include <cxxopts.hpp>
 #include "atom.h"
 
 #define PI 3.14159265358979
@@ -34,6 +35,10 @@ int main(int argc, char** argv)
   map <string, int> elements;
   vector <Atom> atoms;
   bool show_charge = false;
+  // cxxopts::Options options(argv[0], "Convert a file in the xyz format to the dat format");
+  // options.add_options()
+  //   ("f,file", "File name", cxxopts::value<string>())
+  //   ("s,show-charge", "Whether or not to write the charge values");
 
   if (argc == 1)
   {
@@ -145,12 +150,11 @@ int main(int argc, char** argv)
   n_atoms = 0;
   while (fin >> atom_type >> x >> y >> z) // Read in the data
   {
-    // Not needed for Cu
     if (atom_type.compare("U") == 0) // Given a U atom, write the correct type and charge
     {
       type = 1;
       charge = 2.4;
-      show_charge = true;
+      //show_charge = true;
     }
     else if (atom_type.compare("O") == 0) // Same with the O atom
     {
@@ -187,6 +191,10 @@ int main(int argc, char** argv)
 
   if (alpha != 90.00 || beta != 90.00 || gamma != 90.00)
   {
+    x = Lx;
+    y = Ly;
+    z = Lz;
+
     complex <double> xy, xz, yz, cos_a, cos_b, cos_g, sin_g; // Tilt parameters, sines and cosines
     complex <double> ii;
     ii.imag(1); // the square root of -1
@@ -197,6 +205,10 @@ int main(int argc, char** argv)
     cos_b = cos(beta * PI / 180.0);
     cos_g = cos(gamma * PI / 180.0);
     sin_g = sin(gamma * PI / 180.0);
+
+    // This needs some work... it depends on the orientation of the parallelepiped
+    Lx = x + (y * sin(abs(90.00 - gamma) * PI / 180.0)) + z * (cos_b.real());
+    Ly = 1.0;
 
     if (sin_g.real() < 1E-8 && sin_g.imag() < 1E-8)
     {
