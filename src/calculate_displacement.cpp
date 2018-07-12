@@ -201,6 +201,7 @@ int main(int argc, char **argv)
 
       fout.close();
     }
+    cout << endl; 
   }
   else
   {

@@ -351,20 +351,23 @@ int main(int argc, char **argv)
       }
     }
   }
-  cout << "The ratio of elements is calculated as: ";
-  map <int, string>::iterator elem_it = elements.begin();
-  for (vector <int>::iterator it = compound_ratio.ratio.begin(); it != compound_ratio.ratio.end();)
+  if (ntypes > 1)
   {
+    cout << "The ratio of elements is calculated as: ";
+    map <int, string>::iterator elem_it = elements.begin();
+    for (vector <int>::iterator it = compound_ratio.ratio.begin(); it != compound_ratio.ratio.end();)
+    {
 
-    cout << *it << " " << (*elem_it).second;
-    ++elem_it;
-    if (++it != compound_ratio.ratio.end())
-    {
-      cout << " : ";
-    }
-    else
-    {
-      cout << endl;
+      cout << *it << " " << (*elem_it).second;
+      ++elem_it;
+      if (++it != compound_ratio.ratio.end())
+      {
+        cout << " : ";
+      }
+      else
+      {
+        cout << endl;
+      }
     }
   }
 

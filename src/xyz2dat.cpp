@@ -35,10 +35,15 @@ int main(int argc, char** argv)
   map <string, int> elements;
   vector <Atom> atoms;
   bool show_charge = false;
+
   // cxxopts::Options options(argv[0], "Convert a file in the xyz format to the dat format");
   // options.add_options()
-  //   ("f,file", "File name", cxxopts::value<string>())
-  //   ("s,show-charge", "Whether or not to write the charge values");
+  //   ("file", "File name", cxxopts::value<string>())
+  //   ("s,show-charge", "Whether or not to write the charge values", cxxopts::value<bool>()->default_value("false"))
+  //   ("n,no-elements", "Flag specifying that the filename does not contain the element(s)", cxxopts::value<bool>(0->default_value("false")));
+  //
+  // options.parse_positionals("file")
+  // auto args = options.parse(argc, argv);
 
   if (argc == 1)
   {
