@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import numpy as np
+import scipy as sp
 from sys import argv, exit
 import argparse, itertools, contextlib, natsort
 
@@ -8,6 +9,7 @@ parser = argparse.ArgumentParser(usage = '%(prog)s [-h] file file [file ...]', d
 parser.add_argument('file1', metavar = 'file', nargs = 1, help = "The files to average together")
 parser.add_argument('file2', metavar = 'file', nargs = '+', help = argparse.SUPPRESS)
 parser.add_argument('-n','--not-constant', action = 'store_true', help = "Flag specifying whether the first value is constant across all files or not")
+parser.add_argument('-s', '--style', choices = ['a','h','g'], default = 'a', help = "Averaging style - (a)rithmetic (default), (h)armonic, or (g)eometric")
 args = parser.parse_args()
 args.files = natsort.natsorted(args.file1 + args.file2)
 
@@ -54,6 +56,13 @@ with contextlib.ExitStack() as stack:
             warn = False
         string = ""
         for i in range(len(data[0])):
-            string += "{val} ".format(val=np.mean([float(v[i]) for v in data]))
+            if arg.style == 'a':
+                string += "{val} ".format(val=np.mean([float(v[i]) for v in data]))
+            elif arg.style == 'h':
+                string += "{val} ".format(val=sp.stats.hmean([float(v[i]) for v in data]))
+            elif arg.style == 'g':
+                string += "{val} ".format(val=sp.stats.mstats.gmean([float(v[i]) for v in data]))
+            else:
+                print("Incorrect averaging parameter passed.  Something is wrong!  You entered {}, but we need 'a', 'h' or 'g'".format(arg.style))
         f2.write(string + "\n")
 f2.close()

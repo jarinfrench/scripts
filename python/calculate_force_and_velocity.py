@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math, itertools, argparse
 
+# Creates an iterator over the previous item (a), current item (b), and the next item (c) as a tuple, for each item that has all three.
 def threes(iterator):
     "s ->(s0,s1,s2),(s1,s2,s3),(s2,s3,s4), ..."
     a,b,c = itertools.tee(iterator,3)
@@ -46,6 +47,7 @@ def calculateLatticeParam(T, potential = 0):
         return float(yInt2) + float(linC) * T + float(paraC) * T**2
     else:
         print("Error calculating lattice parameter")
+        exit(4)
 
 def onClick(event):
     global ix,iy

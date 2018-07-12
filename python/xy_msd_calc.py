@@ -2,8 +2,8 @@
 
 import os
 
-dir_path = "/media/jarinf/Seagate Expansion Drive/UO2/grain_growth/MSD_data/"
-filenames = [f for f in os.listdir("/media/jarinf/Seagate Expansion Drive/UO2/grain_growth/MSD_data") if "with_xy" not in f] # <-- this doesn't quite work. It doesn't give me the absolute file path.
+dir_path = "/media/jarinf/Seagate Expansion Drive/UO2/grain_growth/MSD_data/20degree/U/average_data/"
+filenames = [f for f in os.listdir("/media/jarinf/Seagate Expansion Drive/UO2/grain_growth/MSD_data/20degree/U/average_data") if "with_xy" not in f] # <-- this doesn't quite work. It doesn't give me the absolute file path.
 new_filenames = [dir_path + os.path.splitext(base)[0] + "_with_xy.dat" for base in filenames]
 
 for f1,f2 in zip(filenames, new_filenames):
