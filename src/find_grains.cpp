@@ -6,12 +6,67 @@
 #include <vector>
 #include <cmath> // for cos, sin
 #include <cstdlib>
-#include <cassert>
+#include <cstdio>
+#include <cxxopts.hpp>
 #include "atom.h"
 
 using namespace std;
 
 #define PI 3.141592653589793
+
+#define EXIT_SUCCESS 0
+#define FILE_OPEN_ERROR 1
+#define FILE_FORMAT_ERROR 2
+#define ATOM_COUNT_ERROR 3
+#define ATOM_TYPE_ERROR 5
+#define INPUT_FORMAT_ERROR 9
+#define OPTION_PARSING_ERROR 10
+#define AXIS_READ_ERROR 11
+#define VECTOR_SIZE_ERROR 12
+
+bool warnings = true;
+bool print_nearest_neighbors = false;
+
+struct inputVars
+{
+  int n_files, n_types;
+  double theta, r_cut, fi_cut, a0;
+  double r_cut_sq;
+  vector <double> new_x_axis{0,0,0}, new_y_axis{0,0,0}, new_z_axis{0,0,0};
+  vector <double> old_x_axis{0,0,0}, old_z_axis{0,0,0};
+
+  void calculateOldX()
+  {
+    old_x_axis[0] = new_x_axis[0];
+    old_x_axis[1] = new_y_axis[0];
+    old_x_axis[2] = new_z_axis[0];
+  }
+
+  void calculateOldZ()
+  {
+    old_z_axis[0] = new_x_axis[2];
+    old_z_axis[1] = new_y_axis[2];
+    old_z_axis[2] = new_z_axis[2];
+  }
+
+  void calculateRCutSq()
+  {
+    r_cut_sq = r_cut * r_cut;
+  }
+} input;
+
+struct boxData
+{
+  double xlow, xhigh, ylow, yhigh, zlow, zhigh;
+  double Lx, Ly, Lz;
+
+  double calculateBoxLengths()
+  {
+    Lx = xhigh - xlow;
+    Ly = yhigh - ylow;
+    Lz = zhigh - zlow;
+  }
+} box;
 
 // Calculate the rounded value of x
 double anInt(double x)
@@ -23,78 +78,63 @@ double anInt(double x)
   return (double)(temp);
 }
 
-int main(int argc, char** argv)
+template <typename T>
+void checkFileStream(T& stream, const string& file)
 {
-  string filename1, filename2, input_file, str; // filenames read from and written to, input file, data file, junk variable
-  //string structure;
-  double xlow, xhigh, ylow, yhigh, zlow, zhigh, Lx, Ly, Lz; // bounds variables
-  double xy, xz, yz; // Tilt factors for triclinic systems
-  int N, n_type, n_atoms_read = 0; // number of atoms, atom types, number of atoms read
-  vector <Atom> atoms; // all of the atoms from the file
-  vector <double> symm; // a vector to hold the calculated symmetry parameters
-  int atom_id, type; // id and type number of atom; used to read in the data
-  double charge, x, y, z, xu, yu, zu; // charge and position of atom, used to read in data
-  double rxij, ryij, rzij, drij_sq; // positions and distance squared
-  double r_cut_sq; // cutoff distance
-  bool dump; // boolean value to determine if the read file is a LAMMPS dump file or not.
-  unsigned int n_grain_1, n_grain_2; // counter for number of atoms in each grain
-
-  // Variables for the symmetry parameters
-  double coeffs [2] = {3.0, 2.0}; // Coefficients of the symmetry parameter equation
-  double xtemp, ytemp, ztemp, costheta_sq; // temp position variables, cutoff value, square of cosine
-  vector <double> new_x_axis (3,0), old_x_axis (3,0); // New x axis position, old x in terms of new frame
-  vector <double> new_y_axis (3.0); // New y axis position, old y
-  vector <double> new_z_axis (3,0), old_z_axis (3,0); // New z axis position, old z
-  double magnitude_old_x, magnitude_old_z; // magnitude of the old x, y, and z axes.
-  double magnitude_new_x, magnitude_new_y, magnitude_new_z; // magnitude of the new x, y, and z axes.
-
-  // Input file parameters
-  int n_files; // Number of files to be read, rotation axis
-  double theta, r_cut, a0, fi_cut; // misorientation angle, cutoff distance (in terms of a0), orientation parameter cutoff lattice parameter
-
-  // Variables used for the cell-linked list
-  int n_atoms_per_cell; // self-explanatory
-  vector <vector <int> > iatom; // Cell-linked list
-  vector <vector <vector <int> > > icell; // cell index
-  vector <vector <vector <vector <int> > > > pcell; // atom index in each cell
-  int ncellx, ncelly, ncellz, idx, idy, idz; // Number of sub cells in each direction, cell number in each direction, atoms in cell i
-  double lcellx, lcelly, lcellz; // length of sub cells in each direction
-
-  // Parse command line input. Prompt for what we need.
-  if (argc != 2)
+  if (stream.fail())
   {
-    cout << "Please enter the input file to be read: ";
-    cin  >> input_file;
+    cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
   }
-  else
+}
+
+double calculateAxisMagnitude(vector <double>& axis)
+{
+  return sqrt(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+}
+
+void normalize(vector <double>& axis)
+{
+  double sum = 0;
+  double magnitude = calculateAxisMagnitude(axis);
+
+  if (axis.size() > 3)
   {
-    input_file = argv[1];
+    cout << "Vector size is too large (" << axis.size() << ").  Cannot normalize.\n";
+    exit(VECTOR_SIZE_ERROR);
   }
 
-  // open the input file stream
+  for (unsigned int i = 0; i < axis.size(); ++i)
+  {
+    axis[i] /= magnitude;
+  }
+}
+
+vector <double> getAxisData(istream& fin)
+{
+  string str; // junk string variable
+  vector <double> axis (3,0);
+  getline(fin, str);
+  stringstream ss(str);
+  if (!(ss >> axis[0] >> axis[1] >> axis[2]))
+  {
+    cout << "Error reading axis.\n";
+    exit(AXIS_READ_ERROR);
+  }
+  return axis;
+}
+
+vector <string> parseInputFile(const string& input_file)
+{
+  string str; // junk string variable
+  vector <string> files; // filenames to be processed
+
   ifstream fin_input(input_file.c_str());
-  if (fin_input.fail())
-  {
-    cout << "Error reading input file: " << input_file << endl;
-    return 1;
-  }
+  checkFileStream(fin_input, input_file);
 
-  // Open the output data file stream
-  ofstream fout_data("data.txt");
-  if (fout_data.fail())
-  {
-    cout << "Error opening file data.txt\n";
-    return 1;
-  }
-  // The # is there for use with programs like gnuplot.
-  fout_data << "# Data consists of: [timestep, atoms in grain 1, atoms in grain 2]\n";
-
-  // Get the important information from the input file:
-  // Number of files, misorientation angle, number of atom types, cutoff distance, orientation parameter cutoff, lattice parameter
-  // The way this is written, any values after a0 are ignored (I think)
   getline(fin_input, str);
   stringstream ss_input(str);
-  if (!(ss_input >> n_files >> theta >> n_type >> r_cut >> fi_cut >> a0))
+  if (!(ss_input >> input.n_files >> input.theta >> input.n_types >> input.r_cut >> input.fi_cut >> input.a0))
   {
     cout << "Error reading the input file.  Did you forget a value?\n"
          << "The first line of the input file must contain the following six items:\n"
@@ -104,111 +144,344 @@ int main(int argc, char** argv)
          << "\t4. The cutoff distance (r_cut) for determining grain assignment in terms of the lattice parameter.\n"
          << "\t5. The cutoff value (fi_cut) for which orientation parameters are assigned to each grain.\n"
          << "\t6. The lattice parameter in Angstroms.\n";
-    return 9;
+    exit(INPUT_FORMAT_ERROR);
   }
+  input.calculateRCutSq();
+  // This stores the transformation matrix from the <100> orientation to the new orientation
+  input.new_x_axis = getAxisData(fin_input);
+  input.new_y_axis = getAxisData(fin_input);
+  input.new_z_axis = getAxisData(fin_input);
+
   cout << "Input parameters:\n"
-       << "\tn_files = " << n_files << endl
-       << "\ttheta = " << theta << endl
-       << "\tn_types = " << n_type << endl
-       << "\tr_cut = " << r_cut << endl
-       << "\tfi_cut = " << fi_cut << endl
-       << "\ta0 = " << a0 << endl;
-  r_cut_sq = r_cut * r_cut;
-
-  // Now read the new axis locations
-  getline(fin_input,str);
-  ss_input.clear();
-  ss_input.str(str);
-  if (!(ss_input >> new_x_axis[0] >> new_x_axis[1] >> new_x_axis[2]))
-  {
-    cout << "Error reading new x axis.\n";
-    return 9;
-  }
-
-  getline(fin_input,str);
-  ss_input.clear();
-  ss_input.str(str);
-  if (!(ss_input >> new_y_axis[0] >> new_y_axis[1] >> new_y_axis[2]))
-  {
-    cout << "Error reading new y axis.\n";
-    return 9;
-  }
-
-  getline(fin_input,str);
-  ss_input.clear();
-  ss_input.str(str);
-  if (!(ss_input >> new_z_axis[0] >> new_z_axis[1] >> new_z_axis[2]))
-  {
-    cout << "Error reading new z axis.\n";
-    return 9;
-  }
+       << "\tn_files = " << input.n_files << endl
+       << "\ttheta = " << input.theta << endl
+       << "\tn_types = " << input.n_types << endl
+       << "\tr_cut = " << input.r_cut << endl
+       << "\tfi_cut = " << input.fi_cut << endl
+       << "\ta0 = " << input.a0 << endl;
   cout << "\tRotated coordinate system:\n"
-       << "\t  x = " << new_x_axis[0] << " " << new_x_axis[1] << " " << new_x_axis[2] << endl
-       << "\t  y = " << new_y_axis[0] << " " << new_y_axis[1] << " " << new_y_axis[2] << endl
-       << "\t  z = " << new_z_axis[0] << " " << new_z_axis[1] << " " << new_z_axis[2] << endl;
+       << "\t  x = " << input.new_x_axis[0] << " " << input.new_x_axis[1] << " " << input.new_x_axis[2] << endl
+       << "\t  y = " << input.new_y_axis[0] << " " << input.new_y_axis[1] << " " << input.new_y_axis[2] << endl
+       << "\t  z = " << input.new_z_axis[0] << " " << input.new_z_axis[1] << " " << input.new_z_axis[2] << endl;
 
-  magnitude_new_x = sqrt(new_x_axis[0] * new_x_axis[0] + new_x_axis[1] * new_x_axis[1] + new_x_axis[2] * new_x_axis[2]);
-  magnitude_new_y = sqrt(new_y_axis[0] * new_y_axis[0] + new_y_axis[1] * new_y_axis[1] + new_y_axis[2] * new_y_axis[2]);
-  magnitude_new_z = sqrt(new_z_axis[0] * new_z_axis[0] + new_z_axis[1] * new_z_axis[1] + new_z_axis[2] * new_z_axis[2]);
+  normalize(input.new_x_axis);
+  normalize(input.new_y_axis);
+  normalize(input.new_z_axis);
 
-  for (unsigned int i = 0; i < new_x_axis.size(); ++i)
-  {
-    new_x_axis[i] /= magnitude_new_x;
-    new_y_axis[i] /= magnitude_new_y;
-    new_z_axis[i] /= magnitude_new_z;
-  }
-
-  // extract the orientation of the original x, and z axes for use later
-  // This is P
-  old_x_axis[0] = new_x_axis[0];
-  old_x_axis[1] = new_y_axis[0];
-  old_x_axis[2] = new_z_axis[0];
-
-  // This is N
-  old_z_axis[0] = new_x_axis[2];
-  old_z_axis[1] = new_y_axis[2];
-  old_z_axis[2] = new_z_axis[2];
-
-  magnitude_old_x = sqrt(old_x_axis[0] * old_x_axis[0] + old_x_axis[1] * old_x_axis[1] + old_x_axis[2] * old_x_axis[2]);
-  magnitude_old_z = sqrt(old_z_axis[0] * old_z_axis[0] + old_z_axis[1] * old_z_axis[1] + old_z_axis[2] * old_z_axis[2]);
-
-  // Normalize the orientation of <100> in the new reference frame
-  for (unsigned int i = 0; i < old_x_axis.size(); ++i)
-  {
-    old_x_axis[i] /= magnitude_old_x;
-    old_z_axis[i] /= magnitude_old_z;
-  }
+  // This calculates the transformation from the new orientation to the <100> orientation
+  // Used later in the program.
+  input.calculateOldX();
+  input.calculateOldZ();
+  normalize(input.old_x_axis);
+  normalize(input.old_z_axis);
 
   int aa = 1;
-  while (getline(fin_input, filename1) && aa <= n_files)
+  while (getline(fin_input, str) && aa <= input.n_files) // Get the files desired
   {
-    // Open up the files for reading and writing.
-    ifstream fin(filename1.c_str());
-    if (fin.fail())
+    if (!str.empty()) // empty lines are ignored.
     {
-      cout << "Error opening file " << filename1 << endl;
-      return 1;
+      files.push_back(str);
+      ++aa;
+    }
+  }
+
+  // warn if n_files and files.size() are not equal.
+  if (warnings && files.size() != input.n_files)
+  {
+    cout << "Warning: " << input.n_files << " files specified in input file, but only " << files.size() << " found.\n";
+  }
+
+  return files;
+}
+
+void getAtomData(ifstream& fin, vector <Atom>& atoms)
+{
+  int n_atoms_read = 0; // number of atoms read
+  string str; // holds the info
+  vector <double> data; // holds the number of elements
+  int atom_id, type;
+  double charge, x, y, z, xu, yu, zu;
+  while (getline(fin, str))
+  {
+    stringstream ss(str);
+    double dummy;
+    while (ss >> dummy)
+    {
+      data.push_back(dummy); // a way to count the number of data elements
+    }
+    atom_id = (int)(data[0]);
+    type = (int)(data[1]);
+    switch (data.size())
+    {
+      // atom has charge, and unwrapped as well as wrapped coordinates
+      case 9: charge = data[2];
+              x = data[3]; y = data[4]; z = data[5];
+              xu = data[6]; yu = data[7]; zu = data[8];
+              break;
+
+      // atom does not have charge, and unwrapped as well as wrapped coordinates
+      case 8: charge = 0.0;
+              x = data[2]; y = data[3]; z = data[4];
+              xu = data[5]; yu = data[6]; zu = data[7];
+              break;
+
+      // atom has charge, and only wrapped coordinates
+      case 6: charge = data[2];
+              x = data[3]; y = data[4]; z = data[5];
+              xu = 0.0; yu = 0.0; zu = 0.0;
+              break;
+      // atom does not have charge, and only wrapped coordinates
+      case 5: charge = 0.0;
+              x = data[2]; y = data[3]; z = data[4];
+              xu = 0.0; yu = 0.0; zu = 0.0;
+              break;
+      default: cout << "Unrecognized file format.  Expected format: id type charge* x y z xu* yu* zu*.  Note, elements marked with * are optional.\n";
+               exit(FILE_FORMAT_ERROR);
+    }
+    data.clear();
+
+    if (type > input.n_types)
+    {
+      cout << "Error: unexpected atom type.\n"
+           << "n_types = " << input.n_types << " < this atom's type = " << type << endl;
+      exit(ATOM_TYPE_ERROR);
     }
 
-    // Pull out the relevant information from the heading
-    // Determine if the file is a dump file or an input file
-    if (filename1.find("dump") == string::npos) // if "dump" is not in the filename
-    {
-      dump = false; // it isn't a dump file, assume the file is an input file.
-    }
-    else
-    {
-      dump = true; // if it is in the filename, assume that it's a LAMMPS dump file
-    }
+    // We adjust the positions so that we start at the origin so we can easily
+    // assign to cells
+    x = x / input.a0 - box.xlow;
+    y = y / input.a0 - box.ylow;
+    z = z / input.a0 - box.zlow;
 
-    if (dump)
+    // We make the atom id (almost) match thre index.  There is a difference of 1
+    // because C++ indexes from 0
+    atoms[atom_id - 1] = Atom(atom_id, type, charge, x, y, z);
+    // The unwrapped coordinates we do not do anything with here, so we simply
+    // transcribe them.
+    atoms[atom_id - 1].setXu(xu);
+    atoms[atom_id - 1].setYu(yu);
+    atoms[atom_id - 1].setZu(zu);
+    ++n_atoms_read;
+  }
+  fin.close();
+
+  if (n_atoms_read != atoms.size())
+  {
+    cout << "Error: number of atoms read does not match number of atoms in the simulation.\n"
+         << "N = " << atoms.size() << " != n_atoms_read = " << n_atoms_read << endl;
+    exit(ATOM_COUNT_ERROR);
+  }
+}
+
+void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& iatom)
+{
+  int ncellx, ncelly, ncellz; // number of cells in each direction
+  int idx, idy, idz; // cell number in each direction
+  double lcellx, lcelly, lcellz; // length of cells in each direction
+  int n_atoms_per_cell; // number of atoms allowed per cell
+  double drij_sq, rxij, ryij, rzij; // square of distance, x, y, and z separation.
+  vector <vector <vector <int> > > icell; // cell index
+  vector <vector <vector <vector <int> > > > pcell; // atom index in each cell
+
+  // First we generate the number of cells in each direction
+  ncellx = (int)(box.Lx / input.r_cut) + 1;
+  ncelly = (int)(box.Ly / input.r_cut) + 1;
+  ncellz = (int)(box.Lz / input.r_cut) + 1;
+
+  // Length of cells in each direction
+  lcellx = box.Lx / ncellx;
+  lcelly = box.Ly / ncelly;
+  lcellz = box.Lz / ncellz;
+
+  // Minimum number of atoms allowed of 100
+  n_atoms_per_cell = max((int)(atoms.size() / (double)(3 * ncellx * ncelly * ncellz)), 100);
+
+  // resize the vectors
+  icell.resize(ncellx, vector <vector <int> > // x dimension
+              (ncelly, vector <int> // y dimension
+              (ncellz, 0))); // z dimension
+  pcell.resize(ncellx, vector <vector <vector <int> > > // x dimension
+              (ncelly, vector <vector <int> > // y dimension
+              (ncellz, vector <int> // z dimension
+              (n_atoms_per_cell, 0)))); // atom number in cell.
+  iatom.resize(n_atoms_per_cell, vector <int> (atoms.size(),0));
+
+  // generate the pcell and icell matrices.
+  for (unsigned int i = 0; i < atoms.size(); ++i) // Look at each atom
+  {
+    //if (atoms[i].getType() == 2) continue; // ignoreing O atoms
+    if (atoms[i].getType() != 1) {continue;} // Only want U atoms.  NOTE: This needs to change for substitutional defects!
+    // Assign this atom to a cell
+    // Rounds towards 0 with a type cast
+    idx = (int)(atoms[i].getX() / lcellx); // assign the x cell
+    idy = (int)(atoms[i].getY() / lcelly); // assign the y cell
+    idz = (int)(atoms[i].getZ() / lcellz); // assign the z cell
+    // Check if we went out of bounds
+    // C++ indexes from 0, so we have to subtract 1 from the maximum value to
+    // stay within our memory bounds
+    if (idx >= ncellx) idx = ncellx - 1;
+    if (idy >= ncelly) idy = ncelly - 1;
+    if (idz >= ncellz) idz = ncellz - 1;
+
+    // This is for unwrapped coordinates
+    while (idx < 0.0) idx = ncellx + idx; // Note that this keeps things within the bounds set by lcellx
+    while (idy < 0.0) idy = ncelly + idy; // Note that this keeps things within the bounds set by lcelly
+    while (idz < 0.0) idz = ncellz + idz; // Note that this keeps things within the bounds set by lcellz
+
+    ++icell[idx][idy][idz]; // increase the number of atoms in this cell
+    // assign the atom number to this index.
+    pcell[idx][idy][idz][icell[idx][idy][idz] - 1] = i;
+  }
+
+  for (int i = 0; i < ncellx; ++i) // For each x cell
+  {
+    for (int j = 0; j < ncelly; ++j) // For each y cell
     {
-      // This is for a LAMMPS dump file
+      for (int k = 0; k < ncellz; ++k) // For each z cell
+      {
+        for (int l = 0; l < icell[i][j][k]; ++l) // For each atom in this cell
+        {
+          int id = pcell[i][j][k][l]; // store this atom id
+          // Now we check each sub cell around the current one
+          for (int ii = -1; ii < 2; ++ii) // allowed values: -1, 0, and 1
+          {
+            for (int jj = -1; jj < 2; ++jj)
+            {
+              for (int kk = -1; kk < 2; ++kk)
+              {
+                int ia = i + ii; // min value: -1.  Max value: number of cells in dimension
+                int ja = j + jj;
+                int ka = k + kk;
+                // Check to make sure we are still in bounds
+                // C++ indexes from 0, so we accomodate.
+                if (ia >= ncellx) ia = 0;
+                if (ja >= ncelly) ja = 0;
+                if (ka >= ncellz) ka = 0;
+                if (ia < 0) ia = ncellx - 1;
+                if (ja < 0) ja = ncelly - 1;
+                if (ka < 0) ka = ncellz - 1;
+
+                // Now check each atom in this cell
+                for (int m = 0; m < icell[ia][ja][ka]; ++m)
+                {
+                  int jd = pcell[ia][ja][ka][m];
+                  // If jd <= id, we've already dealt with this interaction
+                  if (jd <= id)
+                  {
+                    continue;
+                  }
+
+                  // Now the actual calculations!
+                  rxij = atoms[id].getX() - atoms[jd].getX();
+                  ryij = atoms[id].getY() - atoms[jd].getY();
+                  rzij = atoms[id].getZ() - atoms[jd].getZ();
+
+                  // Apply PBCs
+                  rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
+                  ryij = ryij - anInt(ryij / box.Ly) * box.Ly;
+                  rzij = rzij - anInt(rzij / box.Lz) * box.Lz;
+
+                  // Now calculate the distance
+                  drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+
+                  if (drij_sq > input.r_cut_sq)
+                  {
+                    continue; // move to the next atom if we're too far away
+                  }
+
+                  // Create the neighbor list
+                  iatom[0][id] += 1; //for atom id - number of neighbors
+                  iatom[(iatom[0][id])][id] = jd; // point to the next atom
+                  iatom[0][jd] += 1; // for atom jd
+                  iatom[(iatom[0][jd])][jd] = id;
+                } // m
+              } //kk
+            } //jj
+          } //ii
+        } // l
+      } // k
+    } // j
+  } // i
+}
+
+void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const vector <double>& symm)
+{
+  int n_atoms_read = 0;
+
+  ofstream fout(filename.c_str());
+  checkFileStream(fout, filename);
+
+  fout << "VARIABLES = \"Atom ID\", \"Atom Type\", ";
+  if (input.n_types == 2) {fout << "\"Atom Charge\", ";}
+  fout << "\"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
+
+  // This writes things in a Tecplot-readable FILE_FORMAT_ERROR
+  for (unsigned int i = 0; i < atoms.size(); ++i)
+  {
+    if (atoms[i].getType() != 1) // only type 1 atoms... TODO: Change this later.
+    {
+      continue;
+    }
+    fout << atoms[i].getId() << " "
+         << atoms[i].getType() << " ";
+    if (input.n_types == 2) {fout << atoms[i].getCharge() << " ";}
+    fout << (atoms[i].getX() + box.xlow) * input.a0 << " "
+         << (atoms[i].getY() + box.ylow) * input.a0 << " "
+         << (atoms[i].getZ() + box.zlow) * input.a0 << " "
+         << atoms[i].getMark() << " "
+         << symm[i] << " " << atoms[i].getXu() << " " << atoms[i].getYu()
+         << " " << atoms[i].getZu() << endl;
+    ++n_atoms_read;
+  }
+  fout.close();
+  if (input.n_types == 2) {n_atoms_read *= 3;}
+  if (n_atoms_read != atoms.size())
+  {
+    cout << "Error: number of atoms written does not match number of atoms in the simulation.\n"
+         << "N = " << atoms.size() << " != n_atoms_read = " << n_atoms_read << endl;
+    exit(ATOM_COUNT_ERROR);
+  }
+}
+
+void processData(vector <string>& files, const cxxopts::ParseResult& result)
+{
+  int N; // Number of atoms
+  double xlow, xhigh, ylow, yhigh, zlow, zhigh; // Box bounds from the data files
+  double xy, xz, yz; // tilt factors
+  double Lx, Ly, Lz; // Box lengths
+  string filename2, str; // file to write atom data to, junk string variable
+  vector <Atom> atoms;
+  vector <vector <int> > iatom; // cell-linked list
+  vector <double> symm;
+  double x, y, z, rxij, ryij, rzij, drij_sq, xtemp, ytemp, ztemp;
+  double costheta_sq;
+  double coeffs [2] = {3.0, 2.0};
+  int n_grain_1, n_grain_2;
+
+  ofstream fout_data((result["output"].as<string>()).c_str());
+  checkFileStream(fout_data, result["output"].as<string>());
+
+  fout_data << "# Data consists of: [timestep, atoms in grain 1, atoms in grain 2]\n";
+
+  int aa = 1;
+  for (vector <string>::iterator it = files.begin(); it != files.end(); ++it)
+  {
+
+    ifstream fin((*it).c_str());
+    checkFileStream(fin, *it);
+
+    // Parse the file based on it's contents.  Note that if "dump" appears anywhere
+    // in the filename, this script will assume it's a dump file.  If dump is not
+    // found, it will look for "dat", and assume it is a LAMMPS input file.
+    if ((result["type"].as<string>()).compare("dump") == 0)
+    {
+      int timestep;
       getline(fin, str); // Gets ITEM: TIMESTEP
-      getline(fin, str); // Gets the timestep number
+      fin >> timestep; // Gets the timestep number
+      fin.ignore();
       if (aa == 1)
       {
-        if (str != "0")
+        if (warnings && timestep != 0)
         {
           cout << "Warning: first data file is not at timestep 0! "
                << "Ignore this warning if this is intentional.\n";
@@ -232,11 +505,19 @@ int main(int argc, char** argv)
       }
       fin.ignore();
       getline(fin, str); // Gets ITEM: ATOMS <data types>
-      filename2 = filename1.substr(0,filename1.find(".dump")) + "_interface.dat";
+      if (!result.count("append"))
+      {
+        filename2 = (*it).substr(0,(*it).find(".dump")) + "_interface.dat";
+      }
+      else
+      {
+        filename2 = "temp.dat";
+      }
+
+      fout_data << timestep << " ";
     }
-    else
+    else if ((result["type"].as<string>()).compare("dat") == 0)
     {
-      // This is for a LAMMPS input file
       getline(fin, str); // gets comment line
       fin >> N >> str; // number of atoms
       fin >> str >> str >> str; // Number of types is specified in the input file
@@ -251,226 +532,71 @@ int main(int argc, char** argv)
         fin.ignore();
       }
       getline(fin, str);
-      filename2 = filename1.substr(0,filename1.find(".dat")) + "_interface.dat";
-    }
-
-    // Convert the bounds in terms of a0
-    xlow /= a0;
-    xhigh /= a0;
-    ylow /= a0;
-    yhigh /= a0;
-    zlow /= a0;
-    zhigh /= a0;
-    Lx = xhigh - xlow;
-    Ly = yhigh - ylow;
-    Lz = zhigh - zlow;
-
-    ofstream fout(filename2.c_str());
-    if (fout.fail())
-    {
-      cout << "\nError opening file " << filename2 << endl;
-      return 1;
-    }
-
-    fout_data << filename2.substr(0,filename2.find("_interface")) << " ";
-
-    // Preallocate the information (saves time, and allows the atoms to be written
-    // in order)
-    atoms.resize(N, Atom());
-    n_atoms_read = 0;
-    n_grain_1 = 0;
-    n_grain_2 = 0;
-    icell.clear();
-    pcell.clear();
-    iatom.clear();
-
-    // Read the data
-    while (getline(fin, str))
-    {
-      stringstream ss(str);
-      if (n_type == 1)
+      if (!result.count("append"))
       {
-        if (!(ss >> atom_id >> type >> x >> y >> z >> xu >> yu >> zu))
-        {
-          xu = 0.0;
-          yu = 0.0;
-          zu = 0.0;
-        }
-        charge = 0.0;
-      }
-      else if (n_type == 2)
-      {
-        if (!(ss >> atom_id >> type >> charge >> x >> y >> z >> xu >> yu >> zu))
-        {
-          xu = 0.0;
-          yu = 0.0;
-          zu = 0.0;
-        }
+        filename2 = (*it).substr(0,(*it).find(".dat")) + "_interface.dat";
       }
       else
       {
-        cout << "\nThis case is not handled.  n_types = " << n_type << " != (1|2)\n";
-        return 10;
+        cout << "This will be implemented later.\n";
+        filename2 = (*it).substr(0,(*it).find(".dat")) + "_interface.dat";
+        //filename2 = "temp.dat";
       }
 
-      if (type > n_type)
+      fout_data << (*it).substr(0, (*it).find(".dat"));
+    }
+    else
+    {
+      cout << "File type error";
+      exit(FILE_FORMAT_ERROR);
+    }
+
+    // Convert the bounds in terms of a0
+    xlow /= input.a0;
+    xhigh /= input.a0;
+    ylow /= input.a0;
+    yhigh /= input.a0;
+    zlow /= input.a0;
+    zhigh /= input.a0;
+
+    box.xlow = xlow; box.xhigh = xhigh;
+    box.ylow = ylow; box.yhigh = yhigh;
+    box.zlow = zlow; box.zhigh = zhigh;
+    box.calculateBoxLengths();
+
+    atoms.resize(N, Atom());
+    iatom.clear();
+    getAtomData(fin, atoms);
+    generateCellLinkedList(atoms, iatom);
+    if (print_nearest_neighbors)
+    {
+      stringstream neighbor;
+      string neighbor_filename;
+      neighbor << "nearest_neighbor_list_" << aa << ".txt";
+      neighbor >> neighbor_filename;
+      ofstream fout_neighbors(neighbor_filename.c_str());
+      checkFileStream(fout_neighbors, neighbor_filename);
+      for (unsigned int i = 0; i < atoms.size(); ++i)
       {
-        cout << "\nError: unexpected atom type.\n"
-             << "n_types = " << n_type << " < this atom's type = " << type << endl;
-        return 2;
-      }
-
-      // Read the atoms line by line, and put them into a vector for analysis.
-      // We adjust the positions so that we start at the origin so we can easily assign to cells
-      x = x / a0 - xlow;
-      y = y / a0 - ylow;
-      z = z / a0 - zlow;
-      // We make the atom id match (almost) the index.  There is a difference of 1
-      // because C++ indexes from 0.
-      atoms[atom_id - 1] = Atom(atom_id, type, charge, x, y, z);
-      atoms[atom_id - 1].setXu(xu);
-      atoms[atom_id - 1].setYu(yu);
-      atoms[atom_id - 1].setZu(zu);
-      ++n_atoms_read;
-    }
-    fin.close(); // Close the data file, we're done with it.
-
-    // Compare to N
-    if (n_atoms_read != N)
-    {
-      cout << "\nError: number of atoms read does not match number of atoms in the simulation.\n"
-           << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
-      return 3;
-    }
-
-    // Generate the cell-linked list for fast calculations
-    // First generate the number of cells in each direction (minimum is 1)
-    ncellx = (int)(Lx / r_cut) + 1;
-    ncelly = (int)(Ly / r_cut) + 1;
-    ncellz = (int)(Lz / r_cut) + 1;
-    lcellx = Lx / ncellx; // Length of the cells in each direction
-    lcelly = Ly / ncelly;
-    lcellz = Lz / ncellz;
-
-    // Number of atoms per cell based on cell size, with a minimum allowed of 200
-    n_atoms_per_cell = max((int)(N / (double)(3 * ncellx * ncelly * ncellz)), 200);
-
-    // resizes the vectors to be the correct length. Saves on time.
-    // Defaults all values to 0
-    icell.resize(ncellx, vector <vector <int> > // x dimension
-                (ncelly, vector <int> // y dimension
-                (ncellz, 0))); // z dimension
-    pcell.resize(ncellx, vector <vector <vector <int> > > // x dimension
-                (ncelly, vector <vector <int> > // y dimension
-                (ncellz, vector <int> // z dimension
-                (n_atoms_per_cell, 0)))); // atom number in cell.
-    iatom.resize(n_atoms_per_cell, vector <int> (N,0)); // the actual list.
-
-    /****************************************************************************/
-    /**************************CREATE CELL-LINKED LIST***************************/
-    /****************************************************************************/
-    for (unsigned int i = 0; i < atoms.size(); ++i) // Look at each atom
-    {
-      if (atoms[i].getType() != 1) continue; // Only want U atoms
-      // Assign this atom to a cell
-      // Rounds towards 0 with a type cast
-      idx = (int)(atoms[i].getX() / lcellx); // assign the x cell
-      idy = (int)(atoms[i].getY() / lcelly); // assign the y cell
-      idz = (int)(atoms[i].getZ() / lcellz); // assign the z cell
-      // Check if we went out of bounds
-      // C++ indexes from 0, so we have to subtract 1 from the maximum value to
-      // stay within our memory bounds
-      if (idx >= ncellx) idx = ncellx - 1;
-      if (idy >= ncelly) idy = ncelly - 1;
-      if (idz >= ncellz) idz = ncellz - 1;
-
-      // This is for unwrapped coordinates
-      while (idx < 0.0) idx = ncellx + idx; // Note that this keeps things within the bounds set by lcellx
-      while (idy < 0.0) idy = ncelly + idy; // Note that this keeps things within the bounds set by lcelly
-      while (idz < 0.0) idz = ncellz + idz; // Note that this keeps things within the bounds set by lcellz
-
-      ++icell[idx][idy][idz]; // increase the number of atoms in this cell
-      // assign the atom number to this index.
-      pcell[idx][idy][idz][icell[idx][idy][idz] - 1] = i;
-    }
-
-    for (int i = 0; i < ncellx; ++i) // For each x cell
-    {
-      for (int j = 0; j < ncelly; ++j) // For each y cell
-      {
-        for (int k = 0; k < ncellz; ++k) // For each z cell
+        vector <int> neighs;
+        fout_neighbors << "Atom " << i << " has " << iatom[0][i] << " neighbors:\n";
+        for (int l = 1; l <= iatom[0][i]; ++l)
         {
-          for (int l = 0; l < icell[i][j][k]; ++l) // For each atom in this cell
-          {
-            int id = pcell[i][j][k][l]; // store this atom id
-            // Now we check each sub cell around the current one
-            for (int ii = -1; ii < 2; ++ii) // allowed values: -1, 0, and 1
-            {
-              for (int jj = -1; jj < 2; ++jj)
-              {
-                for (int kk = -1; kk < 2; ++kk)
-                {
-                  int ia = i + ii; // min value: -1.  Max value: number of cells in dimension
-                  int ja = j + jj;
-                  int ka = k + kk;
-                  // Check to make sure we are still in bounds
-                  // C++ indexes from 0, so we accomodate.
-                  if (ia >= ncellx) ia = 0;
-                  if (ja >= ncelly) ja = 0;
-                  if (ka >= ncellz) ka = 0;
-                  if (ia < 0) ia = ncellx - 1;
-                  if (ja < 0) ja = ncelly - 1;
-                  if (ka < 0) ka = ncellz - 1;
-
-                  // Now check each atom in this cell
-                  for (int m = 0; m < icell[ia][ja][ka]; ++m)
-                  {
-                    int jd = pcell[ia][ja][ka][m];
-                    // If jd <= id, we've already dealt with this interaction
-                    if (jd <= id)
-                    {
-                      continue;
-                    }
-
-                    // Now the actual calculations!
-                    rxij = atoms[id].getX() - atoms[jd].getX();
-                    ryij = atoms[id].getY() - atoms[jd].getY();
-                    rzij = atoms[id].getZ() - atoms[jd].getZ();
-
-                    // Apply PBCs
-                    rxij = rxij - anInt(rxij / Lx) * Lx;
-                    ryij = ryij - anInt(ryij / Ly) * Ly;
-                    rzij = rzij - anInt(rzij / Lz) * Lz;
-
-                    // Now calculate the distance
-                    drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-
-                    if (drij_sq > r_cut_sq)
-                    {
-                      continue; // move to the next atom if we're too far away
-                    }
-
-                    // Create the neighbor list
-                    iatom[0][id] += 1; //for atom id - number of neighbors
-                    iatom[(iatom[0][id])][id] = jd; // point to the next atom
-                    iatom[0][jd] += 1; // for atom jd
-                    iatom[(iatom[0][jd])][jd] = id;
-                  } // m
-                } //kk
-              } //jj
-            } //ii
-          } // l
-        } // k
-      } // j
-    } // i
-    /****************************************************************************/
-    /**********************END GENERATE CELL-LINKED LIST*************************/
-    /****************************************************************************/
+          neighs.push_back(iatom[l][i]);
+        }
+        sort(neighs.begin(), neighs.end());
+        for (unsigned int i = 0; i < neighs.size(); ++i)
+        {
+          fout_neighbors << "\tAtom " << neighs[i] << endl;
+        }
+      }
+    }
 
     // Now that we have the atoms safely stored, we can process them.
     symm.resize(atoms.size(), 0); // Assign each atom a symmetry parameter
     for (unsigned int i = 0; i < atoms.size(); ++i)
     {
+      // if (atoms[i].getType() == 2) // ignore O atoms.
       if (atoms[i].getType() != 1)
       {
         continue; // Only focus on U (or the single atom type)
@@ -498,9 +624,9 @@ int main(int argc, char** argv)
 
         // Project this vector onto the (001) plane
         // NOTE: In order for this method to work well, the correct cutoff distance needs to be used!
-        xtemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[0];
-        ytemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[1];
-        ztemp = (rxij * old_z_axis[0] + ryij * old_z_axis[1] + rzij * old_z_axis[2]) * old_z_axis[2];
+        xtemp = (rxij * input.old_z_axis[0] + ryij * input.old_z_axis[1] + rzij * input.old_z_axis[2]) * input.old_z_axis[0];
+        ytemp = (rxij * input.old_z_axis[0] + ryij * input.old_z_axis[1] + rzij * input.old_z_axis[2]) * input.old_z_axis[1];
+        ztemp = (rxij * input.old_z_axis[0] + ryij * input.old_z_axis[1] + rzij * input.old_z_axis[2]) * input.old_z_axis[2];
 
         rxij -= xtemp;
         ryij -= ytemp;
@@ -517,7 +643,7 @@ int main(int argc, char** argv)
           continue;
         }
         // cos = dot(A,B) / (|A|*|B|)
-        double dotp = (rxij * old_x_axis[0] + ryij * old_x_axis[1] + rzij * old_x_axis[2]);
+        double dotp = (rxij * input.old_x_axis[0] + ryij * input.old_x_axis[1] + rzij * input.old_x_axis[2]);
         costheta_sq = (dotp * dotp) / (drij_sq);
         double val = (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
         symm[i] += val;
@@ -535,7 +661,10 @@ int main(int argc, char** argv)
       // each other in the simulation, which may not always be the case.
       else if (iatom[0][i] == 0 && i != 0)
       {
-        cout << "\nWarning: no neighbors detected for atom " << atoms[i].getId() << ".  Using the symmetry parameter of the previous atom = " << symm[i - 1] << endl;
+        if (warnings)
+        {
+          cout << "\nWarning: no neighbors detected for atom " << atoms[i].getId() << ".  Using the symmetry parameter of the previous atom = " << symm[i - 1] << endl;
+        }
         symm[i] = symm[i - 1];
       }
       else
@@ -547,7 +676,7 @@ int main(int argc, char** argv)
       {
         continue;
       }
-      if (symm[i] <= fi_cut)
+      if (symm[i] <= input.fi_cut)
       {
         atoms[i].setMark(1);
         ++n_grain_1;
@@ -561,77 +690,97 @@ int main(int argc, char** argv)
 
     fout_data << n_grain_1 << " " << n_grain_2 << endl;
 
-    // Make sure we write the entire set of atoms
-    // This writes things in a tecplot-readable format.
-    n_atoms_read = 0;
-    for (unsigned int i = 0; i < atoms.size(); ++i)
-    {
-      if (atoms[i].getType() != 1)
-      {
-        continue;
-      }
-      if (n_type == 1)
-      {
-        if (i == 0)
-        {
-          fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
-        }
-        fout << atoms[i].getId() << " "
-             << atoms[i].getType() << " "
-             << (atoms[i].getX() + xlow) * a0 << " "
-             << (atoms[i].getY() + ylow) * a0 << " "
-             << (atoms[i].getZ() + zlow) * a0 << " "
-             << atoms[i].getMark() << " "
-             << symm[i] << " " << atoms[i].getXu() << " " << atoms[i].getYu()
-             << " " << atoms[i].getZu() << endl;
-      }
-      else if (n_type == 2)
-      {
-        if (i == 0)
-        {
-          fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"Atom Charge\",\"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
-        }
-        fout << atoms[i].getId() << " "
-             << atoms[i].getType() << " "
-             << atoms[i].getCharge() << " "
-             << (atoms[i].getX() + xlow) * a0 << " "
-             << (atoms[i].getY() + ylow) * a0 << " "
-             << (atoms[i].getZ() + zlow) * a0 << " "
-             << atoms[i].getMark() << " "
-             << symm[i] << " " << atoms[i].getXu() << " " << atoms[i].getYu()
-             << " " << atoms[i].getZu() << endl;
-      }
-      else
-      {
-        cout << "\nError: n_types != (1|2), n_types = " << n_type << endl;
-        return 10;
-      }
+    writeAtomsToFile(filename2, atoms, symm);
 
-      ++n_atoms_read;
-    }
-    fout.close(); // Close the output file
-
-    // Allows for a different number of atom types to be checked.
-    if (n_type == 2)
+    fin.close();
+    if (result.count("append"))
     {
-      n_atoms_read *= 3;
+      cout << "This will be implemented later.\n";
+//      rename((*it).c_str(), (*it + ".bak").c_str()); // make a backup of the original file
+//      rename(filename2.c_str(), (*it + "_v2").c_str()); // change the temp file to the original filename
     }
-    if (n_atoms_read != N)
-    {
-      cout << "\nError: number of atoms written does not match number of atoms in the simulation.\n"
-           << "N = " << N << " != n_atoms_read = " << n_atoms_read << endl;
-      return 6;
-    }
-
     cout << "\r";
-    cout << "Processing of file \"" << filename1 << "\" completed.";
+    cout << "Processing of file\"" << (*it) << "\" completed.";
     cout.flush();
-
     ++aa;
   }
-
-  cout << "\n";
-  fin_input.close();
   fout_data.close();
-  return 0;
+}
+
+int main(int argc, char** argv)
+{
+  bool append, quiet, calculate_microrotation;
+  string input_file, output_file, filetype;
+  vector <string> filenames;
+  try
+  {
+    cxxopts::Options options(argv[0], "Script that can determine various properties per atom.");
+    options
+      .positional_help("File")
+      .show_positional_help();
+
+    options
+      .allow_unrecognised_options()
+      .add_options()
+        ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
+        ("a,append", "Append to the processed data file.", cxxopts::value<bool>(append)->default_value("false"))
+        ("t,type", "Flag specifying the input file type - LAMMPS input file (dat), or LAMMPS dump file (dump)", cxxopts::value<string>(filetype)->default_value("dump"))
+        ("m,microrotation", "Flag specifying that the user wants the microrotation parameter calculated. Not yet implemented", cxxopts::value<bool>(calculate_microrotation)->default_value("false")->implicit_value("true"))
+        ("o,output", "Output file for calculated data", cxxopts::value<string>(output_file)->default_value("data.txt"), "file")
+        ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>()->implicit_value("nearest_neighbors_*.txt"), "file")
+        ("q,quiet", "Suppress warnings from the code", cxxopts::value<bool>(quiet)->implicit_value("true")->default_value("false"));
+
+    options.parse_positional({"file"});
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") || result.count("file") == 0)
+    {
+      cout << options.help() << endl << endl
+           << "The first line of the input file must contain the following six items:\n"
+           << "\t1. The number of files to be processed.\n"
+           << "\t2. The misorientation angle of the grains with respect to each other.\n"
+           << "\t3. The number of atom types in the simulation.\n"
+           << "\t4. The cutoff distance (r_cut) for determining grain assignment in terms of the lattice parameter.\n"
+           << "\t5. The cutoff value (fi_cut) for which orientation parameters are assigned to each grain.\n"
+           << "\t6. The lattice parameter in Angstroms.\n";
+      return EXIT_SUCCESS;
+    }
+
+    if (result.count("quiet"))
+    {
+      warnings = false;
+    }
+
+    if (result.count("print-nearest-neighbors"))
+    {
+      print_nearest_neighbors = true;
+    }
+
+    if (result.count("file"))
+    {
+      if (result.count("type"))
+      {
+        string val = result["type"].as<string>();
+        if ((val.compare("dump") != 0 || val.compare("dat") != 0))
+        {
+          cout << "Data file must be either a LAMMPS dump file (\"*.dump\") or a LAMMPS input data file (\"*.dat\")\n";
+          exit(INPUT_FORMAT_ERROR);
+        }
+      }
+      if (result.count("microrotation"))
+      {
+        cout << "Microrotation not implemented yet.\n";
+      }
+      filenames = parseInputFile(input_file);
+      processData(filenames, result);
+      cout << endl;
+    }
+  }
+  catch (const cxxopts::OptionException& e)
+  {
+    cout << "Error parsing options: " << e.what() << endl;
+    return OPTION_PARSING_ERROR;
+  }
+
+  return EXIT_SUCCESS;
 }

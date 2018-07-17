@@ -16,10 +16,13 @@
 #include "atom.h"
 
 #define PI 3.14159265358979
+
+#define EXIT_SUCCESS 0
 #define FILE_OPEN_ERROR 1
 #define FILE_FORMAT_ERROR 2
 #define ATOM_COUNT_ERROR 3
 #define IMAGINARY_TILT_ERROR 4
+#define OPTION_PARSING_ERROR 10
 
 using namespace std;
 
@@ -299,10 +302,10 @@ int main(int argc, char** argv)
     options.parse_positional({"file"});
     auto result = options.parse(argc, argv);
 
-    if (result.count("help"))
+    if (result.count("help") || result.count("file") == 0)
     {
       cout << options.help() << endl;
-      return 0;
+      return EXIT_SUCCESS;
     }
 
     if (result.count("file"))
@@ -317,8 +320,8 @@ int main(int argc, char** argv)
   catch (const cxxopts::OptionException& e)
   {
     cout << "Error parsing options: " << e.what() << endl;
-    return 1;
+    return OPTION_PARSING_ERROR;
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
