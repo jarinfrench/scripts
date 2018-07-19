@@ -1,5 +1,6 @@
 FLAGS = -O3 -std=c++11 -o
 DBGFLAGS = -ggdb -g -std=c++11 -o
+BIN=../bin
 
 all : rotate_and_remove calculate_GBE calculate_grain_area calculate_MSD calculate_displacement \
 csv2tecplot extract_energy find_grains find_new_positions dump2LAMMPS_input dump2tec parse_lammps_output \
@@ -13,7 +14,7 @@ calculate_MSD_dbg csv2tecplot_dbg extract_energy_dbg find_grains_dbg find_new_po
 dump2LAMMPS_input_dbg dump2tec_dbg parse_lammps_output_dbg xyz2dat_dbg generate_impurities_dbg
 	mv *_dbg ../bin/
 
-rotate_and_remove : rotate_and_remove_atom.cpp atom.o
+rotate_and_remove : rotate_and_remove_atom.cpp atom.o error_code_defines.h
 	g++ ${FLAGS} rotate_and_remove rotate_and_remove_atom.cpp atom.o
 
 atom.o : atom.h atom.cpp
@@ -43,7 +44,7 @@ dump2tec : dump2tec.cpp
 extract_energy : extract_energy.cpp
 	g++ ${FLAGS} extract_energy extract_energy.cpp
 
-find_grains : find_grains.cpp atom.o
+find_grains : find_grains.cpp atom.o error_code_defines.h
 	g++ ${FLAGS} find_grains find_grains.cpp atom.o
 
 find_new_positions : find_new_positions.cpp atom.o
@@ -55,10 +56,10 @@ generate_impurities : generate_impurities.cpp atom.cpp atom.o
 parse_lammps_output : parse_lammps_output.cpp
 	g++ ${FLAGS} parse_lammps_output parse_lammps_output.cpp
 
-xyz2dat : xyz2dat.cpp atom.o
+xyz2dat : xyz2dat.cpp atom.o error_code_defines.h
 	g++ ${FLAGS} xyz2dat xyz2dat.cpp atom.o
 
-rotate_and_remove_dbg : rotate_and_remove_atom.cpp atom.o
+rotate_and_remove_dbg : rotate_and_remove_atom.cpp atom.o error_code_defines.h
 	g++ ${DBGFLAGS} rotate_and_remove_dbg rotate_and_remove_atom.cpp atom.o
 
 calculate_displacement_dbg : calculate_displacement.cpp atom.o
@@ -85,7 +86,7 @@ dump2tec_dbg : dump2tec.cpp
 extract_energy_dbg : extract_energy.cpp
 	g++ ${DBGFLAGS} extract_energy_dbg extract_energy.cpp
 
-find_grains_dbg : find_grains.cpp atom.cpp atom.o
+find_grains_dbg : find_grains.cpp atom.cpp atom.o error_code_defines.h
 	g++ ${DBGFLAGS} find_grains_dbg find_grains.cpp atom.o
 
 find_new_positions_dbg : find_new_positions.cpp atom.o
@@ -97,7 +98,7 @@ generate_impurities_dbg : generate_impurities.cpp atom.cpp atom.o
 parse_lammps_output_dbg : parse_lammps_output.cpp
 	g++ ${DBGFLAGS} parse_lammps_output_dbg parse_lammps_output.cpp
 
-xyz2dat_dbg : xyz2dat.cpp atom.o
+xyz2dat_dbg : xyz2dat.cpp atom.o error_code_defines.h
 	g++ ${DBGFLAGS} xyz2dat_dbg xyz2dat.cpp atom.o
 
 clean :

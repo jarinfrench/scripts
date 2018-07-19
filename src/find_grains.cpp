@@ -9,20 +9,11 @@
 #include <cstdio>
 #include <cxxopts.hpp>
 #include "atom.h"
+#include "error_code_defines.h"
 
 using namespace std;
 
 #define PI 3.141592653589793
-
-#define EXIT_SUCCESS 0
-#define FILE_OPEN_ERROR 1
-#define FILE_FORMAT_ERROR 2
-#define ATOM_COUNT_ERROR 3
-#define ATOM_TYPE_ERROR 5
-#define INPUT_FORMAT_ERROR 9
-#define OPTION_PARSING_ERROR 10
-#define AXIS_READ_ERROR 11
-#define VECTOR_SIZE_ERROR 12
 
 bool warnings = true;
 bool print_nearest_neighbors = false;
@@ -448,7 +439,6 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
   int N; // Number of atoms
   double xlow, xhigh, ylow, yhigh, zlow, zhigh; // Box bounds from the data files
   double xy, xz, yz; // tilt factors
-  double Lx, Ly, Lz; // Box lengths
   string filename2, str; // file to write atom data to, junk string variable
   vector <Atom> atoms;
   vector <vector <int> > iatom; // cell-linked list
@@ -618,9 +608,9 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
 
         // Apply PBCs.  Note that applying PBCs with the positions projected
         // in the <100> reference frame messes up the calculations!
-        rxij = rxij - anInt(rxij / Lx) * Lx;
-        ryij = ryij - anInt(ryij / Ly) * Ly;
-        rzij = rzij - anInt(rzij / Lz) * Lz;
+        rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
+        ryij = ryij - anInt(ryij / box.Ly) * box.Ly;
+        rzij = rzij - anInt(rzij / box.Lz) * box.Lz;
 
         // Project this vector onto the (001) plane
         // NOTE: In order for this method to work well, the correct cutoff distance needs to be used!
@@ -728,7 +718,8 @@ int main(int argc, char** argv)
         ("m,microrotation", "Flag specifying that the user wants the microrotation parameter calculated. Not yet implemented", cxxopts::value<bool>(calculate_microrotation)->default_value("false")->implicit_value("true"))
         ("o,output", "Output file for calculated data", cxxopts::value<string>(output_file)->default_value("data.txt"), "file")
         ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>()->implicit_value("nearest_neighbors_*.txt"), "file")
-        ("q,quiet", "Suppress warnings from the code", cxxopts::value<bool>(quiet)->implicit_value("true")->default_value("false"));
+        ("q,quiet", "Suppress warnings from the code", cxxopts::value<bool>(quiet)->implicit_value("true")->default_value("false"))
+        ("h,help", "Show the help");
 
     options.parse_positional({"file"});
     auto result = options.parse(argc, argv);
@@ -740,8 +731,8 @@ int main(int argc, char** argv)
            << "\t1. The number of files to be processed.\n"
            << "\t2. The misorientation angle of the grains with respect to each other.\n"
            << "\t3. The number of atom types in the simulation.\n"
-           << "\t4. The cutoff distance (r_cut) for determining grain assignment in terms of the lattice parameter.\n"
-           << "\t5. The cutoff value (fi_cut) for which orientation parameters are assigned to each grain.\n"
+           << "\t4. The cutoff distance (r_cut) for determining grain assignment in \n\t   terms of the lattice parameter.\n"
+           << "\t5. The cutoff value (fi_cut) for which orientation parameters are \n\t   assigned to each grain.\n"
            << "\t6. The lattice parameter in Angstroms.\n";
       return EXIT_SUCCESS;
     }
