@@ -9,10 +9,12 @@ read -p "Please enter the radius of the rotated grain: " radius
 
 read -p "Is this type cylinder (1) or sphere (2)? " boundary_type
 
+FLAGS=''
 if [[ "${boundary_type}" -eq 1 ]]; then
   b_type="cylinder"
 elif [[ "${boundary_type}" -eq 2 ]]; then
   b_type="sphere"
+  FLAGS='-s'
 else
   echo "$boundary_type is not equal to 1 or 2.  Please enter 1 or 2 next time."
   exit 4
@@ -31,7 +33,7 @@ if [[ $numElems -ne $combinations ]]; then
   exit 5
 fi
 
-echo $FN $radius $b_type $ntypes $cutoff > rotate_input.txt
+echo $FN $radius $ntypes $cutoff > rotate_input.txt
 
 
 # based on the filename, the axis is determined.  Can only handle 100 to 135 at
@@ -42,7 +44,7 @@ axis=`echo $FN | grep -o "1[0-9][0-9]\." | cut -d. -f1`
 
 # Utilize the symmetry of the axis.
 if [ $axis -eq 111 ]; then
-  let range=120/5
+  let range=360/5
 elif [ $axis -eq 110 ]; then
   let range=180/5
 elif [ $axis -eq 100 ]; then

@@ -7,6 +7,7 @@
 #include <cmath> // for cos, sin
 #include <cstdlib>
 #include <cstdio>
+#include <algorithm>
 #include <cxxopts.hpp>
 #include "atom.h"
 #include "error_code_defines.h"
@@ -25,6 +26,7 @@ struct inputVars
   double r_cut_sq;
   vector <double> new_x_axis{0,0,0}, new_y_axis{0,0,0}, new_z_axis{0,0,0};
   vector <double> old_x_axis{0,0,0}, old_z_axis{0,0,0};
+  vector <int> ignored_atoms;
 
   void calculateOldX()
   {
@@ -136,6 +138,12 @@ vector <string> parseInputFile(const string& input_file)
          << "\t5. The cutoff value for which orientation parameters are assigned to each grain.\n"
          << "\t6. The lattice parameter in Angstroms.\n";
     exit(INPUT_FORMAT_ERROR);
+  }
+
+  if (input.n_types  <= input.ignored_atoms.size())
+  {
+    cout << "All atoms ignored.  Exiting...\n";
+    exit(EXIT_SUCCESS);
   }
   input.calculateRCutSq();
   // This stores the transformation matrix from the <100> orientation to the new orientation
@@ -300,8 +308,11 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
   // generate the pcell and icell matrices.
   for (unsigned int i = 0; i < atoms.size(); ++i) // Look at each atom
   {
-    //if (atoms[i].getType() == 2) continue; // ignoreing O atoms
-    if (atoms[i].getType() != 1) {continue;} // Only want U atoms.  NOTE: This needs to change for substitutional defects!
+    if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end())
+    {
+      continue;
+    }
+
     // Assign this atom to a cell
     // Rounds towards 0 with a type cast
     idx = (int)(atoms[i].getX() / lcellx); // assign the x cell
@@ -397,19 +408,19 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
 
 void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const vector <double>& symm)
 {
-  int n_atoms_read = 0;
+  int n_atoms_written = 0;
 
   ofstream fout(filename.c_str());
   checkFileStream(fout, filename);
 
   fout << "VARIABLES = \"Atom ID\", \"Atom Type\", ";
-  if (input.n_types == 2) {fout << "\"Atom Charge\", ";}
+  if (input.n_types == 2) {fout << "\"Atom Charge\", ";} // TODO: This can be better handled
   fout << "\"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
 
   // This writes things in a Tecplot-readable FILE_FORMAT_ERROR
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
-    if (atoms[i].getType() != 1) // only type 1 atoms... TODO: Change this later.
+    if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end())
     {
       continue;
     }
@@ -422,16 +433,16 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const 
          << atoms[i].getMark() << " "
          << symm[i] << " " << atoms[i].getXu() << " " << atoms[i].getYu()
          << " " << atoms[i].getZu() << endl;
-    ++n_atoms_read;
+    ++n_atoms_written;
   }
   fout.close();
-  if (input.n_types == 2) {n_atoms_read *= 3;}
-  if (n_atoms_read != atoms.size())
-  {
-    cout << "Error: number of atoms written does not match number of atoms in the simulation.\n"
-         << "N = " << atoms.size() << " != n_atoms_read = " << n_atoms_read << endl;
-    exit(ATOM_COUNT_ERROR);
-  }
+  // if (input.n_types == 2) {n_atoms_read *= 3;} // TODO: This needs to be generalized
+  // if (n_atoms_read != atoms.size()) // TODO: This needs to be generalized
+  // {
+  //   cout << "Error: number of atoms written does not match number of atoms in the simulation.\n"
+  //        << "N = " << atoms.size() << " != n_atoms_written = " << n_atoms_written << endl;
+  //   exit(ATOM_COUNT_ERROR);
+  // }
 }
 
 void processData(vector <string>& files, const cxxopts::ParseResult& result)
@@ -456,7 +467,8 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
   int aa = 1;
   for (vector <string>::iterator it = files.begin(); it != files.end(); ++it)
   {
-
+    n_grain_1 = 0;
+    n_grain_2 = 0;
     ifstream fin((*it).c_str());
     checkFileStream(fin, *it);
 
@@ -586,8 +598,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
     symm.resize(atoms.size(), 0); // Assign each atom a symmetry parameter
     for (unsigned int i = 0; i < atoms.size(); ++i)
     {
-      // if (atoms[i].getType() == 2) // ignore O atoms.
-      if (atoms[i].getType() != 1)
+      if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(),atoms[i].getType()) != input.ignored_atoms.end())
       {
         continue; // Only focus on U (or the single atom type)
       }
@@ -641,7 +652,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
     }
     for (unsigned int i = 0; i < symm.size(); ++i)
     {
-      if (atoms[i].getType() != 1) // We are making a major assumption here that the atom assigned as type 1 has the important crystallographic structure
+      if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end())
       {
         continue;
       }
@@ -662,7 +673,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
         symm[i] /= iatom[0][i];
       }
 
-      if (atoms[i].getType() != 1)
+      if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end())
       {
         continue;
       }
@@ -690,7 +701,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
 //      rename(filename2.c_str(), (*it + "_v2").c_str()); // change the temp file to the original filename
     }
     cout << "\r";
-    cout << "Processing of file\"" << (*it) << "\" completed.";
+    cout << "Processing of file \"" << (*it) << "\" completed.";
     cout.flush();
     ++aa;
   }
@@ -719,6 +730,7 @@ int main(int argc, char** argv)
         ("o,output", "Output file for calculated data", cxxopts::value<string>(output_file)->default_value("data.txt"), "file")
         ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>()->implicit_value("nearest_neighbors_*.txt"), "file")
         ("q,quiet", "Suppress warnings from the code", cxxopts::value<bool>(quiet)->implicit_value("true")->default_value("false"))
+        ("i,ignore", "Ignore atoms of a specific type during neighbor list creation - each type must be specified with -i or --ignore=", cxxopts::value<vector <int> >())
         ("h,help", "Show the help");
 
     options.parse_positional({"file"});
@@ -735,6 +747,11 @@ int main(int argc, char** argv)
            << "\t5. The cutoff value (fi_cut) for which orientation parameters are \n\t   assigned to each grain.\n"
            << "\t6. The lattice parameter in Angstroms.\n";
       return EXIT_SUCCESS;
+    }
+
+    if (result.count("ignore"))
+    {
+      input.ignored_atoms = result["ignore"].as<vector <int> >();
     }
 
     if (result.count("quiet"))
