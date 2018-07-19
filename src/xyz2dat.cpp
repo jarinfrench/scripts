@@ -14,15 +14,9 @@
 #include <complex>
 #include <cxxopts.hpp>
 #include "atom.h"
+#include "error_code_defines.h"
 
 #define PI 3.14159265358979
-
-#define EXIT_SUCCESS 0
-#define FILE_OPEN_ERROR 1
-#define FILE_FORMAT_ERROR 2
-#define ATOM_COUNT_ERROR 3
-#define IMAGINARY_TILT_ERROR 4
-#define OPTION_PARSING_ERROR 10
 
 using namespace std;
 
@@ -91,6 +85,16 @@ vector <double> determineTiltParameters(const double& Lx, const double& Ly,
     tilt_params[1] = xz.real();
     tilt_params[2] = yz.real();
     return tilt_params;
+  }
+}
+
+template <typename T>
+void checkFileStream(T& stream, const string& file)
+{
+  if (stream.fail())
+  {
+    cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
   }
 }
 
@@ -183,18 +187,10 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
   file2 = file.substr(0,file.find(".")) + ".dat"; // Assumes only one "." symbol in file.
 
   ifstream fin(file.c_str());
-  if (fin.fail())
-  {
-    cout << "Unable to open file " << file << endl;
-    exit(FILE_OPEN_ERROR);
-  }
+  checkFileStream(fin, file);
 
   ofstream fout(file2.c_str());
-  if (fout.fail())
-  {
-    cout << "Unable to open file " << file2 << endl;
-    exit(FILE_OPEN_ERROR);
-  }
+  checkFileStream(fout, file2);
 
   if (!show_charge)
   {
