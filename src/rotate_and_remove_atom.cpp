@@ -65,7 +65,7 @@ struct inputVars
   string data_file;
   double r_grain, r_grain_sq;
   double theta, costheta, sintheta;
-  double r_cut_max = 0.0, r_cut_max_sq;
+  double r_cut_max, r_cut_max_sq;
   int axis;
   map <pair <int, int>, double> rcut, rcut_sq;
 
