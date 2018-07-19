@@ -4,13 +4,12 @@ from __future__ import division, print_function
 from sys import argv
 from collections import defaultdict
 import matplotlib.pyplot as plt
-import csv
+import csv, argparse
 from myModules import *
 
 # This script is should be utilized AFTER using the parse_lammps_output.cpp
 # script.  This script reads in the data from that file, and then prompts
 # the user as to which plots to show.
-
 def list_duplicates(seq):
     tally = defaultdict(list)
     for i,item in enumerate(seq):
@@ -38,18 +37,25 @@ def determine_label(label_set, label_dict, unit_dict):
         return "Unknown Units"
 
 
-if len(argv) == 1:
-    filename = input("Please enter the filename of the parsed output data in quotes: ")
-else:
-    filename = argv[1]
+parser = argparse.ArgumentParser(usage = '%(prog)s file', description = "Plot LAMMPS output data after being formatted by parse_lammps_output.cpp")
+parser.add_argument('file', help = "The (processed) file to plot.")
+parser.add_argument('-q','--quiet', action = 'store_true', help = "Suppress warnings")
+parser.add_argument('--box-size', nargs = 3, help = "Specify the box size (Lx Ly Lz) if not specified in the file")
+parser.add_argument('--n-atoms', help = "Specify the number of atoms (if not included in the file)")
+parser.add_argument('--unit-style', help = "Specify the unit style from LAMMPS used in the simulation (if not specified in the file)")
+parser.add_argument('--timestep', help = "Specify the timestep for the data (if not specified in the file)")
+
+
+args = parser.parse_args()
 
 # Now that we have the filename, lets open it
-fopen = open(filename, 'r')
+fopen = open(args.file, 'r')
 reader = csv.reader(fopen)
 line1 = next(reader) # Get the LAMMPS version
 
 if (line1[0] != "LAMMPS version:"):
-    print("Unable to determine LAMMPS version.")
+    if not args.quiet:
+        print("Unable to determine LAMMPS version.")
     version = "Unknown"
 else:
     version = line1[1]
@@ -58,7 +64,8 @@ line2 = next(reader) # Get the box size
 
 # Double check that we have what we expect.  NOTE that this assumes a 3D system
 if (line2[0] != "Lx Ly Lz ="):
-    print("Unable to determine box size")
+    if not args.quiet:
+        print("Unable to determine box size")
     Lx = -1.0
     Ly = -1.0
     Lz = -1.0
@@ -71,7 +78,8 @@ line3 = next(reader) # Get the number of atoms
 
 # Again, double check that we have the right input.
 if (line3[0] != "N ="):
-    print("Unable to determine the number of atoms.")
+    if not args.quiet:
+        print("Unable to determine the number of atoms.")
     N = -1
 else:
     N = int(line3[1])
@@ -80,7 +88,8 @@ line4 = next(reader) # get the units style
 
 # Double check for correctness
 if (line4[0] != "Unit style:"):
-    print("Unable to determine unit style.")
+    if not args.quiet:
+        print("Unable to determine unit style.")
     unit_style = "Unknown"
 else:
     unit_style = line4[1]
@@ -119,7 +128,8 @@ lammps_thermo = {"Step": "none", "Elapsed": "time", "Elaplong": "time",
 # Now get the time step
 line5 = next(reader)
 if (line5[0] != "Time step:"):
-    print("Unable to determine time step.")
+    if not args.quiet:
+        print("Unable to determine time step.")
     time_found = False
     time_step = 1
     labels = line5
