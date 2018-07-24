@@ -710,7 +710,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
 
 int main(int argc, char** argv)
 {
-  bool append, quiet, calculate_microrotation;
+  bool append, quiet, calculate_microrotation, calculate_slip_vector;
   string input_file, output_file, filetype;
   vector <string> filenames;
   try
@@ -727,6 +727,7 @@ int main(int argc, char** argv)
         ("a,append", "Append to the processed data file.", cxxopts::value<bool>(append)->default_value("false"))
         ("t,type", "Flag specifying the input file type - LAMMPS input file (dat), or LAMMPS dump file (dump)", cxxopts::value<string>(filetype)->default_value("dump"))
         ("m,microrotation", "Flag specifying that the user wants the microrotation parameter calculated. Not yet implemented", cxxopts::value<bool>(calculate_microrotation)->default_value("false")->implicit_value("true"))
+        ("s,slip-vector", "Flag specifying that the user wants the slip-vector parameter calculated.  Not yet implemented", cxxopts::value<bool>(calculate_slip_vector)->default_value("false")->implicit_value("true"))
         ("o,output", "Output file for calculated data", cxxopts::value<string>(output_file)->default_value("data.txt"), "file")
         ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>()->implicit_value("nearest_neighbors_*.txt"), "file")
         ("q,quiet", "Suppress warnings from the code", cxxopts::value<bool>(quiet)->implicit_value("true")->default_value("false"))

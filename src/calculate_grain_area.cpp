@@ -7,16 +7,78 @@
 #include <cmath>
 #include <algorithm>
 #include <vector>
+#include <cxxopts.hpp>
+#include "error_code_defines.h"
 
 using namespace std;
 
-struct fit{
+struct fit
+{
   string name;
   double T1, T2;
   double lin_y_int, lin_slope;
   double parabolic_int, parabolic_lin, parabolic_term;
 };
+
+struct inputData
+{
+  string datafile;
+  double temperature, height, a0;
+} input;
+
 #define PI 3.141592653589793
+
+template <typename T>
+void checkFileStream(T& stream, const string& file)
+{
+  if (stream.fail())
+  {
+    cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
+  }
+}
+
+void showInputFileHelp()
+{
+  cout << "The input file must contain the following on one line, in order:\n"
+       << "\t1) The filename containing the number of atoms in each grain, formatted as output by find_grains\n"
+       << "\t2) The temperature in Kelvin\n"
+       << "\t3) The height of the original cylinder in Angstroms\n"
+       << "\t4) The 0 K lattice parameter in Angstroms\n";
+}
+
+vector <fit> setPotentials(string& database_file)
+{
+  string str;
+  vector <fit> fits;
+  ifstream fin(database_file.c_str());
+  checkFileStream(fin, database_file);
+
+  for (int i = 0; i < 6; ++i) {getline(fin,str);} // get the comment lines
+  while (getline(fin, str))
+  {
+    fit temp;
+    stringstream ss(str);
+    if (!(ss >> temp.name >> temp.T1 >> temp.lin_y_int >> temp.lin_slope >> temp.T2
+             >> temp.parabolic_int >> temp.parabolic_lin >> temp.parabolic_term))
+    {
+      cout << "Error: Corrupted database file.\n";
+      exit(FILE_FORMAT_ERROR);
+    }
+    fits.push_back(temp);
+  }
+
+  return fits;
+}
+
+void listPotentials(const vector <fit>& fits)
+{
+  cout << "There are " << fits.size() << " fits:\n";
+  for (unsigned int i = 0; i < fits.size(); ++i)
+  {
+    cout << "  " << i + 1 << " - " << fits[i].name << endl;
+  }
+}
 
 double latticeParam(double T, int potential = 0)
 {
@@ -96,7 +158,97 @@ double latticeParam(double T, int potential = 0)
   return A + B * T + C * T * T;
 }
 
+void parseInput(string& filename)
+{
+  string str;
+  ifstream fin(filename.c_str());
+  checkFileStream(fin, filename);
+
+  getline(fin, str);
+  stringstream ss(str);
+  if (!(ss >> input.datafile >> input.temperature >> input.height >> input.a0))
+  {
+    showInputFileHelp();
+  }
+
+  cout << "Input parameters:"
+       << "\n\tDatafile: " << input.datafile
+       << "\n\tSimulation temperature: " << input.temperature
+       << "\n\tCylinder thickness: " << input.height
+       << "\n\t0 K lattice parameter: " << input.a0 << endl;
+}
+
 int main(int argc, char **argv)
+{
+  string input_file, output_file, database_file, structure;
+  vector <fit> fits;
+  try
+  {
+    cxxopts::Options options(argv[0], "Calculates the area of a grain.");
+    options
+      .positional_help("File")
+      .show_positional_help();
+
+    options
+      .allow_unrecognised_options()
+      .add_options()
+        ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
+        ("o,output", "Output filename", cxxopts::value<string>(output_file)->default_value("area_data.txt"), "filename")
+        ("p,potential", "The potential to use as specified in the database file", cxxopts::value<int>())
+        ("c,crystal-structure", "Crystal structure of the material - simple cubic (sc), face-centered cubic (fcc), or body-centered cubic (bcc)", cxxopts::value<string>(structure)->default_value("fcc"))
+        ("show-lattice-parameter", "Shows the calculated lattice parameter at the given temperature.  Can only be used with a database file and a potential.", cxxopts::value<double>(), "temperature")
+        ("list-fits", "List the names of the fits given in the database file")
+        ("potential-file", "Full path of the fitted lattice parameter database to use", cxxopts::value<string>(database_file)->default_value((string)(getenv("HOME")) + "/projects/scripts/lattice_params.db"), "db_file")
+        ("h,help", "Show the help");
+
+    options.parse_positional({"file"});
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") || result.count("file") == 0)
+    {
+      cout << options.help() << endl << endl;
+      showInputFileHelp();
+    }
+
+    if (result.count("show-lattice-parameter"))
+    {
+      if (!result.count("potential"))
+      {
+        cout << "Must include the potential to use.\n\n";
+        fits = setPotentials(database_file);
+        listPotentials(fits);
+        return EXIT_SUCCESS;
+      }
+      else
+      {
+        double temperature = result["show-lattice-parameter"].as<double>();
+        int potential = result["potential"].as<int>();
+        cout << "The lattice parameter at " << temperature << " K is:\n"
+             << latticeParam(temperature, potential) << " Angstroms\n";
+      }
+    }
+
+    if (result.count("list-fits"))
+    {
+      fits = setPotentials(database_file);
+      listPotentials(fits);
+      return EXIT_SUCCESS;
+    }
+
+    if (result.count("file"))
+    {
+      parseInput(input_file);
+    }
+  }
+  catch (const cxxopts::OptionException& e)
+  {
+    cout << "Error parsing options: " << e.what() << endl;
+    return OPTION_PARSING_ERROR;
+  }
+
+  return EXIT_SUCCESS;
+}
+/*int main(int argc, char **argv)
 {
   string filename, filename2, str; // data file, junk variable.
   double T, a0, a0_0, area, scale_factor; // temperature, lattice parameter, area
@@ -106,47 +258,7 @@ int main(int argc, char **argv)
   // NOTE: eGB is generally taken as 1.5.  I should use a value close to what
   // was calculated in the GBE calculations.
 
-  if (argc < 5)
-  {
-    cout << "Please enter the filename containing the number of atoms in each grain: ";
-    cin  >> filename;
 
-    cout << "Please enter the temperature (in K): ";
-    cin  >> T;
-
-    cout << "Please enter the height of the original cylinder (in Angstroms): ";
-    cin  >> Lz;
-
-    cout << "Please enter the 0 K lattice parameter (in Angstroms): ";
-    cin >> a0_0;
-
-    a0 = latticeParam(T);
-  }
-  else
-  {
-    if (argc == 5)
-    {
-      filename = argv[1]; // get the filename
-      T = strtod(argv[2], NULL); // get the temperature.
-      Lz = strtod(argv[3], NULL); // get the cylinder height
-      a0_0 = strtod(argv[4], NULL); // get the 0 K lattice parameter
-      a0 = latticeParam(T);
-    }
-    else if (argc == 6)
-    {
-      filename = argv[1]; // get the filename
-      T = strtod(argv[2], NULL); // get the temperature.
-      Lz = strtod(argv[3], NULL); // get the cylinder height
-      a0_0 = strtod(argv[4], NULL); // get the 0 K lattice parameter
-      istringstream potential_input(argv[5]);
-      if (!(potential_input >> potential))
-      {
-        cout << "Error: potential number not valid.  Please enter a positive integer for argument 5.\n";
-        return 11;
-      }
-      a0 = latticeParam(T, potential);
-    }
-  }
 
   cout << "Input parameters:"
        << "\n\tSimulation temperature: " << T
@@ -187,7 +299,7 @@ int main(int argc, char **argv)
 
   fin >> str >> str >> str; // ignore the minimization step
 
-  // Output the converted values
+  // Output the converted values.  NOTE: This is only for fcc materials!
   fout << setprecision(0) << t0 * 0.002 << " " << setprecision(2) << N1_0 * a0 * a0 * a0 / (4 * Lz) << " " << N2_0 * a0 * a0 * a0 / (4 * Lz) << endl;
   while (fin >> t1 >> N1_next >> N2_next)
   {
@@ -209,4 +321,4 @@ int main(int argc, char **argv)
   fout.close();
 
   return 0;
-}
+}*/
