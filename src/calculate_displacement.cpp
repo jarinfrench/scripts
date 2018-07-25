@@ -84,24 +84,24 @@ void processFile(ifstream & fin, vector <Atom> & atoms)
   }
 }
 
-void writeData(ofstream & fout, vector <Atom> const & atoms1, vector <Atom> const & atoms2)
+void writeData(ofstream & fout, vector <Atom> const & reference, vector <Atom> const & compared)
 {
   double disp_x, disp_y, disp_z, disp_mag;
   fout << "VARIABLES = \"Atom ID\", \"Atom Type\", \"Atom Charge\", \"Xu\", \"Yu\", \"Zu\", \"Changes Grain\", \"X(K)\", \"Y(K)\", \"Z(K)\", \"Magnitude\"\n";
-  for (unsigned int i = 0; i < atoms1.size(); ++i)
+  for (unsigned int i = 0; i < reference.size(); ++i)
   {
-    disp_x = atoms1[i].getXu() - atoms2[i].getXu();
-    disp_y = atoms1[i].getYu() - atoms2[i].getYu();
-    disp_z = atoms1[i].getZu() - atoms2[i].getZu();
+    disp_x = compared[i].getXu() - reference[i].getXu();
+    disp_y = compared[i].getYu() - reference[i].getYu();
+    disp_z = compared[i].getZu() - reference[i].getZu();
     int grain_change = 0;
-    if (atoms1[i].getMark() != atoms2[i].getMark())
+    if (reference[i].getMark() != compared[i].getMark())
     {
       grain_change = 1;
     }
     disp_mag = sqrt(disp_x * disp_x + disp_y * disp_y + disp_z * disp_z);
-    fout << atoms2[i].getId() << " " << atoms2[i].getType() << " "
-         << atoms2[i].getCharge() << " " << atoms2[i].getXu() << " "
-         << atoms2[i].getYu() << " " << atoms2[i].getZu() << " " << grain_change << " "
+    fout << reference[i].getId() << " " << reference[i].getType() << " "
+         << reference[i].getCharge() << " " << reference[i].getXu() << " "
+         << reference[i].getYu() << " " << reference[i].getZu() << " " << grain_change << " "
          << disp_x << " " << disp_y << " " << disp_z << " " << disp_mag << endl;
   }
 }
@@ -109,7 +109,7 @@ void writeData(ofstream & fout, vector <Atom> const & atoms1, vector <Atom> cons
 int main(int argc, char **argv)
 {
   string filename1, filename2, input_file, output_file, str;
-  vector <Atom> atoms_1, atoms_2;
+  vector <Atom> reference, compared;
   bool input, compare_to_one_file = false;
 
   if (argc == 2)
@@ -155,7 +155,7 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    processFile(fin, atoms_1);
+    processFile(fin, reference);
     fin.close();
 
     cout << "Processing of file \"" << filename1 << "\" complete.";
@@ -173,14 +173,14 @@ int main(int argc, char **argv)
         return 1;
       }
 
-      processFile(fin2,atoms_2);
+      processFile(fin2,compared);
       fin2.close();
       cout << "\r";
       cout << "Processing of file \"" << filename2 << "\" complete.";
 
-      if (atoms_1.size() != atoms_2.size())
+      if (compared.size() != reference.size())
       {
-        cout << "Error reading atom data.  atoms_1.size() = " << atoms_1.size() << " != atoms_2.size() = " << atoms_2.size() << endl;
+        cout << "Error reading atom data.  reference.size() = " << reference.size() << " != compared.size() = " << compared.size() << endl;
         return 3;
       }
 
@@ -191,17 +191,17 @@ int main(int argc, char **argv)
         return 1;
       }
 
-      writeData(fout, atoms_1, atoms_2);
+      writeData(fout, reference, compared);
       // Here we implement an option to compare with only one data file
       if (!compare_to_one_file)
       {
-        atoms_1 = atoms_2;
+        reference = compared;
         filename1 = filename2;
       }
 
       fout.close();
     }
-    cout << endl; 
+    cout << endl;
   }
   else
   {
@@ -212,7 +212,7 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    processFile(fin, atoms_1);
+    processFile(fin, reference);
     fin.close();
 
     ifstream fin2(filename2.c_str());
@@ -222,7 +222,7 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    processFile(fin2, atoms_2);
+    processFile(fin2, compared);
     fin2.close();
 
     ofstream fout(output_file.c_str());
@@ -231,7 +231,7 @@ int main(int argc, char **argv)
       cout << "Error opening file \"" << output_file << "\"\n";
       return 1;
     }
-    writeData(fout, atoms_1, atoms_2);
+    writeData(fout, reference, compared);
     fout.close();
   }
 

@@ -15,6 +15,11 @@ Atom::Atom(int id, int type, double charge, double x, double y, double z)
   mark = 0;
 }
 
+// std::ostream& operator << (std::ostream& os, const Atom& atom)
+// {
+//   os << atom.getId() << " " << atom.getType() << " " << atom.getCharge()
+// }
+
 /*bool Atom::operator==(const Atom& rhs) const
 {
   return (id == rhs.id && type == rhs.type && charge == rhs.charge &&
