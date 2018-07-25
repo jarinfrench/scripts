@@ -17,7 +17,7 @@ rotate_and_remove : rotate_and_remove_atom.cpp atom.o
 	g++ ${FLAGS} rotate_and_remove rotate_and_remove_atom.cpp atom.o
 
 atom.o : atom.h atom.cpp
-	g++ -c atom.cpp
+	g++ -O3 -c atom.cpp
 
 calculate_displacement : calculate_displacement.cpp atom.o
 	g++ ${FLAGS} calculate_displacement calculate_displacement.cpp atom.o
