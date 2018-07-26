@@ -18,6 +18,7 @@ using namespace std;
 
 bool warnings = true;
 bool print_nearest_neighbors = false;
+bool has_charge = false;
 
 struct inputVars
 {
@@ -216,6 +217,7 @@ void getAtomData(ifstream& fin, vector <Atom>& atoms)
       case 9: charge = data[2];
               x = data[3]; y = data[4]; z = data[5];
               xu = data[6]; yu = data[7]; zu = data[8];
+              has_charge = true;
               break;
 
       // atom does not have charge, and unwrapped as well as wrapped coordinates
@@ -228,6 +230,7 @@ void getAtomData(ifstream& fin, vector <Atom>& atoms)
       case 6: charge = data[2];
               x = data[3]; y = data[4]; z = data[5];
               xu = 0.0; yu = 0.0; zu = 0.0;
+              has_charge = true;
               break;
       // atom does not have charge, and only wrapped coordinates
       case 5: charge = 0.0;
@@ -414,7 +417,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const 
   checkFileStream(fout, filename);
 
   fout << "VARIABLES = \"Atom ID\", \"Atom Type\", ";
-  if (input.n_types == 2) {fout << "\"Atom Charge\", ";} // TODO: This can be better handled
+  if (has_charge) {fout << "\"Atom Charge\", ";}
   fout << "\"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
 
   // This writes things in a Tecplot-readable FILE_FORMAT_ERROR
@@ -753,7 +756,15 @@ int main(int argc, char** argv)
     if (result.count("ignore"))
     {
       input.ignored_atoms = result["ignore"].as<vector <int> >();
+      cout << "Ignoring atoms of type: ";
+      for (vector <int>::iterator it = input.ignored_atoms.begin(); it != input.ignored_atoms.end();)
+      {
+        cout << *it;
+        if (++it != input.ignored_atoms.end()) {cout << ", ";}
+      }
+      cout << endl;
     }
+    else {cout << "Processing all atom types.\n";}
 
     if (result.count("quiet"))
     {
