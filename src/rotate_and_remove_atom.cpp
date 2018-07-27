@@ -226,7 +226,7 @@ map <int, string> determineElementRatios()
 
   // This next step requires LAMMPS to be in the filename, and immediately
   // followed by the elements, i.e. LAMMPS_<element(s)>_[<extra_info>]_axis.extension
-  element_pos_start = input.data_file.find("LAMMPS_") + 7;
+  element_pos_start = input.data_file.find("LAMMPS_") + 7; // TODO: check that this is valid!  If adding 7 to string:npos works, what does it return?
   if (element_pos_start == string::npos)
   {
     cout << "Error determining element(s).\n";
