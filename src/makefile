@@ -26,7 +26,7 @@ calculate_displacement : calculate_displacement.cpp atom.o
 calculate_GBE : calculate_GBE.cpp
 	g++ ${FLAGS} calculate_GBE calculate_GBE.cpp
 
-calculate_grain_area : calculate_grain_area.cpp
+calculate_grain_area : calculate_grain_area.cpp error_code_defines.h
 	g++ ${FLAGS} calculate_grain_area calculate_grain_area.cpp
 
 calculate_MSD : calculate_MSD.cpp atom.o
@@ -53,7 +53,7 @@ find_new_positions : find_new_positions.cpp atom.o
 generate_impurities : generate_impurities.cpp atom.cpp atom.o
 	g++ ${FLAGS} generate_impurities generate_impurities.cpp atom.o
 
-parse_lammps_output : parse_lammps_output.cpp
+parse_lammps_output : parse_lammps_output.cpp error_code_defines.h
 	g++ ${FLAGS} parse_lammps_output parse_lammps_output.cpp
 
 xyz2dat : xyz2dat.cpp atom.o error_code_defines.h
@@ -68,7 +68,7 @@ calculate_displacement_dbg : calculate_displacement.cpp atom.o
 calculate_GBE_dbg : calculate_GBE.cpp
 	g++ ${DBGFLAGS} calculate_GBE_dbg calculate_GBE.cpp
 
-calculate_grain_area_dbg : calculate_grain_area.cpp
+calculate_grain_area_dbg : calculate_grain_area.cpp error_code_defines.h
 	g++ ${DBGFLAGS} calculate_grain_area_dbg calculate_grain_area.cpp
 
 calculate_MSD_dbg : calculate_MSD.cpp atom.o
@@ -95,7 +95,7 @@ find_new_positions_dbg : find_new_positions.cpp atom.o
 generate_impurities_dbg : generate_impurities.cpp atom.cpp atom.o
 	g++ ${DBGFLAGS} generate_impurities_dbg generate_impurities.cpp atom.o
 
-parse_lammps_output_dbg : parse_lammps_output.cpp
+parse_lammps_output_dbg : parse_lammps_output.cpp error_code_defines.h
 	g++ ${DBGFLAGS} parse_lammps_output_dbg parse_lammps_output.cpp
 
 xyz2dat_dbg : xyz2dat.cpp atom.o error_code_defines.h

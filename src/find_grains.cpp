@@ -1,5 +1,4 @@
 #include <iostream>
-#include <iomanip>
 #include <fstream>
 #include <string>
 #include <sstream>
@@ -429,7 +428,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const 
     }
     fout << atoms[i].getId() << " "
          << atoms[i].getType() << " ";
-    if (input.n_types == 2) {fout << atoms[i].getCharge() << " ";}
+    if (has_charge) {fout << atoms[i].getCharge() << " ";}
     fout << (atoms[i].getX() + box.xlow) * input.a0 << " "
          << (atoms[i].getY() + box.ylow) * input.a0 << " "
          << (atoms[i].getZ() + box.zlow) * input.a0 << " "
