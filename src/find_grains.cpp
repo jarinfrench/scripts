@@ -18,6 +18,7 @@ using namespace std;
 bool warnings = true;
 bool print_nearest_neighbors = false;
 bool has_charge = false;
+bool no_data_files = false;
 
 struct inputVars
 {
@@ -134,9 +135,14 @@ vector <string> parseInputFile(const string& input_file)
          << "\t1. The number of files to be processed.\n"
          << "\t2. The misorientation angle of the grains with respect to each other.\n"
          << "\t3. The number of atom types in the simulation.\n"
-         << "\t4. The cutoff distance for determining grain assignment in terms of the lattice parameter.\n"
-         << "\t5. The cutoff value for which orientation parameters are assigned to each grain.\n"
-         << "\t6. The lattice parameter in Angstroms.\n";
+         << "\t4. The cutoff distance (r_cut) for determining grain assignment in terms of the lattice parameter.\n"
+         << "\t5. The cutoff value (fi_cut) for which orientation parameters are assigned to each grain.\n"
+         << "\t6. The lattice parameter in Angstroms.\n\n"
+         << "These lines are then followed by the orientation matrix of the system, i.e.\n"
+         << "\t1 0 0 (orientation of the x axis)\n"
+         << "\t0 1 0 (orientation of the y axis)\n"
+         << "\t0 0 1 (orientation of the z axis),\n\n"
+         << "Then the list of files (one file per line) should be placed afterwards.\n\n";
     exit(INPUT_FORMAT_ERROR);
   }
 
@@ -693,7 +699,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
 
     fout_data << n_grain_1 << " " << n_grain_2 << endl;
 
-    writeAtomsToFile(filename2, atoms, symm);
+    if (!no_data_files) {writeAtomsToFile(filename2, atoms, symm);}
 
     fin.close();
     if (result.count("append"))
@@ -726,14 +732,15 @@ int main(int argc, char** argv)
       .allow_unrecognised_options()
       .add_options()
         ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
-        ("a,append", "Append to the processed data file.", cxxopts::value<bool>(append)->default_value("false"))
+        ("a,append", "Append to the processed data file. (Not yet implemented)", cxxopts::value<bool>(append)->default_value("false"))
+        ("no-data-file", "Flag specifying that no output data files should be written (only the file from -o(--output) is written)", cxxopts::value<bool>(no_data_files)->default_value("false"))
         ("t,type", "Flag specifying the input file type - LAMMPS input file (dat), or LAMMPS dump file (dump)", cxxopts::value<string>(filetype)->default_value("dump"))
         ("m,microrotation", "Flag specifying that the user wants the microrotation parameter calculated. Not yet implemented", cxxopts::value<bool>(calculate_microrotation)->default_value("false")->implicit_value("true"))
         ("s,slip-vector", "Flag specifying that the user wants the slip-vector parameter calculated.  Not yet implemented", cxxopts::value<bool>(calculate_slip_vector)->default_value("false")->implicit_value("true"))
         ("o,output", "Output file for calculated data", cxxopts::value<string>(output_file)->default_value("data.txt"), "file")
         ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>()->implicit_value("nearest_neighbors_*.txt"), "file")
         ("q,quiet", "Suppress warnings from the code", cxxopts::value<bool>(quiet)->implicit_value("true")->default_value("false"))
-        ("i,ignore", "Ignore atoms of a specific type during neighbor list creation - each type must be specified with -i or --ignore=", cxxopts::value<vector <int> >())
+        ("i,ignore", "Ignore atoms of a specific type during neighbor list creation - each type must be specified with -i or --ignore=", cxxopts::value<vector <int> >(), "atom_type")
         ("h,help", "Show the help");
 
     options.parse_positional({"file"});
@@ -748,7 +755,12 @@ int main(int argc, char** argv)
            << "\t3. The number of atom types in the simulation.\n"
            << "\t4. The cutoff distance (r_cut) for determining grain assignment in \n\t   terms of the lattice parameter.\n"
            << "\t5. The cutoff value (fi_cut) for which orientation parameters are \n\t   assigned to each grain.\n"
-           << "\t6. The lattice parameter in Angstroms.\n";
+           << "\t6. The lattice parameter in Angstroms.\n\n"
+           << "These lines are then followed by the orientation matrix of the system, i.e.\n"
+           << "\t1 0 0 (orientation of the x axis)\n"
+           << "\t0 1 0 (orientation of the y axis)\n"
+           << "\t0 0 1 (orientation of the z axis),\n\n"
+           << "Then the list of files (one file per line) should be placed afterwards.\n\n";
       return EXIT_SUCCESS;
     }
 
