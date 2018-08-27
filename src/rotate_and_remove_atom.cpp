@@ -896,7 +896,7 @@ int main(int argc, char **argv)
       .allow_unrecognised_options()
       .add_options()
       ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
-      ("t,theta", "Misorientation angle", cxxopts::value<double>(), "angle")
+      ("t,theta", "Misorientation angle", cxxopts::value<double>(), "angle") // try to make this a vector
       ("o,output", "Output files: (m)arked data files, with atoms marked for removal, (r)otated data files, with the atoms rotated, and r(e)moved data files, with the marked atoms removed.  If the flag is specified alone, no output files will be produced",
         cxxopts::value<string>(outputs)->default_value("mre"), "mre")
       ("a,axis", "Orientation axis.  If not identified before the file extension, must be included", cxxopts::value<int>(input.axis)) // TODO: This can be better generalized
