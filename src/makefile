@@ -1,3 +1,4 @@
+.SECONDEXPANSION:
 CC = g++
 FLAGS = -O3 -std=c++11 -o
 DBGFLAGS = -ggdb -g -std=c++11 -o
@@ -14,7 +15,7 @@ dump2LAMMPS_input_dbg dump2tec_dbg extract_energy_dbg parse_lammps_output_dbg
 
 ERRORCODES = error_code_defines.h
 
-all: atom.o atom_builds non_atom_builds debug
+all: atom.o atom_builds non_atom_builds
 
 debug: atom_builds_dbg non_atom_builds_dbg
 
@@ -40,7 +41,7 @@ atom.o : atom.h atom.cpp
 # subst _dbg,, : subst is the command to swap strings.  the first argument (_dbg)
 # is the string to be replaced, the second argument (between the two commas) is
 # the replacement string, and the third argument ($(@F) in this case) is the filename
-$(BIN)/% : $(addsuffix .cpp, $(@F)) $(TARGETS) $(ERRORCODES)
+$(BIN)/% : $$(addsuffix .cpp, $$(subst _dbg,,$$(@F))) $$(TARGETS) $$(ERRORCODES)
 	$(CC) $(FLAGS) $(addprefix $(BIN)/, $(@F)) $(addsuffix .cpp, $(subst _dbg,,$(@F))) $(TARGETS)
 
 # ls -I '*.*' lists all files that do NOT match the pattern '*.*' - all of the
