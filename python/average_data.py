@@ -56,11 +56,11 @@ with contextlib.ExitStack() as stack:
             warn = False
         string = ""
         for i in range(len(data[0])):
-            if arg.style == 'a':
+            if args.style == 'a':
                 string += "{val} ".format(val=np.mean([float(v[i]) for v in data]))
-            elif arg.style == 'h':
+            elif args.style == 'h':
                 string += "{val} ".format(val=sp.stats.hmean([float(v[i]) for v in data]))
-            elif arg.style == 'g':
+            elif args.style == 'g':
                 string += "{val} ".format(val=sp.stats.mstats.gmean([float(v[i]) for v in data]))
             else:
                 print("Incorrect averaging parameter passed.  Something is wrong!  You entered {}, but we need 'a', 'h' or 'g'".format(arg.style))
