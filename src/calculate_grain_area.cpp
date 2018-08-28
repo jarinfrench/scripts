@@ -45,7 +45,7 @@ void showInputFileHelp()
        << "\t2) The temperature in Kelvin\n"
        << "\t3) The height of the original cylinder in Angstroms\n"
        << "\t4) The 0 K lattice parameter in Angstroms\n"
-       << "\t5) The crystal structure (must be one of sc (simple cubic), bcc\n\t   (body-centered cubic) or fcc (face-centered cubic)\n)";
+       << "\t5) The crystal structure (must be one of sc (simple cubic), bcc\n\t   (body-centered cubic) or fcc (face-centered cubic)\n";
 }
 
 fit promptForPotential(const vector <fit>& fits)
