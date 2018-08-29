@@ -1,6 +1,6 @@
 .SECONDEXPANSION:
 CC = g++
-FLAGS = -O3 -std=c++11 -o
+NODBGFLAGS = -O3 -std=c++11 -o
 DBGFLAGS = -ggdb -g -std=c++11 -o
 BIN =../bin
 
@@ -15,8 +15,10 @@ dump2LAMMPS_input_dbg dump2tec_dbg extract_energy_dbg parse_lammps_output_dbg
 
 ERRORCODES = error_code_defines.h
 
+all: FLAGS = $(NODBGFLAGS)
 all: atom.o atom_builds non_atom_builds
 
+debug: FLAGS = $(DBGFLAGS)
 debug: atom_builds_dbg non_atom_builds_dbg
 
 # The extra line for each rule allows a different value to be passed to the pattern-matched rule.
@@ -48,3 +50,5 @@ $(BIN)/% : $$(addsuffix .cpp, $$(subst _dbg,,$$(@F))) $$(TARGETS) $$(ERRORCODES)
 # executables created from this makefile.  BEWARE CHANGING FORMATS FOR OTHER FILE TYPES
 clean :
 	cd ../bin/ && ls -I '*.*' | xargs rm && cd ../src && rm *.o
+
+.PHONY : all debug clean
