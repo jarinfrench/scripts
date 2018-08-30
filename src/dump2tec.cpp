@@ -1,49 +1,82 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cxxopts.hpp>
+#include "error_code_defines.h"
 
 using namespace std;
 
-int main(int argc, char **argv)
+template <typename T>
+void checkFileStream(T& stream, const string& file)
 {
-  string filename_in, filename_out, str; // input file name, output file name
-
-  if (argc != 2)
+  if (stream.fail())
   {
-    cout << "Please enter the filename of the dump file to convert: ";
-    cin  >> filename_in;
+    cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
   }
-  else
-  {
-    filename_in = argv[1];
-  }
+}
 
-  filename_out = filename_in.substr(0,filename_in.find(".dump")) + ".tec";
+void convertFile(const string& infile, const string& outfile)
+{
+  string str;
 
-  ifstream fin(filename_in.c_str());
-  if (fin.fail())
-  {
-    cout << "Error opening file \"" << filename_in << "\"\n";
-    return 1;
-  }
+  ifstream fin(infile.c_str());
+  checkFileStream(fin, infile);
 
-  ofstream fout(filename_out.c_str());
-  if (fout.fail())
-  {
-    cout << "Error opening file \"" << filename_out << "\"\n";
-    return 1;
-  }
+  ofstream fout(outfile.c_str());
+  checkFileStream(fout, outfile);
 
-  // Dump files contain some header information in the first 9 lines
   for (int i = 0; i < 9; ++i)
   {
     getline(fin, str);
   }
 
-  while (getline(fin,str))
+  // read through the file one item at a time (stopping at ','), then output that item with a space.
+  while (getline(fin, str)) {fout << str << " ";}
+}
+
+int main(int argc, char** argv)
+{
+  string infile, outfile;
+
+  try
   {
-    fout << str << endl;
+    cxxopts::Options options(argv[0], "Converts a LAMMPS dump file to a .tec file");
+    options
+    .positional_help("file file")
+    .show_positional_help();
+
+    options
+    .allow_unrecognised_options()
+    .add_options()
+      ("i,input", "Input file", cxxopts::value<string>(infile), "file")
+      ("o,output", "Name of converted file", cxxopts::value<string>(outfile)->default_value("*.tec"), "file")
+      ("h,help", "Show the help");
+
+    options.parse_positional({"input", "output"});
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") || !(result.count("input")))
+    {
+      cout << options.help() << endl;
+      return EXIT_SUCCESS;
+    }
+
+    if (!(result.count("output")))
+    {
+      outfile = infile.substr(0,infile.find(".dump")) + ".tec";
+    }
+
+    if (result.count("input"))
+    {
+      convertFile(infile, outfile);
+    }
+  }
+  catch (const cxxopts::OptionException& e)
+  {
+    cout << "Error parsing options: " << e.what() << endl;
+    return OPTION_PARSING_ERROR;
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
