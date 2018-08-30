@@ -785,6 +785,7 @@ int main(int argc, char** argv)
     if (result.count("print-nearest-neighbors"))
     {
       print_nearest_neighbors = true;
+      //TODO: allow user to specify the filename
     }
 
     if (result.count("file"))
