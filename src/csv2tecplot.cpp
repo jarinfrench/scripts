@@ -6,6 +6,8 @@
 
 using namespace std;
 
+//TODO: combine multiple conversion scripts into just one.
+
 template <typename T>
 void checkFileStream(T& stream, const string& file)
 {
