@@ -22,6 +22,7 @@ bool no_data_files = false;
 
 struct inputVars
 {
+  string nn_filebase;
   int n_files, n_types;
   double theta, r_cut, fi_cut, a0;
   double r_cut_sq;
@@ -46,6 +47,28 @@ struct inputVars
   void calculateRCutSq()
   {
     r_cut_sq = r_cut * r_cut;
+  }
+
+  template <typename T>
+  string generateNNFilename(const T& id)
+  {
+    if (nn_filebase.find("*") == string::npos)
+    {
+      return nn_filebase;
+    }
+
+    // This is limited in the sense that we only replace the first occurrence
+    // of "*" in the string.
+    string first = nn_filebase.substr(0,nn_filebase.find("*"));
+    string last = nn_filebase.substr(nn_filebase.find("*") + 1);
+
+    string tmp;
+    stringstream ss;
+    ss << id;
+
+    ss >> tmp;
+
+    return first + tmp + last;
   }
 } input;
 
@@ -580,10 +603,11 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
     generateCellLinkedList(atoms, iatom);
     if (print_nearest_neighbors)
     {
-      stringstream neighbor;
-      string neighbor_filename;
-      neighbor << "nearest_neighbor_list_" << aa << ".txt";
-      neighbor >> neighbor_filename;
+      string neighbor_filename = input.generateNNFilename(aa);
+      // stringstream neighbor;
+      // string neighbor_filename;
+      // neighbor << "nearest_neighbor_list_" << aa << ".txt";
+      // neighbor >> neighbor_filename;
       ofstream fout_neighbors(neighbor_filename.c_str());
       checkFileStream(fout_neighbors, neighbor_filename);
       for (unsigned int i = 0; i < atoms.size(); ++i)
@@ -738,7 +762,7 @@ int main(int argc, char** argv)
         ("m,microrotation", "Flag specifying that the user wants the microrotation parameter calculated. Not yet implemented", cxxopts::value<bool>(calculate_microrotation)->default_value("false")->implicit_value("true"))
         ("s,slip-vector", "Flag specifying that the user wants the slip-vector parameter calculated.  Not yet implemented", cxxopts::value<bool>(calculate_slip_vector)->default_value("false")->implicit_value("true"))
         ("o,output", "Output file for calculated data", cxxopts::value<string>(output_file)->default_value("data.txt"), "file")
-        ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>()->implicit_value("nearest_neighbors_*.txt"), "file")
+        ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>(input.nn_filebase)->default_value("nearest_neighbors_*.txt"), "file")
         ("q,quiet", "Suppress warnings from the code", cxxopts::value<bool>(quiet)->implicit_value("true")->default_value("false"))
         ("i,ignore", "Ignore atoms of a specific type during neighbor list creation - each type must be specified with -i or --ignore=", cxxopts::value<vector <int> >(), "atom_type")
         ("h,help", "Show the help");
@@ -785,7 +809,6 @@ int main(int argc, char** argv)
     if (result.count("print-nearest-neighbors"))
     {
       print_nearest_neighbors = true;
-      //TODO: allow user to specify the filename
     }
 
     if (result.count("file"))
