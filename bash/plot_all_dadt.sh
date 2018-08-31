@@ -6,8 +6,8 @@ if [[ "${element,,}" =~ ^(al|cu|fe)$ ]]; then
   files=$(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5}' | uniq)
 elif [[ "${element,,}" =~ ^uo2$ ]]; then
   element=${element^^}
-  num_files=$(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5"_"$6"_"$7}' | uniq | wc -l)
-  files=$(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5"_"$6"_"$7}' | uniq)
+  num_files=$(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5"_"$6"_"$7"_"$8}' | uniq | wc -l)
+  files=$(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5"_"$6"_"$7"_"$8}' | uniq)
 else
   echo "$element is not recognized.  Please enter either UO2, Fe, Cu, or Al"
   exit 3
@@ -15,10 +15,11 @@ fi
 
 num=1
 for i in $files; do
+  echo ${i}
   echo "Processing file $num of $num_files"
   temp=$(echo $i | awk -F '_' '{print $1}' | cut -c 2-)
   if [[ "${element}" =~ ^UO2$ ]]; then
-    rad_char=$(echo $i | awk -F '_' '{print $3}')
+    rad_char=$(echo $i | awk -F '_' '{print $4}')
     echo ${rad_char}
     if [ "$rad_char" == "large" ]; then
       rad=100
@@ -29,7 +30,7 @@ for i in $files; do
     elif [ "$rad_char" == "tiny" ]; then
       rad=30
     else
-      echo "Error!"
+      echo "Error! Radius value not recognized."
       continue
     fi
   else
