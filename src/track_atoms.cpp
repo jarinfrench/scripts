@@ -10,6 +10,8 @@
 
 using namespace std;
 
+bool print_atom_ids = false;
+
 struct inputVars
 {
   string outfile;
@@ -53,6 +55,17 @@ void checkFileStream(T& stream, const string& file)
   {
     cout << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
+  }
+}
+
+void printAtomIds(const vector <Atom>& atoms)
+{
+  for (unsigned int i = 0; i < atoms.size(); ++i)
+  {
+    if (atoms[i].getMark() == 1)
+    {
+      cout << atoms[i].getId() << endl;
+    }
   }
 }
 
@@ -201,17 +214,20 @@ int main(int argc, char **argv)
         ("zlo", "low z boundary of the tracked atoms", cxxopts::value<double>(input.z_left)->default_value("0.0"), "value")
         ("zhi", "high z boundary of the tracked atoms", cxxopts::value<double>(input.z_right)->default_value("1.0"), "value")
         ("i,ignore", "Atom type to ignore", cxxopts::value<vector <int> >(input.ignored_atoms), "atom_type")
+        ("print-atom-ids", "Prints a list of the atom ids found within the specified boundary. Only needs a reference structure.")
         ("h,help", "Show the help");
 
     options.parse_positional({"reference-file","current-file"});
     auto result = options.parse(argc, argv);
 
-    if (result.count("help") || !(result.count("reference-file") && result.count("current-file")))
+    if (result.count("help") || !(result.count("reference-file")))
     {
-      cout << options.help() << endl;
+      cout << options.help() << endl << endl
+           << "Note that the reference file and current file _must_ be LAMMPS dump files right now.\n";
       return EXIT_SUCCESS;
     }
 
+    if (result.count("print-atom-ids")) {print_atom_ids = true;}
 
     if (result.count("xlo") || result.count("xhi") ||
         result.count("ylo") || result.count("yhi") ||
@@ -221,6 +237,18 @@ int main(int argc, char **argv)
     }
 
     vars = getReferenceData(reference_file, reference_atoms); // sets up the variable list, and gets the reference atom data.
+    if (print_atom_ids)
+    {
+      printAtomIds(reference_atoms);
+      return EXIT_SUCCESS;
+    }
+
+    if (!(result.count("current-file")))
+    {
+      cout << options.help() << endl;
+      return EXIT_SUCCESS;
+    }
+
     current_atoms.resize(reference_atoms.size(), Atom());
     for (unsigned int i = 0; i < current_file.size(); ++i)
     {
