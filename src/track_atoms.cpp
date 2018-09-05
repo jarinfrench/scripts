@@ -10,8 +10,6 @@
 
 using namespace std;
 
-bool print_atom_ids = false;
-
 struct inputVars
 {
   string outfile;
@@ -227,8 +225,6 @@ int main(int argc, char **argv)
       return EXIT_SUCCESS;
     }
 
-    if (result.count("print-atom-ids")) {print_atom_ids = true;}
-
     if (result.count("xlo") || result.count("xhi") ||
         result.count("ylo") || result.count("yhi") ||
         result.count("zlo") || result.count("zhi"))
@@ -237,7 +233,7 @@ int main(int argc, char **argv)
     }
 
     vars = getReferenceData(reference_file, reference_atoms); // sets up the variable list, and gets the reference atom data.
-    if (print_atom_ids)
+    if (result.count("print-atom-ids"))
     {
       printAtomIds(reference_atoms);
       return EXIT_SUCCESS;
