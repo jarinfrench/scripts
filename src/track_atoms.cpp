@@ -164,6 +164,15 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
     vars = data.second;
   }
 
+  // Sanity check - make sure we aren't looking for things that don't exist.
+  // here we check to see if any of the IDs provided are higher than the number of atoms
+  for (vector <int>::iterator it = input.tracked_atoms.begin();
+       it != input.tracked_atoms.end();)
+  {
+    if (*it > N) {input.tracked_atoms.erase(it);}
+    else {++it;}
+  }
+
   if (input.tracked_atoms.size() != 0) {reference.resize(input.tracked_atoms.size(), Atom());}
   else {reference.resize(N, Atom());}
 
@@ -188,7 +197,7 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
       if (find(input.tracked_atoms.begin(), input.tracked_atoms.end(), id) != input.tracked_atoms.end())
       {
         reference[num_tracked] = Atom(id, type, charge, x, y, z);
-        reference[num_tracked].setMark(1);
+        reference[num_tracked++].setMark(1);
       }
     }
     else
