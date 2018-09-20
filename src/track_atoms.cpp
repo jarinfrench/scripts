@@ -68,6 +68,22 @@ void printAtomIds(const vector <Atom>& atoms)
   }
 }
 
+void printAtomInfo(const vector <Atom>& atoms)
+{
+  for (unsigned int i = 0; i < atoms.size(); ++i)
+  {
+    if (atoms[i].getMark() == 1)
+    {
+      cout << atoms[i].getId() << " "
+           << atoms[i].getType() << " "
+           << atoms[i].getCharge() << " "
+           << atoms[i].getX() << " "
+           << atoms[i].getY() << " "
+           << atoms[i].getZ() << endl;
+    }
+  }
+}
+
 pair <int, vector <string> > processLAMMPSDump(istream& fin)
 {
   string str;
@@ -203,9 +219,9 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
     else
     {
       reference[id - 1] = Atom(id, type, charge, x, y, z);
-      if (x > input.x_left * box.Lx && x < input.x_right * box.Lx &&
-          y > input.y_left * box.Ly && y < input.y_right * box.Ly &&
-          z > input.z_left * box.Lz && z < input.z_right * box.Lz)
+      if (x >= input.x_left * box.Lx && x <= input.x_right * box.Lx &&
+          y >= input.y_left * box.Ly && y <= input.y_right * box.Ly &&
+          z >= input.z_left * box.Lz && z <= input.z_right * box.Lz)
       {
         if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(),
                  reference[id - 1].getType()) == input.ignored_atoms.end())
@@ -228,6 +244,7 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
 
 void getCurrentData(const string& file, vector <Atom>& current, const vector <string>& vars)
 {
+  // NOTE: This function currently assumes a LAMMPS dump file!
   string str;
   int id, type, num_tracked = 0;
   double charge, x, y, z;
@@ -315,6 +332,7 @@ int main(int argc, char **argv)
         ("i,ignore", "Atom type to ignore", cxxopts::value<vector <int> >(input.ignored_atoms), "atom_type")
         ("a,atom", "Atom to specifically track.  Tracks atoms even if the atom type is specified using --ignore", cxxopts::value<vector <int> >(input.tracked_atoms), "atom_id")
         ("print-atom-ids", "Prints a list of the atom ids found within the specified boundary. Only needs a reference structure.")
+        ("print-atom-info", "Prints the atom information.  Only needs a reference structure")
         ("h,help", "Show the help");
 
     options.parse_positional({"reference-file","current-file"});
@@ -337,6 +355,12 @@ int main(int argc, char **argv)
     if (result.count("print-atom-ids"))
     {
       printAtomIds(reference_atoms);
+      return EXIT_SUCCESS;
+    }
+
+    if (result.count("print-atom-info"))
+    {
+      printAtomInfo(reference_atoms);
       return EXIT_SUCCESS;
     }
 
