@@ -17,6 +17,7 @@ struct inputVars
   double y_left, y_right;
   double z_left, z_right;
   vector <int> ignored_atoms;
+  vector <int> tracked_atoms;
 
   void boundsSanityCheck()
   {
@@ -67,16 +68,11 @@ void printAtomIds(const vector <Atom>& atoms)
   }
 }
 
-vector <string> getReferenceData(const string& file, vector <Atom>& reference)
+pair <int, vector <string> > processLAMMPSDump(istream& fin)
 {
   string str;
   int N;
   vector <string> vars;
-  int id, type;
-  double charge, x, y, z;
-
-  ifstream fin(file.c_str());
-  checkFileStream(fin, file);
 
   fin >> str >> str; // ITEM: TIMESTEP
   fin >> str; //<timestep value>
@@ -98,7 +94,79 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
   tmp >> str >> str; // moves the stream to the interesting stuff
   while (tmp >> str) {vars.push_back(str);}
 
-  reference.resize(N, Atom());
+  pair <int, vector <string> > data = make_pair(N, vars);
+  return data;
+}
+
+pair <int, vector <string> > processLAMMPSInput(istream& fin)
+{
+  string str;
+  int N;
+  vector <string> vars;
+  pair <int, vector <string> > data;
+
+  getline(fin, str);
+  size_t left_bracket = str.find("[");
+  size_t right_bracket = str.find("]", left_bracket);
+  stringstream ss(str.substr(left_bracket + 1, right_bracket - left_bracket - 1));
+  while (ss >> str)
+  {
+    transform(str.begin(), str.end(), str.begin(), ::tolower);
+    if (str.compare("id") == 0) {vars.push_back("id");}
+    else if (str.compare("charge") == 0) {vars.push_back("q");}
+    else {vars.push_back(str);}
+  }
+
+  fin >> N >> str;
+  fin >> str >> str >> str; // n_types atom types
+
+  data = make_pair(N, vars);
+
+  fin >> box.xlow >> box.xhigh >> str >> str;
+  fin >> box.ylow >> box.yhigh >> str >> str;
+  fin >> box.zlow >> box.zhigh >> str >> str;
+  box.calculateBoxLengths();
+
+  fin >> str;
+  fin.ignore();
+  getline(fin,str);
+
+  return data;
+}
+
+vector <string> getReferenceData(const string& file, vector <Atom>& reference)
+{
+  string str;
+  int N, num_tracked = 0;
+  vector <string> vars;
+  int id, type;
+  double charge, x, y, z;
+
+  ifstream fin(file.c_str());
+  checkFileStream(fin, file);
+
+  getline(fin, str);
+  fin.seekg(0, ios::beg);
+
+  // Process the header information based on the file format
+  if (str.find("ITEM: TIMESTEP") != string::npos)
+  {
+    pair <int, vector <string> > data;
+    data = processLAMMPSDump(fin);
+    N = data.first;
+    vars = data.second;
+  }
+  else // Assumes that the file is an input file
+  {
+    pair <int, vector <string> > data;
+    data = processLAMMPSInput(fin);
+    N = data.first;
+    vars = data.second;
+  }
+
+  if (input.tracked_atoms.size() != 0) {reference.resize(input.tracked_atoms.size(), Atom());}
+  else {reference.resize(N, Atom());}
+
   while (getline(fin, str))
   {
     double num;
@@ -115,17 +183,34 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
       else {continue;}
     }
 
-    reference[id - 1] = Atom(id, type, charge, x, y, z);
-    if (x > input.x_left * box.Lx && x < input.x_right * box.Lx &&
-        y > input.y_left * box.Ly && y < input.y_right * box.Ly &&
-        z > input.z_left * box.Lz && z < input.z_right * box.Lz)
+    if (!(input.tracked_atoms.empty()))
     {
-      if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(),
-               reference[id - 1].getType()) == input.ignored_atoms.end())
+      if (find(input.tracked_atoms.begin(), input.tracked_atoms.end(), id) != input.tracked_atoms.end())
+      {
+        reference[num_tracked] = Atom(id, type, charge, x, y, z);
+        reference[num_tracked].setMark(1);
+      }
+    }
+    else
+    {
+      reference[id - 1] = Atom(id, type, charge, x, y, z);
+      if (x > input.x_left * box.Lx && x < input.x_right * box.Lx &&
+          y > input.y_left * box.Ly && y < input.y_right * box.Ly &&
+          z > input.z_left * box.Lz && z < input.z_right * box.Lz)
+      {
+        if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(),
+                 reference[id - 1].getType()) == input.ignored_atoms.end())
         {
           reference[id - 1].setMark(1);
         }
+      }
     }
+  }
+
+  if (!(input.tracked_atoms.empty()) && num_tracked != reference.size())
+  {
+    cout << "Error tracking specific atoms.\n";
+    exit(ATOM_COUNT_ERROR);
   }
   fin.close();
 
@@ -135,7 +220,7 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
 void getCurrentData(const string& file, vector <Atom>& current, const vector <string>& vars)
 {
   string str;
-  int id, type;
+  int id, type, num_tracked = 0;
   double charge, x, y, z;
 
   ifstream fin(file.c_str());
@@ -162,7 +247,14 @@ void getCurrentData(const string& file, vector <Atom>& current, const vector <st
       else {continue;}
     }
 
-    current[id - 1] = Atom(id, type, charge, x, y, z);
+    if (!(input.tracked_atoms.empty()))
+    {
+      if (find(input.tracked_atoms.begin(), input.tracked_atoms.end(), id) != input.tracked_atoms.end())
+      {
+        current[num_tracked++] = Atom(id, type, charge, x, y, z);
+      }
+    }
+    else {current[id - 1] = Atom(id, type, charge, x, y, z);}
   }
 
   fin.close();
@@ -212,6 +304,7 @@ int main(int argc, char **argv)
         ("zlo", "low z boundary of the tracked atoms", cxxopts::value<double>(input.z_left)->default_value("0.0"), "value")
         ("zhi", "high z boundary of the tracked atoms", cxxopts::value<double>(input.z_right)->default_value("1.0"), "value")
         ("i,ignore", "Atom type to ignore", cxxopts::value<vector <int> >(input.ignored_atoms), "atom_type")
+        ("a,atom", "Atom to specifically track.  Tracks atoms even if the atom type is specified using --ignore", cxxopts::value<vector <int> >(input.tracked_atoms), "atom_id")
         ("print-atom-ids", "Prints a list of the atom ids found within the specified boundary. Only needs a reference structure.")
         ("h,help", "Show the help");
 
@@ -220,8 +313,7 @@ int main(int argc, char **argv)
 
     if (result.count("help") || !(result.count("reference-file")))
     {
-      cout << options.help() << endl << endl
-           << "Note that the reference file and current file _must_ be LAMMPS dump files right now.\n";
+      cout << options.help() << endl << endl;
       return EXIT_SUCCESS;
     }
 

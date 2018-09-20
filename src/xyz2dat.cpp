@@ -102,20 +102,7 @@ string determineElement(const string& file)
 {
   // Filename must be in the format "LAMMPS_<element(s)>_N<number_of_atoms>[_<extra_info>].dat"
   size_t element_pos_start = file.find("LAMMPS_") + 7;
-  size_t element_pos_end;
-  { // Local namespace so we only store the results
-    size_t temp = file.find("_N");
-    temp = file.find("_N", temp + 1); // double check that we found the number of atoms specification, as some compounds do begin with "_N"
-    // If there are no other cases of "_N" in the filename, we get the end of the string
-    if (temp == string::npos)
-    {
-      element_pos_end = file.find("_N");
-    }
-    else
-    {
-      element_pos_end = temp;
-    }
-  }
+  size_t element_pos_end = file.find("_", element_pos_start);
 
   if (element_pos_start == string::npos)
   {
@@ -132,7 +119,7 @@ string determineElement(const string& file)
 
 void convertFile(const string& file, const bool show_charge, const bool no_element_listed)
 {
-  string file2; // second file (we write to this one)
+  string file2, str; // second file (we write to this one)
   string chem_formula = "<element>"; // chemical formula
   map <string, int> elements; // map of element name to element number
   int n_types = 1, N, type, n_atoms; // number of atom types, number of atoms, atom type, number of atoms read
@@ -202,6 +189,7 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
   }
 
   fin >> N; // Number of atoms
+  getline(fin, str); // get the remainder of the line
   fout << N << "  atoms\n";
   atoms.resize(N); // pre-allocate the vector size to save time and space.
 
