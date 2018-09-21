@@ -191,7 +191,7 @@ void createShiftedBoundaries(const string& filename, const pair <int, int>& ncel
           exit(ATOM_TYPE_ERROR);
         }
 
-        if (ntotal <= N / 2.0)
+        if (ntotal >= N / 2.0)
         {
           xshift = ((double)(ix) - 1.0) / (double)(ngrid.first - 1) * lcellx;
           yshift = ((double)(iy) - 1.0) / (double)(ngrid.second - 1) * lcelly;
