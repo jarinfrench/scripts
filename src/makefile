@@ -5,9 +5,10 @@ DBGFLAGS = -ggdb -g -std=c++11 -o
 BIN =../bin
 
 ATOMPROGS = rotate_and_remove calculate_displacement calculate_MSD  dump2dat \
-find_grains track_atoms generate_impurities xyz2dat
+find_grains track_atoms generate_impurities xyz2dat shift_upper_grain
 ATOMDBGPROGS = rotate_and_remove_dbg calculate_displacement_dbg calculate_MSD_dbg \
-dump2dat_dbg find_grains_dbg track_atoms_dbg generate_impurities_dbg xyz2dat_dbg
+dump2dat_dbg find_grains_dbg track_atoms_dbg generate_impurities_dbg xyz2dat_dbg \
+shift_upper_grain_dbg
 NOATOMPROGS = calculate_GBE calculate_grain_area csv2tecplot \
 dump2tec extract_energy parse_lammps_output
 NOATOMDBGPROGS = calculate_GBE_dbg calculate_grain_area_dbg csv2tecplot_dbg \
