@@ -34,7 +34,7 @@ double anInt(double x);
 struct inputVars
 {
   string datafile, outfile; // datafile for input, output file name
-  bool atom_id = false, outfile_name = false; // true if using id, false otherwise; using a different output file name than the default
+  bool using_atom_id = false, outfile_name = false; // true if using id, false otherwise; using a different output file name than the default
   char impurity_type;
   double impurity;
   int id, atom_type, n_types; // atom id to be substituted/removed, atom type to be replaced.
@@ -66,7 +66,7 @@ struct inputVars
       return INPUT_FORMAT_ERROR;
     }
 
-    if (atom_id)
+    if (using_atom_id)
     {
       if (id < 0)
       {
@@ -175,7 +175,7 @@ void parseInputFile(const string& input_file)
     ss.seekg(pos, ss.beg); // go back to the beginning of the stream
     input.setDefaults();
     ss >> input.datafile >> input.r_cut >> input.id;
-    input.atom_id = true;
+    input.using_atom_id = true;
   }
   else
   {
@@ -410,11 +410,11 @@ void generateImpurities(vector <Atom>& substituted_atoms, vector <Atom>& atoms, 
   double x, y, z, rxij, ryij, rzij, drij_sq;
   vector <pair <int, double> > distances;
 
-  if (input.atom_id)
+  if (input.using_atom_id)
   {
-    atoms[input.atom_id - 1].setMark(1);
+    atoms[input.id - 1].setMark(1);
     substituted_atoms.resize(1, Atom());
-    substituted_atoms[0] = atoms[input.atom_id - 1];
+    substituted_atoms[0] = atoms[input.id - 1];
     ++n_removed;
   }
   else
@@ -595,7 +595,7 @@ void writeAtomsToFiles(const vector <Atom>& atoms)
   if (!input.outfile_name)
   {
     stringstream ss;
-    if (input.atom_id)
+    if (input.using_atom_id)
     {
       ss << input.datafile.substr(0,input.datafile.find(".dat")) << "_single_vac.dat";
     }
