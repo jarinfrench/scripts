@@ -380,6 +380,7 @@ int main(int argc, char **argv)
       getCurrentData(current_file[i], current_atoms, vars);
       compareTimesteps(reference_atoms, current_atoms);
       cout << "\rFile " << current_file[i] << " processed.";
+      cout << flush;
     }
     cout << endl;
 
