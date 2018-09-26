@@ -73,16 +73,20 @@ dataValues readData(const string& infile)
     stringstream ss2(str);
     for (int i = 0; i < data.data_labels.size(); ++i)
     {
-      if (data.data_labels[i] == "id") {ss >> id;}
-      else if (data.data_labels[i] == "type")
+      if (data.data_labels[i].compare("id") == 0) {ss2 >> id;}
+      else if (data.data_labels[i].compare("type") == 0)
       {
-        ss >> type;
+        ss2 >> type;
         if (type > data.n_types) {data.n_types = type;}
       }
-      else if (data.data_labels[i] == "q") {ss >> charge; data.using_charge = true;}
-      else if (data.data_labels[i] == "x") {ss >> x;}
-      else if (data.data_labels[i] == "y") {ss >> y;}
-      else if (data.data_labels[i] == "z") {ss >> z;}
+      else if (data.data_labels[i].compare("q") == 0)
+      {
+        ss2 >> charge;
+        data.using_charge = true;
+      }
+      else if (data.data_labels[i].compare("x") == 0) {ss2 >> x;}
+      else if (data.data_labels[i].compare("y") == 0) {ss2 >> y;}
+      else if (data.data_labels[i].compare("z") == 0) {ss2 >> z;}
       else {continue;}
     }
 
@@ -112,8 +116,8 @@ void writeData(const string& outfile, const string& chem_formula, const dataValu
     fout << "charge ";
   }
   fout << "x y z]\n\n"
-       << data.N << "      atoms\n"
-       << data.n_types << " atom types";
+       << data.N << "  atoms\n"
+       << data.n_types << "    atom types\n";
 
   fout.precision(6);
   if (data.has_tilt)
@@ -135,6 +139,7 @@ void writeData(const string& outfile, const string& chem_formula, const dataValu
   for (unsigned int i = 0; i < data.atoms.size(); ++i)
   {
     fout.precision(0);
+    fout << fixed;
     fout << data.atoms[i].getId() << " " << data.atoms[i].getType() << " ";
     if (data.using_charge)
     {
