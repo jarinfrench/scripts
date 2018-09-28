@@ -15,13 +15,24 @@ Atom::Atom(int id, int type, double charge, double x, double y, double z)
   mark = 0;
 }
 
-// std::ostream& operator << (std::ostream& os, const Atom& atom)
-// {
-//   os << atom.getId() << " " << atom.getType() << " " << atom.getCharge()
-// }
-
-/*bool Atom::operator==(const Atom& rhs) const
+std::ostream& operator << (std::ostream& os, const Atom& atom)
 {
-  return (id == rhs.id && type == rhs.type && charge == rhs.charge &&
-          x == rhs.x && y == rhs.y && z == rhs.z && mark == rhs.mark);
-}*/
+  os << "Atom " << atom.getId() << ":\n"
+     << "  type: " << atom.getType()
+     << "\n  charge: " << atom.getCharge()
+     << "\n  x: " << atom.getX() << "(" << atom.getXu() << ")"
+     << "\n  y: " << atom.getY() << "(" << atom.getYu() << ")"
+     << "\n  z: " << atom.getZ() << "(" << atom.getZu() << ")"
+     << "\n  mark: " << atom.getMark() << std::endl;
+}
+
+bool operator==(const Atom& lhs, const Atom& rhs)
+{
+  return (lhs.getId() == rhs.getId() &&
+          lhs.getType() == rhs.getType() &&
+          lhs.getCharge() == rhs.getCharge() &&
+          lhs.getX() == rhs.getX() &&
+          lhs.getY() == rhs.getY() &&
+          lhs.getZ() == rhs.getZ() &&
+          lhs.getMark() == rhs.getMark());
+}

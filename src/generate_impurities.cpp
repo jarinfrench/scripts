@@ -529,6 +529,8 @@ void writeVacancyFile(const string& vac_file, const vector <Atom>& atoms)
 
 void writeSubstitutionFile(const string& sub_file, const vector <Atom>& atoms)
 {
+  // NOTE: this does not necessarily keep the atom id the same between the original
+  // file and the new file(s).
   int atom_id = 0;
 
   ofstream fout(sub_file.c_str());
@@ -547,18 +549,20 @@ void writeSubstitutionFile(const string& sub_file, const vector <Atom>& atoms)
 
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
-    if (atoms[i].getMark() == 0)
+    if (atoms[i].getMark() == 0) // Unmarked atoms are rewritten
     {
       fout << ++atom_id << " " << atoms[i].getType() << " "
            << atoms[i].getCharge() << " " << atoms[i].getX() << " "
            << atoms[i].getY() << " " << atoms[i].getZ() << endl;
     }
-    else if (atoms[i].getMark() == 1)
+    else if (atoms[i].getMark() == 1) // Marked U atoms -> changed to Xe
     {
       fout << ++atom_id << " " << 3 << " " << 0.0 << " "
            << atoms[i].getX() << " " << atoms[i].getY() << " "
            << atoms[i].getZ() << endl;
     }
+    // If neither of these conditions are met, we are looking at the neighbors
+    // of the molecule, which will not be written.
   }
 
   fout.close();
