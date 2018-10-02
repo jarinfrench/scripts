@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <vector>
 #include <algorithm>
-//#include <random> // See https://msdn.microsoft.com/en-us/library/bb982398.aspx <-- requires C++11
 #include <cxxopts.hpp>
 #include "atom.h"
 #include "error_code_defines.h"
@@ -21,6 +20,7 @@ using namespace std;
 
 bool weight_percent = false;
 bool atomic_percent = false;
+bool remove_whole_molecule = true;
 bool substitutions = true;
 bool vacancies = true;
 bool marked = true;
@@ -90,7 +90,8 @@ struct inputVars
     else if (impurity < 0 && id > 0) {n2 = 1;}
 
     N_vac = N - 3 * n2;
-    N_sub = N - 2 * n2;
+    if (!remove_whole_molecule) {N_sub = N;}
+    else {N_sub = N - 2 * n2;}
   }
 
   void calculateRCutSq()
@@ -404,11 +405,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
   } // i
 }
 
-void generateImpurities(vector <Atom>& substituted_atoms, vector <Atom>& atoms, const vector <vector <int> >& iatom)
+void generateImpurities(vector <Atom>& substituted_atoms, vector <Atom>& atoms)
 {
-  int n_removed = 0, n_2_removed = 0;
-  double x, y, z, rxij, ryij, rzij, drij_sq;
-  vector <pair <int, double> > distances;
+  int n_removed = 0;
 
   if (input.using_atom_id)
   {
@@ -438,6 +437,13 @@ void generateImpurities(vector <Atom>& substituted_atoms, vector <Atom>& atoms, 
     cout << "Error substituting atoms: n_removed = " << n_removed << " != n2 = " << input.n2 << endl;
     exit(ATOM_COUNT_ERROR);
   }
+}
+
+void removeWholeMolecule(vector <Atom>& substituted_atoms, vector <Atom>& atoms, const vector <vector <int> >& iatom)
+{
+  int n_removed = 0;
+  double x, y, z, rxij, ryij, rzij, drij_sq;
+  vector <pair <int, double> > distances;
 
   for (unsigned int i = 0; i < substituted_atoms.size(); ++i) // Remove the whole molecule
   {
@@ -476,17 +482,17 @@ void generateImpurities(vector <Atom>& substituted_atoms, vector <Atom>& atoms, 
           atoms[atom_id].getMark() == 0);
       {
         atoms[atom_id].setMark(2); // We will change those atoms marked 1 to a different type, so we mark these differently
-        ++n_2_removed;
+        ++n_removed;
 
-        if (n_2_removed % 2 == 0) {break;} // remove atoms in pairs
+        if (n_removed % 2 == 0) {break;} // remove atoms in pairs
       }
     }
   }
 
-  if (n_2_removed != 2 * n_removed)
+  if (n_removed != 2 * n_removed) // NOTE: this is specific to UO2
   {
     cout << "Error maintaining charge neutrality!\n"
-         << "n_2_removed = " << n_2_removed << " != 2 * n_removed = " << 2 * n_removed << endl; // TODO: This will need to be generalized.
+         << "n_removed = " << n_removed << " != 2 * n_removed = " << 2 * n_removed << endl; // TODO: This will need to be generalized.
     exit(ATOM_COUNT_ERROR);
   }
 }
@@ -618,21 +624,9 @@ void writeAtomsToFiles(const vector <Atom>& atoms)
     marked_file = input.outfile;
   }
 
-
-  // time_point<Clock> start = Clock::now();
   if (vacancies) {writeVacancyFile(vac_file, atoms);}
-  // time_point<Clock> end = Clock::now();
-  // milliseconds diff = duration_cast<milliseconds>(end - start);
-  // cout << "\t" << diff.count() << "ms for writeVacancyFile\n";
   if (substitutions) {writeSubstitutionFile(sub_file, atoms);}
-  // start = Clock::now();
-  // diff = duration_cast<milliseconds>(start - end);
-  // cout << "\t" << diff.count() << "ms for writeSubstitutionFile\n";
   if (marked) {writeMarkedFile(marked_file, atoms);}
-  // end = Clock::now();
-  // diff = duration_cast<milliseconds>(end - start);
-  // cout << "\t" << diff.count() << "ms for writeMarkedFile\n";
-
 }
 
 int main(int argc, char **argv)
@@ -653,6 +647,7 @@ int main(int argc, char **argv)
       .add_options()
         ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
         ("d,defect-type", "Specify which output files are wanted: (m)arked atoms for removal, atoms with (s)ubstitutions,  or (v)acancies.  Interstitials not implemented.", cxxopts::value<string>()->default_value("msv"), "m, s and/or v")
+        ("no-molecule-removal", "Only remove the atom(s) specified for removal, without removing the whole molecule")
         ("o,output", "Output file name (if only one defect output specified)", cxxopts::value<string>())
         ("h,help", "Show the help");
 
@@ -664,6 +659,8 @@ int main(int argc, char **argv)
       cout << options.help() << endl << endl;
       showInputFileHelp();
     }
+
+    if (result.count("no-molecule-removal")) {remove_whole_molecule = false;}
 
     if (result.count("defect-type"))
     {
@@ -706,21 +703,13 @@ int main(int argc, char **argv)
       // milliseconds diff = duration_cast<milliseconds>(end - start);
       // cout << diff.count() << "ms for parseInputFile\n";
       readFile(substituted_atoms, atoms);
-      // start = Clock::now();
-      // diff = duration_cast<milliseconds>(start - end);
-      // cout << diff.count() << "ms for readFile\n";
       generateCellLinkedList(atoms, iatom);
-      // end = Clock::now();
-      // diff = duration_cast<milliseconds>(end - start);
-      // cout << diff.count() << "ms for generateCellLinkedList\n";
-      generateImpurities(substituted_atoms, atoms, iatom);
-      // start = Clock::now();
-      // diff = duration_cast<milliseconds>(start - end);
-      // cout << diff.count() << "ms for generateImpurities\n";
+      generateImpurities(substituted_atoms, atoms);
+      if (!(result.count("no-molecule-removal")))
+      {
+        removeWholeMolecule(substituted_atoms, atoms, iatom);
+      }
       writeAtomsToFiles(atoms);
-      // end = Clock::now();
-      // diff = duration_cast<milliseconds>(end - start);
-      // cout << diff.count() << "ms for writeAtomsToFiles\n";
     }
   }
   catch (cxxopts::OptionException& e)
