@@ -196,6 +196,7 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
   fout << n_types << "   atom types\n";
 
   fin >> Lx >> Ly >> Lz >> alpha >> beta >> gamma; // boundaries and angles
+  getline(fin,str); // get the remainder of the line
 
   n_atoms = 0;
   while (fin >> atom_type >> x >> y >> z) // Read in the data
