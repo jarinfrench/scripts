@@ -15,7 +15,7 @@ using namespace std;
 struct fit
 {
   string name;
-  double T1, T2;
+  double T0, T1, T2;
   double lin_y_int, lin_slope;
   double parabolic_int, parabolic_lin, parabolic_term;
 };
@@ -74,6 +74,7 @@ double estimateAtomFluctuations(const double T)
   // where the "activated" state is a positive fluctuation (atom assigned to
   // shrinking grain), and the "non-activated" state is when the atom is assigned
   // to the exterior grain.
+  // return 1 / (1 + exp(1 / (8.617E-5 * T))); <-- This should give the same value... TODO: check this!
   return exp(-1 / (8.617E-5 * T)) / (exp(-1 / (8.617E-5 * T)) + 1);
 }
 
@@ -89,8 +90,9 @@ vector <fit> setPotentials(const string& database_file)
   {
     fit temp;
     stringstream ss(str);
-    if (!(ss >> temp.name >> temp.T1 >> temp.lin_y_int >> temp.lin_slope >> temp.T2
-             >> temp.parabolic_int >> temp.parabolic_lin >> temp.parabolic_term))
+    if (!(ss >> temp.name >> temp.T0 >> temp.T1 >> temp.lin_y_int
+             >> temp.lin_slope >> temp.T2 >> temp.parabolic_int
+             >> temp.parabolic_lin >> temp.parabolic_term))
     {
       cout << "Error: Corrupted database file.\n";
       exit(FILE_FORMAT_ERROR);
@@ -116,7 +118,7 @@ double latticeParam(const double T, const fit& lattice_fit)
   // coefficient
   double A, B, C;
 
-  if (T >= 0.0 && T <= lattice_fit.T1)
+  if (T >= lattice_fit.T0 && T <= lattice_fit.T1)
   {
     A = lattice_fit.lin_y_int;
     B = lattice_fit.lin_slope;
@@ -130,7 +132,7 @@ double latticeParam(const double T, const fit& lattice_fit)
   }
   else
   {
-    cout << "Temperature out of fitted range (0 K - " << lattice_fit.T2 << " K).\n";
+    cout << "Temperature out of fitted range (" << lattice_fit.T1 << " K - " << lattice_fit.T2 << " K).\n";
     exit(10); // We don't want to continue with execution if we're out of range.
   }
 
