@@ -14,104 +14,124 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
+#include <cxxopts.hpp>
+#include "error_code_defines.h"
 
 using namespace std;
 
-#define PI 3.14159265
+#define PI 3.14159265358979
 #define eV2J 16.0218 // converts eV/angstrom^2 to J/m^2
 
-int main(int argc, char **argv)
+template <typename T>
+void checkFileStream(T& stream, const string& file)
 {
-  string filename1, filename2, boundary_type;
-  bool is_sphere = false;
-  int N0, N; // number of atoms for single grain, rotated grain
-  double eGB, e_single, theta; // energy for rotated grain, single grain, angle of rotation
-  double r_grain; //radius of the grain in angstroms
-  double Lz; // thickness of the grain in angstroms
-  double gbe, gb_area; // grain boundary energy, denominator term to calculate gbe
-
-  if (argc != 3)
+  if (stream.fail())
   {
-    // Prompt for filename if we don't already have it.
-    cout << "Please enter the filename containing the angle and energies: ";
-    cin  >> filename1;
-
-    cout << "Please enter the boundary type (cylinder|sphere): ";
-    cin >> boundary_type;
+    cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
   }
-  else
-  {
-    filename1 = argv[1];
-    boundary_type = argv[2];
-  }
+}
 
-  transform(boundary_type.begin(), boundary_type.end(), boundary_type.begin(), ::tolower);
-  if (boundary_type.compare("cylinder") != 0 && boundary_type.compare("sphere") != 0)
-  {
-    cout << "Unable to process boundary type " << boundary_type << ", please enter either \"cylinder\" or \"sphere\"\n";
-    return 20;
-  }
-  else
-  {
-    if (boundary_type.compare("sphere") == 0)
-    {
-      is_sphere = true;
-    }
-  }
+double calculateArea(const bool is_sphere, const double& radius, const double& Lz)
+{
+  if (is_sphere) {return 4 * PI * radius * radius;} // spherical boundary
+  else {return 2 * PI * radius * Lz;} // cylindrical boundary
+}
 
+void parseFile(const string& filename, const string& outfile, const double& gb_area)
+{
+  double theta, e_single, eGB, gbe; // angle, single crystal energy value, grain boundary energy value, grain boundary energy
+  int N_0, N; // number of atoms for single grain, rotated grain
 
-  ifstream fin(filename1.c_str());
-  if (fin.fail())
-  {
-    cout << "Error! Cannot open file " << filename1 << endl;
-    return -1;
-  }
+  ifstream fin(filename.c_str());
+  checkFileStream(fin, filename);
 
-  // Prompt for the grain radius
-  cout << "Please enter the grain radius used for these simulations: ";
-  cin  >> r_grain;
+  ofstream fout(outfile.c_str());
+  checkFileStream(fout, outfile);
 
-  //Prompt for the grain thickness
-  if (!is_sphere)
-  {
-    cout << "Please enter the grain thickness (Lz) in angstroms: ";
-    cin  >> Lz;
-  }
+  // Assumes the first line from fin contains the original, single grain.
+  fin >> theta >> e_single >> N_0;
 
-  // This assumes a filename given above in the format 111Tilt_total_energies.csv,
-  // and creates a second file called 111Tilt_individual_energy.csv
-  filename2 = filename1.substr(0,filename1.find("_total")) + "_individual_energy.csv";
-  ofstream fout(filename2.c_str());
-  if (fout.fail())
-  {
-    cout << "Error! Cannot open file " << filename2 << endl;
-    return -1;
-  }
-
-  if (is_sphere)
-  {
-    gb_area = 4 * PI * r_grain * r_grain;
-  }
-  else // cylinder
-  {
-    gb_area = 2 * PI * r_grain * Lz; // area of the grain boundary
-  }
-
-  // This assumes that the first line contains the original, single grain
-  fin >> theta >> e_single >> N0;
+  // The GBE here is assigned a value of 0
   fout << theta << "," << setprecision(15) << 0.0 << endl;
-  while (fin >> theta >> eGB >> N) // Now read each line of data
-  {
-    if (fin.fail())
-      cout << "Read error.\n";
 
-    gbe = (eGB - (e_single / N0) * N) / gb_area * eV2J; // Calculate the GBE
-    fout << theta << "," << setprecision(15) << gbe << endl; // Write to the new file
+  // Read the rest of the file and calculate the GBE for each line:
+  while (fin >> theta >> eGB >> N)
+  {
+    gbe = (eGB - (e_single / N_0) * N) / gb_area * eV2J; // calculate the GBE
+    fout << theta << "," << setprecision(15) << gbe << endl;
   }
 
-  // Close the file streams
   fin.close();
   fout.close();
+}
 
-  return 0;
+int main(int argc, char** argv)
+{
+  string filename, outfile;
+  char boundary_type;
+  bool is_sphere = false;
+  double Lz, r_grain;
+
+  try
+  {
+    cxxopts::Options options(argv[0], "Calculate the grain boundary energy based on LAMMPS results.");
+    options
+      .positional_help("file radius")
+      .show_positional_help();
+
+    options
+      .allow_unrecognised_options()
+      .add_options()
+        ("f,file", "Input file containing a list of energies (energies are assumed to be in eV. Values are generated via extract_all_energies.sh)", cxxopts::value<string>(filename), "file")
+        ("o,output", "Name of the output file.  Default replaces \"_total*\" with \"_individual_energy.csv\"", cxxopts::value<string>(outfile), "output")
+        ("r,radius", "The radius of the grain, in Angstroms", cxxopts::value<double>(r_grain), "radius")
+        ("b,boundary-type", "The type of boundary being examined.  Options are (c)ylinder or (s)phere.", cxxopts::value<char>(boundary_type)->default_value("c"), "c|s")
+        ("t,Lz", "Grain thickness (required for cylindrical boundaries)", cxxopts::value<double>(Lz)->default_value("0.0"), "Lz")
+        ("h,help", "Show the help");
+
+    options.parse_positional({"file", "radius"});
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") || !(result.count("file") && result.count("radius")))
+    {
+      cout << options.help() << endl;
+      return EXIT_SUCCESS;
+    }
+
+    if (boundary_type != 'c')
+    {
+      if (boundary_type != 's')
+      {
+        cout << "Error: Please specify either (c)ylinder or (s)phere for the boundary type.\n";
+        return INPUT_FORMAT_ERROR;
+      }
+      else {is_sphere = true;}
+    }
+    else
+    {
+      if (!(result.count("Lz")))
+      {
+        cout << "Error: cylindrical grain boundary energy calculations requires the grain thickness parameter.\n";
+        return INPUT_FORMAT_ERROR;
+      }
+    }
+
+    if (result.count("file") && result.count("radius"))
+    {
+      double gb_area = calculateArea(is_sphere, r_grain, Lz);
+      if (!(result.count("output")))
+      {
+        outfile = filename.substr(0,filename.find("_total")) + "_individual_energy.csv";
+      }
+      parseFile(filename, outfile, gb_area);
+    }
+  }
+  catch (const cxxopts::OptionException& e)
+  {
+    cout << "Error parsing options: " << e.what() << endl;
+    return OPTION_PARSING_ERROR;
+  }
+
+  return EXIT_SUCCESS;
 }

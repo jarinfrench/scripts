@@ -1,11 +1,13 @@
 #include <iostream>
-#include <iomanip>
+//#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <cxxopts.hpp>
+#include "error_code_defines.h"
 
 using namespace std;
 
@@ -25,6 +27,16 @@ map <B,A> flip_map(const map <A,B> &src)
   return dst;
 }
 
+template <typename T>
+void checkFileStream(T& stream, const string& file)
+{
+  if (stream.fail())
+  {
+    cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
+  }
+}
+
 bool check4Double(const vector <string> & standard, const string & user)
 {
   if (find(standard.begin(), standard.end(), user) != standard.end())
@@ -34,269 +46,156 @@ bool check4Double(const vector <string> & standard, const string & user)
   return false; // we don't have a double
 }
 
-int main(int argc, char** argv)
+string removeParentheses(string str)
 {
-  string filename1, filename2, str, str2; // file to be parsed, written to, junk var
-  string date1, date2, date3, date; // Different parts of the date
-  string unit_style; // line that specifies what unit style we are using
-  vector <string> indicators; // the indicators we want to look for
-  vector <string> default_indicators; // indicators we already look for
-  double Lx = 0.0, Ly = 0.0, Lz = 0.0; // box size in each direction.
-  double time_step; // time step value
-  double a1, a2, a3, a4, a5, a6; // dummy variables
-  int N = -1, n_labels = 0;; // Number of atoms, number of labels
-  int n_indicators; // number of indicators
+  str.erase(remove_if(str.begin(), str.end(),
+                      [](char ch){return ch=='(' || ch == ')'; }), str.end());
+  return str;
+}
+
+void setDefaultIndicators(vector <string>& indicator)
+{
+  indicator.push_back("orthogonal box"); // 0 - indicators the bounds of the system (same line)
+  indicator.push_back("reading atoms ..."); // 1 - number of atoms indicator line (number of atoms on next line)
+  indicator.push_back("Created"); // 2 - atoms indicator line (same line)
+  indicator.push_back("Per MPI rank memory allocation"); // 3 - indicates the next line contains data labels
+  indicator.push_back("Memory usage per processor"); // 4 - same as 4 but for a slightly different process
+  indicator.push_back("Loop time of"); // 5 - indicates the end of data
+  indicator.push_back("Unit style"); // 6 - indicates the unit style being used
+  indicator.push_back("  Time step     :"); // 7 - Indicates the size of a time step
+}
+
+void writeLabels(ofstream& fout, const map <string, int>& labels, const string& separator)
+{
+  map <int, string> flipped_labels = flip_map(labels);
+  for (map <int, string>::const_iterator it = flipped_labels.begin();
+       it != flipped_labels.end();
+       ++it)
+  {
+    if (it == --flipped_labels.end()) {fout << it -> second << endl;}
+    else {fout << it -> second << separator;}
+  }
+}
+
+void parseFile(const string& input_file, const string& output_file,
+               const vector <string>& indicators, const string& separator)
+{
+  string str, date1, date2, date3, date, str2;
+  double Lx, Ly, Lz;
+  double a1;
+  int N, time_step, n_labels = 0;
+  string unit_style;
+  bool set_unit_style = false, written_labels = false;
+  vector <string> default_indicators;
   map <string, int> labels;
   map <int, string> flipped_labels;
-  bool written_labels = false; // boolean determining if we've written the labels
-  bool set_unit_style = false; // have we set the unit style or no?
+  stringstream ss;
 
-  // Default indicators:
-  default_indicators.push_back("orthogonal box"); // 0 - indicates the bounds of the system (same line)
-  default_indicators.push_back("atoms"); // 1 - Number of atoms indicator line
-  default_indicators.push_back("..."); // 2 - same
-  default_indicators.push_back("Created"); // 3 - same
-  default_indicators.push_back("in group"); // 4 - avoid adding atoms that are put in groups
-  default_indicators.push_back("Per MPI rank memory allocation"); // 5 - indicates the next line contains the names of the data
-  default_indicators.push_back("Memory usage per processor"); // 6 - same thing as above, but for a slightly different process
-  default_indicators.push_back("Loop time of"); // 7 - Indicates the end of data
-  default_indicators.push_back("Unit style"); // 8 - Indicates the unit style being used
-  default_indicators.push_back("  Time step     :"); // 9 - Indicates the size of a time step
+  setDefaultIndicators(default_indicators);
+  ifstream fin(input_file.c_str());
+  checkFileStream(fin, input_file);
 
- // Argument checking
-  if (argc == 1)
-  {
-    cout << "Please enter the name of the LAMMPS txt output file to be parsed: ";
-    cin  >> filename1;
-
-    filename2 = "parsed_output.csv";
-
-    cout << "Please enter the number of indicators you want to check for: ";
-    cin  >> n_indicators;
-    indicators.resize(n_indicators,"not assigned");
-    for (int i = 0; i < n_indicators; ++i)
-    {
-      cout << "Please enter indicator " << i << ": ";
-      cin  >> indicators[i];
-      if (check4Double(default_indicators, indicators[i]))
-      {
-        cout << "Indicator \"" << indicators[i] << "\" is already being checked.\n";
-      }
-    }
-  }
-  else if (argc == 2)
-  {
-    filename1 = argv[1];
-    filename2 = "parsed_output.csv";
-
-    cout << "Please enter the number of indicators you want to check for: ";
-    cin  >> n_indicators;
-    indicators.resize(n_indicators,"not assigned");
-    for (int i = 0; i < n_indicators; ++i)
-    {
-      cout << "Please enter indicator " << i << ": ";
-      cin  >> indicators[i];
-      if (check4Double(default_indicators, indicators[i]))
-      {
-        cout << "Indicator \"" << indicators[i] << "\" is already being checked.\n";
-      }
-    }
-  }
-  else if (argc == 3)
-  {
-    filename1 = argv[1];
-    filename2 = argv[2];
-
-    cout << "Please enter the number of indicators you want to check for: ";
-    cin  >> n_indicators;
-    indicators.resize(n_indicators,"not assigned");
-    for (int i = 0; i < n_indicators; ++i)
-    {
-      cout << "Please enter indicator " << i << ": ";
-      cin  >> indicators[i];
-      if (check4Double(default_indicators, indicators[i]))
-      {
-        cout << "Indicator \"" << indicators[i] << "\" is already being checked.\n";
-      }
-    }
-  }
-  else if (argc > 3)
-  {
-    filename1 = argv[1];
-    filename2 = argv[2];
-
-    n_indicators = argc - 3;
-    indicators.resize(n_indicators, "not assigned");
-
-    for (int i = 0; i < n_indicators; ++i)
-    {
-      indicators[i] = argv[i+3];
-      if (check4Double(default_indicators, indicators[i]))
-      {
-        cout << "Indicator \"" << indicators[i] << "\" is already being checked.\n";
-      }
-    }
-  }
-
-  if (n_indicators > 0)
-  {
-    cout << "Note: user-specified indicators are not currently implemented beyond prompting for them.\n";
-  }
-
-  // open up the filestreams
-  ifstream fin(filename1.c_str());
-  if (fin.fail())
-  {
-    cout << "Error: unable to open file \"" << filename1 << "\"" << endl;
-    return 1;
-  }
-
-  // This makes sure the file exists
-  fstream fout(filename2.c_str(), fstream::out);
-  if (fout.fail())
-  {
-    cout << "Error: unable to open file \"" << filename2 << "\"" << endl;
-    return 1;
-  }
-  fout.close(); // We close this here...
-
-  // so we can reopen the file for both reading and writing at the same time
-  fout.open(filename2.c_str(), fstream::in | fstream::out);
+  ofstream fout(output_file.c_str());
+  checkFileStream(fout, output_file);
   fout.precision(5);
-  fout.setf(ios::fixed);
-  fout.setf(ios::showpoint);
+  fout << fixed;
 
   // Read the first line of the file.  If it doesn't say LAMMPS (date), return
-  // an error message saying that this doesn't look like a LAMMPS output.txt file
+  // an error message saying it doesn't look like a LAMMPS output.txt file
   fin >> str >> date1 >> date2 >> date3;
-  if (str != "LAMMPS")
+  if (str.compare("LAMMPS") != 0)
   {
-    cout << "Error: This file does not look like a LAMMPS output.txt file.\n"
+    cout << "Error: this file does not look like a LAMMPS output file.\n"
          << "If you are sure that this is a LAMMPS output file, check that the "
          << "beginning of your file has the format \"LAMMPS ([date])\"\n";
-    return 2;
+    exit(FILE_FORMAT_ERROR);
   }
   else
   {
     date = date1.substr(1) + " " + date2 + " " + date3.substr(0,date3.find(")"));
-    fout << "\"LAMMPS version:\",\"" << date << "\"" << endl;
   }
-
-  // Note that there is a leftover "\n" character that is in fin, so we use
-  // the ignore function to clear out the newline character.
   fin.ignore();
+
+  // Write the LAMMPS version to the file
+  fout << "\"LAMMPS version:\"" << separator << "\"" << date << "\"" << endl;
 
   while (getline(fin, str))
   {
-    // find the box length
+
+    // box length
     if (str.find(default_indicators[0]) != string::npos)
     {
-      // This is a bit convoluted... here I am extracting the box sizes using
-      // stringstreams.  The difficulty comes in that the expected line looks
-      // like (a1 a2 a3) to (a4 a5 a6), so I have to deal with the parentheses.
-      // There is definitely a better way to do it, I'm just not focused on
-      // what that way is right now.
-      stringstream ss(str.substr(str.find("(")+1));
-      ss >> a1 >> a2 >> a3 >> str2 >> str2 >> str2 >> a5 >> a6;
-      stringstream ss2(str2.substr(1));
-      ss2 >> a4;
-
+      double a1, a2, a3, a4, a5, a6;
+      str2 = str.substr(str.find("("));
+      str2 = removeParentheses(str2);
+      ss.str(str2); // This will now have the format "xmin ymin zmin to xmax ymax zmax"
+      ss >> a1 >> a2 >> a3 >> str2 >> a4 >> a5 >> a6;
       Lx = a4 - a1;
       Ly = a5 - a2;
       Lz = a6 - a3;
-      fout << "\"Lx Ly Lz =\"," << Lx << "," << Ly << "," << Lz << endl;
+
+      fout << "\"Lx Ly Lz =\"" << separator << Lx << separator << Ly << separator << Lz << endl;
+      continue; // we're done with this line
+    }
+
+    // Number of atoms.
+    if (str.find(default_indicators[1]) != string::npos)
+    { // Found "reading atoms ..."
+      ss.clear();
+      getline(fin, str);
+      ss.str(str);
+      ss >> N >> str2;
+
+      fout << "\"N =\"" << separator << N << endl;
       continue;
     }
 
-    // Get the number of atoms.  The LAMMPS output seems to specify the number
-    // of atoms either by saying "Created N atoms" or by saying
-    // "reading atoms ...\nN atoms".  So here I look for the line that contains
-    // the word "atoms", but does not contain the character sequence "..."
-    if (str.find(default_indicators[1]) != string::npos && str.find(default_indicators[2]) == string::npos)
-    { // found the word "atoms", did not find the string "..."
-      stringstream ss(str);
-      if (str.find(default_indicators[3]) == string::npos)
-      { // Did not find the word "Created"
-        if (str.find(default_indicators[4]) == string::npos)
-        { // did not find the words "in group"
-          if (N != -1)
-          {
-            int temp;
-            ss >> temp >> str2;
-            N += temp;
-            long last_pos = fout.tellp(); // Current position of the output stream
-            fout.seekg(0); // Go back to the beginning of the file we are writing to
-            getline(fout,str2); // Get the first line
-            getline(fout,str2); // get the second line
-            long pos = fout.tellg(); // get the position of the next line
-            fout.seekp(pos); // move the output position to that position
-            fout << "\"N =\"," << N << endl;
-            fout.seekp(last_pos+1); // Go to the end of the file, and add one more position to it.
-          }
-          else
-          {
-            ss >> N >> str2;
-            fout << "\"N =\"," << N << endl;
-          }
-        }
-      }
-      else
-      { // found the word "Created"
-        if (str.find(default_indicators[4]) == string::npos)
-        { // did not find the words "in group"
-          if (N != -1)
-          {
-            int temp;
-            ss >> str2 >> temp >> str2;
-            N += temp;
-            long last_pos = fout.tellp();
-            fout.seekg(0); // Go back to the beginning of the file we are writing to
-            getline(fout,str2); // Get the first line
-            getline(fout,str2);
-            long pos = fout.tellg();
-            fout.seekp(pos);
-            fout << "\"N =\"," << N << endl;
-            fout.seekp(last_pos+1);
-          }
-          else
-          {
-            ss >> str2 >> N >> str2;
-            fout << "\"N =\"," << N << endl;
-          }
-        }
-      }
+    if (str.find(default_indicators[2]) != string::npos)
+    { // found "Created"
+      ss.clear();
+      ss.str(str);
+      ss >> str2 >> N >> str2;
+
+      fout << "\"N =\"" << separator << N << endl; // TODO: Make sure this only occurs once!
       continue;
     }
 
-    if (str.find(default_indicators[8]) != string::npos && !set_unit_style)
+    // Unit style
+    if (str.find(default_indicators[6]) != string::npos && !set_unit_style)
     {
-      stringstream ss(str);
+      ss.clear();
+      ss.str(str);
       ss >> str2 >> str2 >> str2 >> unit_style;
-      fout << "\"Unit style:\"," << unit_style << endl;
       set_unit_style = true;
-      continue; // once we've found the unit style, we can move on
-    }
 
-    if (str.find(default_indicators[9]) != string::npos)
-    {
-      stringstream ss(str);
-      ss >> str >> str >> str >> time_step;
-      fout << "\"Time step:\"," << time_step << endl;
+      fout << "\"Unit style:\"" << separator << unit_style << endl;
       continue;
     }
 
-    // Now we read through the file line by line until we reach an indicator,
-    // which tells us that we have important information coming in.
-    if (str.find(default_indicators[5]) != string::npos || str.find(default_indicators[6]) != string::npos) // found our indicator line
+    // Time step
+    if (str.find(default_indicators[7]) != string::npos)
     {
-      getline(fin, str); // get the line containing our data labels
-      stringstream ss(str);
-      while (ss >> str2) // get the labels individually, but only once!
+      ss.clear();
+      ss.str(str);
+      ss >> str2 >> str2 >> str2 >> time_step;
+
+      fout << "\"Time step:\"" << separator << time_step << endl;
+      continue;
+    }
+
+    // Data labels, and subsequent data
+    if (str.find(default_indicators[3]) != string::npos ||
+        str.find(default_indicators[4]) != string::npos)
+    {
+      getline(fin, str);
+      ss.clear();
+      ss.str(str);
+      while (ss >> str2) // read each label
       {
-        if (labels.find(str2) == labels.end()) // we don't have this label yet
+        if (labels.find(str2) == labels.end()) // Don't have this label yet
         {
           // if we have already written the labels, but we don't yet have this
-          // label, we need to re-write the labels.
+          // label, we need to rewrite the labels.
           if (written_labels)
           {
             written_labels = false;
@@ -306,37 +205,23 @@ int main(int argc, char** argv)
       }
       if (!written_labels)
       {
-        flipped_labels = flip_map(labels);
-        for (map<int, string>::const_iterator it = flipped_labels.begin();
-             it != flipped_labels.end();
-             ++it)
-        {
-          if (it == --flipped_labels.end())
-          {
-            fout << it -> second;
-          }
-          else
-          {
-            fout << it -> second << ",";
-          }
-        }
-        fout << endl;
+        writeLabels(fout, labels, separator);
         written_labels = true;
       }
-      while (getline(fin, str2))
+
+      while (getline(fin, str2)) // Now get the data
       {
-        if (str2.find(default_indicators[7]) != string::npos) // We reached the end of the data
-        {
-          break;
-        }
+        if (str2.find(default_indicators[5]) != string::npos) {break;}
         else
         {
-          stringstream ss(str2);
+          ss.clear();
+          ss.str(str2);
           ss >> a1;
-          fout << setprecision(5) << a1;
+          fout.precision(5);
+          fout << a1;
           while (ss >> a1)
           {
-            fout << "," << setprecision(5) << a1;
+            fout << separator << a1;
           }
           fout << endl;
         }
@@ -347,20 +232,53 @@ int main(int argc, char** argv)
   fin.close();
   fout.close();
 
-  // Error check for determining box size
-  if ((Lx == 0.0) && (Ly == 0.0) & (Lz == 0.0))
+  if ((Lx == 0.0) && (Ly == 0.0) && (Lz == 0.0))
   {
-    cout << "Error: unable to determine box size.\n";
-    return 3;
+    cout << "Warning: unable to determine box size.\n";
   }
 
-  if (N < 0)
+  if (N <= 0)
   {
-    cout << "Error: unable to determine number of atoms.\n";
-    return 4;
+    cout << "Warning: unable to determine the number of atoms.\n";
   }
+}
 
+int main(int argc, char** argv)
+{
+  vector <string> indicators;
+  string input_file, output_file, separator;
+  try
+  {
+    cxxopts::Options options(argv[0], "LAMMPS ouput parsing program.");
+    options
+      .positional_help("Input")
+      .show_positional_help();
 
+    options
+      .allow_unrecognised_options()
+      .add_options()
+        ("i,input", "Input file to be processed", cxxopts::value<string>(input_file), "Input")
+        ("o,output", "Output filename", cxxopts::value<string>(output_file)->default_value("parsed_output.txt"), "Output")
+        ("s,separator", "Specify the separator to use", cxxopts::value<string>(separator)->default_value(",")->implicit_value(" "))
+        ("h,help", "Show the help");
 
-  return 0;
+    options.parse_positional({"input"});
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") || result.count("input") == 0)
+    {
+      cout << options.help() << endl;
+    }
+
+    if (result.count("input"))
+    {
+      parseFile(input_file, output_file, indicators, separator);
+    }
+  }
+  catch (const cxxopts::OptionException& e)
+  {
+    cout << "Error parsing options: " << e.what() << endl;
+    return OPTION_PARSING_ERROR;
+  }
+  return EXIT_SUCCESS;
 }

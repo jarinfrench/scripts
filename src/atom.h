@@ -11,6 +11,8 @@
 * of 0 are "unmarked".
 ******************************************************************************/
 
+#include <iostream>
+
 class Atom
 {
 private:
@@ -53,6 +55,7 @@ public:
   void setZu(double z) {this->zu = z;}
   void setMark(int mark) {this->mark = mark;}
 
-  //bool operator==(const Atom& rhs) const;
 };
+bool operator==(const Atom& lhs, const Atom& rhs);
+std::ostream& operator << (std::ostream&, const Atom&);
 #endif //  ATOM_H

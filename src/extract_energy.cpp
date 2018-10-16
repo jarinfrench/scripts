@@ -10,115 +10,163 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cxxopts.hpp>
+#include "error_code_defines.h"
 
 using namespace std;
 
-int main(int argc, char **argv)
+int N; // Number of atoms <-- Pretty sure this is bad practice
+
+template <typename T>
+void checkFileStream(T& stream, const string& file)
 {
-  string filename1, filename2, str, str2, str3; // filenames and line variables
-  int N; // number of atoms
-  vector<long double> energies; // all of the energies we've read
-  long double en1, en2, en3; // current energies
+  if (stream.fail())
+  {
+    cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
+  }
+}
+
+double extractAngleFromInfile(const string& file)
+{
   double theta;
 
-  // Get the filename
-  if (argc != 3)
+  stringstream th;
+  size_t degree_pos = file.find("degree");
+
+  if (degree_pos == string::npos)
   {
-    // Prompt for the filenames if we don't already have them
-    cout << "Please enter the filename that contains the energy from the simulation: ";
-    cin  >> filename1;
-
-    cout << "Please enter the filename to write to: ";
-    cin  >> filename2;
+    cout << "Error: filename must contain the the angle in the format \"*_degree*\" in order to be processed correctly.\n";
+    exit(FILE_NAME_ERROR);
   }
-  else
-  {
-    filename1 = argv[1];
-    filename2 = argv[2];
-  }
-
-  // These are the strings that we are looking for.
-  str2 = "  Energy initial, next-to-last, final = ";
-  str3 = "ERROR: Lost atoms: ";
-
-  stringstream th; // this defaults to theta being 0 if it can't find a value
-
-  // This line is rather arbitrary, but looks for the first occurrence of the "_"
-  // character after the 9th character.  Given a file of the format
-  // minimize_100_*degree.dat means that the first occurrence of the "_"
-  // character is the one right before the * - specifying the angle.  Note that
-  // if the phrase "no_GB" is found instead of "***degree", the theta value will
-  // automatically set the angle to 0, which is what we want.
-  th << filename1.substr(filename1.find("_", 9) + 1, filename1.find("degree") - filename1.find("_") - 1);
+  size_t angle_pos = file.rfind("_", degree_pos) + 1;
+  th << file.substr(angle_pos, degree_pos - angle_pos);
   th >> theta;
 
-  ifstream fin(filename1.c_str());
-  if (fin.fail())
-  {
-    cout << "Error! Cannot open file \"" << filename1 << "\"" << endl;
-    return 1;
-  }
-  // The next few lines is just to ignore the first few lines in the output file.
-  getline(fin, str); // LAMMPS (17 Nov 2016)
-  getline(fin, str); // Reading data file ...
-  getline(fin, str); //   orthogonal box = (0 0 0) to (272.651 272.651 27.2651)
-  getline(fin, str); //   8 by 4 by 1 MPI processor grid
-  getline(fin, str); //   reading atoms ...
-  fin >> N >> str; // Having N is useful!  We store it here.
-  fin.ignore(); // clears the newline character
+  return theta;
+}
 
-  while (getline(fin,str)) // Check every line
+double extractMinEnergyFromFile(const string& file)
+{
+  string lost_atoms = "ERROR: Lost atoms: ";
+  string energy_indicator = "  Energy initial, next-to-last, final = ";
+  string str; // contains the extraneous info
+  double en;
+  vector <double> energies;
+  bool atoms_lost = false;
+
+  ifstream fin(file.c_str());
+  checkFileStream(fin, file);
+
+  //ignore the first 5 lines of the file
+  for (int i = 0; i < 5; ++i)
   {
-    if (fin.fail())
+    getline(fin, str);
+  }
+
+  fin >> N >> str;
+  fin.ignore();
+
+  while (getline(fin,str))
+  {
+    if (str.compare(energy_indicator) == 0)
     {
-      cout << "Read error!\n";
+      for (int i = 0; i < 3; ++i)
+      {
+        fin >> en;
+        energies.push_back(en);
+      }
+      fin.ignore();
     }
-    if (str == str2) // If we found the line that matches our target:
+
+    if (str.substr(0,19).compare(lost_atoms) == 0)
     {
-      // Extract the energies, store them in a vector, and move ahead.
-      fin >> en1 >> en2 >> en3;
-      energies.push_back(en1);
-      energies.push_back(en2);
-      energies.push_back(en3);
-      fin.ignore(); // clear the newline character
-    }
-    // This checks to see if the simulation ended due to lost atoms.  If so, we
-    // aren't going to find any energies, so we just end the loop here.
-    if (str.substr(0,19) == str3) // Simulation ended due to lost atoms
-    {
-      energies.clear(); // clear all of the energies
       cout << "Simulation error: lost atoms.\n";
+      cout << "Energies found: ";
+      for (unsigned int i = 0; i < energies.size(); ++i)
+      {
+        cout << "  Energy " << i + 1 << ": " << energies[i] << endl;
+      }
+      atoms_lost = true;
       break;
     }
   }
 
-  // If we didn't find any energies, no point in doing anything else.
+  fin.close();
+
   if (energies.size() == 0)
   {
-    cout << "Did not find any energies to return in file " << filename1 << "\n\n";
-    fin.close();
-    return 0;
+    cout << "Did not find any energies to return in file " << file << "\n\n";
+    exit(FILE_FORMAT_ERROR);
   }
 
-  // Write the angle, the SMALLEST value in the vector, and the number of atoms.
-  // Generally speaking, the minimum value should be the last value written to
-  // the vector, but we use *min_element() just in case.  Note that if the
-  // simulation annealed the structure, there is additional, manual analysis
-  // that must be done.
-  ofstream fout(filename2.c_str(), ofstream::app);
-  if (fout.fail())
+  if (atoms_lost)
   {
-    cout << "Error! Cannot open file \"" << filename2 << "\"" << endl;
-    return 1;
+    exit(ATOMS_LOST_ERROR);
   }
 
-  fout << theta << " " << setprecision(15)
-       << *min_element(energies.begin(), energies.end()) << " "  // min_element is a pointer, so we dereference with *
-       << N << endl;
+  return *min_element(energies.begin(), energies.end());
+}
 
-  // Close the file streams.
-  fin.close();
+void writeDataToFile(const string& file, const double& theta, const double& min_energy)
+{
+  ofstream fout(file.c_str(), ofstream::app);
+  checkFileStream(fout, file);
+
+  fout << theta << " " << setprecision(15) << min_energy << " " << N << endl;
   fout.close();
+}
 
-  return 0;
+int main(int argc, char** argv)
+{
+  string infile, outfile;
+  double theta, min_energy;
+
+  try
+  {
+    cxxopts::Options options(argv[0], "Extract energies from a LAMMPS minimization simulation.");
+    options
+    .positional_help("infile outfile")
+    .show_positional_help();
+
+    options
+    .allow_unrecognised_options()
+    .add_options()
+      ("i,infile", "LAMMPS output file containing the energy data", cxxopts::value<string>(infile), "infile")
+      ("o,outfile", "Output file to place the extracted energy. Appends to the file by default", cxxopts::value<string>(outfile), "outfile")
+      ("a,angle", "The angle for which the data is being extracted", cxxopts::value<double>(theta), "angle")
+      // ("output-all", "Outputs all of the energy values, sorted from least to greatest")
+      ("h,help", "Show the help");
+
+    options.parse_positional({"infile", "outfile"});
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") ||
+       !(result.count("infile") && result.count("outfile")) )
+    {
+      cout << options.help() << endl;
+      return EXIT_SUCCESS;
+    }
+
+    if (result.count("infile") && result.count("outfile"))
+    {
+      if (!(result.count("angle")))
+      {
+        theta = extractAngleFromInfile(infile);
+      }
+
+      cout << "Angle: " << theta << endl;
+
+      min_energy = extractMinEnergyFromFile(infile);
+      writeDataToFile(outfile, theta, min_energy);
+    }
+
+  }
+  catch (const cxxopts::OptionException& e)
+  {
+    cout << "Error parsing options: " << e.what() << endl;
+    return OPTION_PARSING_ERROR;
+  }
+
+  return EXIT_SUCCESS;
 }

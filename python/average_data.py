@@ -63,6 +63,6 @@ with contextlib.ExitStack() as stack:
             elif args.style == 'g':
                 string += "{val} ".format(val=sp.stats.mstats.gmean([float(v[i]) for v in data]))
             else:
-                print("Incorrect averaging parameter passed.  Something is wrong!  You entered {}, but we need 'a', 'h' or 'g'".format(arg.style))
+                print("Incorrect averaging parameter passed.  Something is wrong!  You entered {}, but we need 'a', 'h' or 'g'".format(args.style))
         f2.write(string + "\n")
 f2.close()

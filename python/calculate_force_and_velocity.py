@@ -35,13 +35,13 @@ def calculateLatticeParam(T, potential = 0):
         potential = int(input("Please specify the fit to use: "))
 
 
-    name, T1, yInt, slope, T2, yInt2, linC, paraC = data[potential - 1].split()
+    name, T0, T1, yInt, slope, T2, yInt2, linC, paraC = data[potential - 1].split()
     print("Using the {name} potential".format(name = name))
 
-    if T < 0 or T > float(T2):
+    if T < float(T0) or T > float(T2):
         print("Temperature out of fitted range.")
         exit(3)
-    elif T >= 0 and T <= float(T1):
+    elif T >= float(T0) and T <= float(T1):
         return float(yInt) + float(slope) * T
     elif T > float(T1) and T <= float(T2):
         return float(yInt2) + float(linC) * T + float(paraC) * T**2

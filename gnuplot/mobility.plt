@@ -35,7 +35,7 @@ if (!exists("basename")) {
         plot_index = 3
     } else {
         if (axis == 110) {
-            plot_index = 2
+            plot_index = 3
         } else {
             print "Unknown axis choice.  Assuming plot_index = 3"
             plot_index = 3
@@ -107,7 +107,7 @@ while (!satisfied) {
     if (rmin < 0) {
         continue
     }
-    
+
     ftemp(x) = m*x + y0
     print "Start point: ".rmin
     print "End point: ".rmax

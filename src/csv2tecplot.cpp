@@ -1,60 +1,89 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cxxopts.hpp>
+#include "error_code_defines.h"
 
 using namespace std;
 
+//TODO: combine multiple conversion scripts into just one.
+
+template <typename T>
+void checkFileStream(T& stream, const string& file)
+{
+  if (stream.fail())
+  {
+    cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
+  }
+}
+
+void convertFile(const string& infile, const string& outfile)
+{
+  string str;
+
+  ifstream fin(infile.c_str());
+  checkFileStream(fin, infile);
+
+  ofstream fout(outfile.c_str());
+  checkFileStream(fout, outfile);
+
+  for (int i = 0; i < 4; ++i)
+  {
+    getline(fin, str);
+  }
+
+  // read through the file one item at a time (stopping at ','), then output that item with a space.
+  while (getline(fin, str, ',')) {fout << str << " ";}
+}
+
 int main(int argc, char** argv)
 {
-  string filename1, filename2, str; // filenames to be converted, written to, string variables
-
-  if (argc == 1)
+  string infile, outfile;
+  try
   {
-    // prompt for the filename to be converted.
-    cout << "Please enter the filename of the CSV file to be converted: ";
-    cin  >> filename1;
+    cxxopts::Options options(argv[0], "Convert csv to tec");
+    options
+    .positional_help("file file")
+    .show_positional_help();
+
+    options
+    .allow_unrecognised_options()
+    .add_options()
+    ("i,input", "Input file to be converted", cxxopts::value<string>(infile), "file")
+    ("o,output", "Name of converted file", cxxopts::value<string>(outfile)->default_value("*.tec"), "file")
+    ("h,help", "Show the help");
+
+    options.parse_positional({"input", "output"});
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") || result.count("input") == 0)
+    {
+      cout << options.help() << endl;
+      return EXIT_SUCCESS;
+    }
+
+    if (!(result.count("output")))
+    {
+      outfile = infile.substr(0,infile.find(".csv")) + ".tec";
+    }
+
+    if (result.count("input"))
+    {
+      if (infile.substr(infile.length() - 3) != "csv")
+      {
+        cout << "Error: please enter a file of type CSV (ending in .csv).\n";
+        return FILE_FORMAT_ERROR;
+      }
+
+      convertFile(infile, outfile);
+    }
   }
-  else
+  catch (const cxxopts::OptionException& e)
   {
-    filename1 = argv[1];
-  }
-
-  if (filename1.substr(filename1.length() - 3) != "csv")
-  {
-    cout << "Error: please enter a file of type CSV (ending in .csv).\n";
-    return 1;
-  }
-
-  // The new file will have the same name, just a different file extension.
-  filename2 = filename1.substr(0, filename1.find(".")) + ".tec";
-
-  ifstream fin(filename1.c_str());
-  if (fin.fail())
-  {
-    cout << "Error: unable to open file " << filename1 << endl;
-    return 2;
-  }
-
-  ofstream fout(filename2.c_str());
-  if (fout.fail())
-  {
-    cout << "Error: unable to open file " << filename2 << endl;
-    return 2;
-  }
-
-  // The first four lines are helpful for python processing, but not here, so
-  // skip them
-
-  getline(fin, str); // LAMMPS version
-  getline(fin, str); // Box size
-  getline(fin, str); // Number of atoms
-  getline(fin, str); // Unit style
-
-  // Now we read the rest of the file
-  while (getline(fin, str, ','))
-  {
-    fout << str << " ";
+    cout << "Error parsing options: " << e.what() << endl;
+    return OPTION_PARSING_ERROR;
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
