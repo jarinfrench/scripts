@@ -918,7 +918,7 @@ int main(int argc, char **argv)
            << "number of atom interactions, so, for example, if there are\n"
            << "two atom types, there are the two same-element interactions,\n"
            << "and there is also the interaction between the two different\n"
-           << "elements.  Include all the relevant, cutoff radii one element\n"
+           << "elements.  Include all the relevant cutoff radii one element\n"
            << "at a time, i.e. the cutoff radii for a 3 element system would\n"
            << "be input as 1-1, 1-2, 1-3, 2-2, 2-3, 3-3. Maintain consistent\n"
            << "numbering with the data file.\n";
