@@ -24,6 +24,8 @@ std::ostream& operator << (std::ostream& os, const Atom& atom)
      << "\n  y: " << atom.getY() << "(" << atom.getYu() << ")"
      << "\n  z: " << atom.getZ() << "(" << atom.getZu() << ")"
      << "\n  mark: " << atom.getMark() << std::endl;
+
+  return os;
 }
 
 bool operator==(const Atom& lhs, const Atom& rhs)
