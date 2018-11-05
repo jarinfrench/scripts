@@ -12,15 +12,18 @@ parser.add_argument('files', nargs = '+', help = "The csv file(s) to plot")
 parser.add_argument('--x-label', help = "The label of the x axis")
 parser.add_argument('--y-label', help = "The label of the y axis")
 parser.add_argument('--title', help = "The title of the plot")
+parser.add_argument('--add-origin', action = 'store_true', help = "Adds the point (0,0) to the data")
+parser.add_argument('--no-legend', action = 'store_true', help = "Flag to not put a legend on the plot")
+parser.add_argument('-p', '--plot-type', choices = ['s','l'], default = 's', help = "(s)catter plot or (l)ine plot")
 parser.add_argument('-d','--delimiter', default = ',', help = "The delimiter between data values (default: \',\')")
 args = parser.parse_args()
 
 if not args.x_label:
-    args.x_label = raw_input("Please enter the x-axis label: ")
+    args.x_label = " ")
 if not args.y_label:
-    args.y_label = raw_input("Please enter the y-axis label: ")
+    args.y_label = " "
 if not args.title:
-    args.title = raw_input("Please enter the title of the plot: ")
+    args.title = " "
 
 plot_style = ['bo', 'go', 'ro', 'co', 'mo', 'yo', 'ko',
               'bv', 'gv', 'rv', 'cv', 'mv', 'yv', 'kv',
@@ -48,8 +51,12 @@ plot_style = ['bo', 'go', 'ro', 'co', 'mo', 'yo', 'ko',
 x_max = 0.0
 x_min = 0.0
 for i in range(len(args.files)):
-    x_data = [0.0]
-    y_data = [0.0]
+    if args.add_origin:
+        x_data = [0.0]
+        y_data = [0.0]
+    else:
+        x_data = []
+        y_data = []
     fin = open(args.files[i])
     reader = csv.reader(fin, delimiter = args.delimiter)
 
@@ -81,5 +88,6 @@ plt.ylabel(args.y_label)
 #plt.ylabel(r"Energy (J/m$^2$)")
 plt.xlim(x_min, x_max)
 plt.title(args.title)
-plt.legend(loc='best')
+if not args.no_legend:
+    plt.legend(loc='best')
 plt.show()
