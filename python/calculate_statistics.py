@@ -12,13 +12,27 @@ parser = argparse.ArgumentParser(usage = '%(prog)s [-h] file [file file file ...
 parser.add_argument('file', nargs = '+', help = "The file(s) to process")
 parser.add_argument('-l','--line-start', type = int, default = 1, help = "The line number to start data analysis on")
 parser.add_argument('-c','--column', type = int, help = "The column number (starting from 1) of the data to process.")
+parser.add_argument('--summary', action = 'store_true', help = "Only show the summary of the data")
 args = parser.parse_args()
 
 args.file = natsort.natsorted(args.file)
+g_mean_summary = 0
+h_mean_summary = 0
+a_mean_summary = 0
+q1_summary = 0
+median_summary = 0
+q3_summary = 0
+max_summary = 0
+min_summary = 0
+sd_summary = 0
+variance_summary = 0
+range_summary = 0
+
 
 for file in args.file:
     data = []
-    print(file)
+    if not args.summary:
+        print(file)
     with open(file) as f:
         for _ in range(args.line_start - 1):
             next(f);
@@ -58,16 +72,49 @@ for file in args.file:
         harmonic_mean = 0
 
     arithmetic_mean = statistics.mean(data_to_process)
-    median = statistics.mean(data_to_process)
+    quartile_25, median, quartile_75 = np.percentile(data_to_process, [25,50,75])
     maximum = max(data_to_process)
     minimum = min(data_to_process)
+    range_val = maximum - minimum
     standard_deviation = statistics.stdev(data_to_process)
     variance = statistics.variance(data_to_process)
 
-    print(tabulate([["G_Mean", geometric_mean], ["H_Mean", harmonic_mean], \
-        ["A_Mean", arithmetic_mean], ["Median", median], ["Max", maximum], \
-        ["Min", minimum],["SD", standard_deviation], ["Variance", variance]], headers = \
-        ["Statistic", "Value"]))
-    print("\n")
-# print("{0:8s} {1:8s} {2:8s} {3:8s} {4:8s} {5:8s} {6:8s}".format("G_Mean", "H_Mean", "A_mean", "Median", "Range", "SD", "Variance", width = 10))
-# print("{0:6.2f} {1:6.2f} {2:6.2f} {3:6.2f} {4:6.2f} {5:6.2f} {6:6.2f}".format(geometric_mean, harmonic_mean, arithmetic_mean, median, range, standard_deviation, variance, width = 10))
+    if not args.summary:
+        print(tabulate([["G_Mean", geometric_mean], ["H_Mean", harmonic_mean], \
+            ["A_Mean", arithmetic_mean], ["Min", minimum], ["Quartile1", quartile_25], \
+            ["Median", median], ["Quartile3", quartile_75], ["Max", maximum],  \
+            ["Range", range_val], ["SD", standard_deviation], ["Variance", variance]], headers = \
+            ["Statistic", "Value"]))
+        print("\n")
+
+    g_mean_summary += geometric_mean
+    h_mean_summary += harmonic_mean
+    a_mean_summary += arithmetic_mean
+    q1_summary += quartile_25
+    median_summary += median
+    q3_summary += quartile_75
+    max_summary += maximum
+    min_summary += minimum
+    range_summary += range_val
+    sd_summary += standard_deviation
+    variance_summary += variance
+
+g_mean_summary /= len(args.file)
+h_mean_summary /= len(args.file)
+a_mean_summary /= len(args.file)
+q1_summary /= len(args.file)
+median_summary /= len(args.file)
+q3_summary /= len(args.file)
+max_summary /= len(args.file)
+min_summary /= len(args.file)
+range_summary /= len(args.file)
+sd_summary /= len(args.file)
+variance_summary /= len(args.file)
+
+print("Statistics Summary:")
+print(tabulate([["G_Mean", g_mean_summary], ["H_Mean", h_mean_summary], \
+    ["A_Mean", a_mean_summary], ["Min", min_summary], ["Quartile1", q1_summary], \
+    ["Median", median_summary], ["Quartile3", q3_summary], ["Max", max_summary], \
+    ["Range", range_summary], ["SD", sd_summary], ["Variance", variance_summary]], headers = \
+    ["Statistic", "Value"]))
+print("\n")
