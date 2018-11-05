@@ -930,7 +930,6 @@ int main(int argc, char **argv)
       marked = false;
       rotated = false;
       removed = false;
-      cout << outputs.size() << " " << outputs << endl;
 
       if (outputs.size() > 3)
       {

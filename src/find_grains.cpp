@@ -25,10 +25,11 @@ struct inputVars
   string nn_filebase;
   int n_files, n_types;
   double theta, r_cut, fi_cut, a0;
+  double cosin, sinin;
   double r_cut_sq;
   vector <double> new_x_axis{0,0,0}, new_y_axis{0,0,0}, new_z_axis{0,0,0};
   vector <double> old_x_axis{0,0,0}, old_z_axis{0,0,0};
-  vector <int> ignored_atoms;
+  vector <int> ignored_atoms, atom_ids_list;
 
   void calculateOldX()
   {
@@ -156,7 +157,7 @@ vector <string> parseInputFile(const string& input_file)
     cout << "Error reading the input file.  Did you forget a value?\n"
          << "The first line of the input file must contain the following six items:\n"
          << "\t1. The number of files to be processed.\n"
-         << "\t2. The misorientation angle of the grains with respect to each other.\n"
+         << "\t2. The additional rotation.\n"
          << "\t3. The number of atom types in the simulation.\n"
          << "\t4. The cutoff distance (r_cut) for determining grain assignment in terms of the lattice parameter.\n"
          << "\t5. The cutoff value (fi_cut) for which orientation parameters are assigned to each grain.\n"
@@ -168,6 +169,9 @@ vector <string> parseInputFile(const string& input_file)
          << "Then the list of files (one file per line) should be placed afterwards.\n\n";
     exit(INPUT_FORMAT_ERROR);
   }
+
+  input.sinin = sin(input.theta * PI / 180.0);
+  input.cosin = cos(input.theta * PI / 180.0);
 
   if (input.n_types  <= input.ignored_atoms.size())
   {
@@ -182,7 +186,7 @@ vector <string> parseInputFile(const string& input_file)
 
   cout << "Input parameters:\n"
        << "\tn_files = " << input.n_files << endl
-       << "\ttheta = " << input.theta << endl
+       << "\tadditional rotation = " << input.theta << endl
        << "\tn_types = " << input.n_types << endl
        << "\tr_cut = " << input.r_cut << endl
        << "\tfi_cut = " << input.fi_cut << endl
@@ -324,7 +328,7 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
   lcellz = box.Lz / ncellz;
 
   // Minimum number of atoms allowed of 100
-  n_atoms_per_cell = max((int)(atoms.size() / (double)(3 * ncellx * ncelly * ncellz)), 100);
+  n_atoms_per_cell = max((int)(atoms.size() / (double)(ncellx * ncelly * ncellz)), 200);
 
   // resize the vectors
   icell.resize(ncellx, vector <vector <int> > // x dimension
@@ -424,8 +428,18 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
 
                   // Create the neighbor list
                   iatom[0][id] += 1; //for atom id - number of neighbors
+                  if (iatom[0][id] >= n_atoms_per_cell)
+                  {
+                    n_atoms_per_cell += 100;
+                    iatom.resize(n_atoms_per_cell, vector <int> (atoms.size(),0));
+                  }
                   iatom[(iatom[0][id])][id] = jd; // point to the next atom
                   iatom[0][jd] += 1; // for atom jd
+                  if (iatom[0][jd] >= n_atoms_per_cell)
+                  {
+                    n_atoms_per_cell += 100;
+                    iatom.resize(n_atoms_per_cell, vector <int> (atoms.size(),0));
+                  }
                   iatom[(iatom[0][jd])][jd] = id;
                 } // m
               } //kk
@@ -437,7 +451,7 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
   } // i
 }
 
-void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const vector <double>& symm)
+void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const vector <bool>& allowed_atoms, const vector <double>& symm)
 {
   int n_atoms_written = 0;
 
@@ -455,6 +469,9 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const 
     {
       continue;
     }
+
+    if (!(allowed_atoms[i])) {continue;}
+
     fout << atoms[i].getId() << " "
          << atoms[i].getType() << " ";
     if (has_charge) {fout << atoms[i].getCharge() << " ";}
@@ -483,6 +500,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
   double xy, xz, yz; // tilt factors
   string filename2, str; // file to write atom data to, junk string variable
   vector <Atom> atoms;
+  vector <bool> allowed_atoms;
   vector <vector <int> > iatom; // cell-linked list
   vector <double> symm;
   double x, y, z, rxij, ryij, rzij, drij_sq, xtemp, ytemp, ztemp;
@@ -598,35 +616,48 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
     box.calculateBoxLengths();
 
     atoms.resize(N, Atom());
+    allowed_atoms.resize(N,false);
     iatom.clear();
     getAtomData(fin, atoms);
     generateCellLinkedList(atoms, iatom);
+
+    if (input.atom_ids_list.size() > 0)
+    {
+      allowed_atoms.assign(N, false);
+      for (unsigned int i = 0; i < input.atom_ids_list.size(); ++i)
+      {
+        allowed_atoms[input.atom_ids_list[i]] = true;
+      }
+    }
+    else {allowed_atoms.assign(N, true);}
+
     if (print_nearest_neighbors)
     {
       string neighbor_filename = input.generateNNFilename(aa);
-      // stringstream neighbor;
-      // string neighbor_filename;
-      // neighbor << "nearest_neighbor_list_" << aa << ".txt";
-      // neighbor >> neighbor_filename;
       ofstream fout_neighbors(neighbor_filename.c_str());
       checkFileStream(fout_neighbors, neighbor_filename);
       for (unsigned int i = 0; i < atoms.size(); ++i)
       {
-        vector <int> neighs;
-        fout_neighbors << "Atom " << i << " has " << iatom[0][i] << " neighbors:\n";
-        for (int l = 1; l <= iatom[0][i]; ++l)
+        if (!allowed_atoms[i]) {continue;}
+        else
         {
-          neighs.push_back(iatom[l][i]);
-        }
-        sort(neighs.begin(), neighs.end());
-        for (unsigned int i = 0; i < neighs.size(); ++i)
-        {
-          fout_neighbors << "\tAtom " << neighs[i] << endl;
+          vector <int> neighs;
+          fout_neighbors << "Atom " << i << " has " << iatom[0][i] << " neighbors:\n";
+          for (int l = 1; l <= iatom[0][i]; ++l)
+          {
+            neighs.push_back(iatom[l][i]);
+          }
+          sort(neighs.begin(), neighs.end());
+          for (unsigned int i = 0; i < neighs.size(); ++i)
+          {
+            fout_neighbors << "\tAtom " << neighs[i] << endl;
+          }
         }
       }
     }
 
     // Now that we have the atoms safely stored, we can process them.
+    symm.clear();
     symm.resize(atoms.size(), 0); // Assign each atom a symmetry parameter
     for (unsigned int i = 0; i < atoms.size(); ++i)
     {
@@ -634,6 +665,8 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
       {
         continue; // Only focus on U (or the single atom type)
       }
+
+      if (!allowed_atoms[i]) {continue;}
 
       x = atoms[i].getX();
       y = atoms[i].getY();
@@ -645,6 +678,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
       {
         unsigned int id = iatom[l][i];
 
+        // calculate the position difference vector
         rxij = atoms[id].getX() - x;
         ryij = atoms[id].getY() - y;
         rzij = atoms[id].getZ() - z;
@@ -655,29 +689,29 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
         ryij = ryij - anInt(ryij / box.Ly) * box.Ly;
         rzij = rzij - anInt(rzij / box.Lz) * box.Lz;
 
-        // Project this vector onto the (001) plane
+        // Additional rotation:
+        xtemp = rxij * input.cosin - ryij * input.sinin;
+        ytemp = ryij * input.cosin + rxij * input.sinin;
+
+        rxij = xtemp;
+        ryij = ytemp;
+
+        // Rotate the vector into the <100> reference frame
         // NOTE: In order for this method to work well, the correct cutoff distance needs to be used!
-        xtemp = (rxij * input.old_z_axis[0] + ryij * input.old_z_axis[1] + rzij * input.old_z_axis[2]) * input.old_z_axis[0];
-        ytemp = (rxij * input.old_z_axis[0] + ryij * input.old_z_axis[1] + rzij * input.old_z_axis[2]) * input.old_z_axis[1];
-        ztemp = (rxij * input.old_z_axis[0] + ryij * input.old_z_axis[1] + rzij * input.old_z_axis[2]) * input.old_z_axis[2];
+        xtemp = rxij * input.new_x_axis[0] + ryij * input.new_y_axis[0] + rzij * input.new_z_axis[0];
+        ytemp = rxij * input.new_x_axis[1] + ryij * input.new_y_axis[1] + rzij * input.new_z_axis[1];
+        // ztemp = rxij * input.new_x_axis[2] + ryij * input.new_y_axis[2] + rzij * input.new_z_axis[2];
 
-        rxij -= xtemp;
-        ryij -= ytemp;
-        rzij -= ztemp;
-
-
-        // Calculate the magnitude of the distance
-        drij_sq = rxij * rxij + ryij * ryij + rzij * rzij;
+        // Project onto the xy plane
+        drij_sq = xtemp * xtemp + ytemp * ytemp;
 
         if (drij_sq < 1.0E-8) // Handles the case where the projected position of the atom is right on top of the current atom.
         {
           symm[i] += 1;
-          //cout << "Note: drij_sq = 0.0\n";
           continue;
         }
         // cos = dot(A,B) / (|A|*|B|)
-        double dotp = (rxij * input.old_x_axis[0] + ryij * input.old_x_axis[1] + rzij * input.old_x_axis[2]);
-        costheta_sq = (dotp * dotp) / (drij_sq);
+        costheta_sq = (xtemp * xtemp) / drij_sq;
         double val = (coeffs[0] - coeffs[1] * costheta_sq) * (coeffs[0] - coeffs[1] * costheta_sq) * costheta_sq;
         symm[i] += val;
       }
@@ -688,6 +722,8 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
       {
         continue;
       }
+
+      if (!(allowed_atoms[i])) {continue;}
       // On the off chance that no neighbors have been assigned to this atom,
       // we estimate the symmetry parameter to be the previous atom's value.
       // This assumes that atoms with ID's close to each other are close to
@@ -705,10 +741,6 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
         symm[i] /= iatom[0][i];
       }
 
-      if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end())
-      {
-        continue;
-      }
       if (symm[i] <= input.fi_cut)
       {
         atoms[i].setMark(1);
@@ -723,7 +755,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
 
     fout_data << n_grain_1 << " " << n_grain_2 << endl;
 
-    if (!no_data_files) {writeAtomsToFile(filename2, atoms, symm);}
+    if (!no_data_files) {writeAtomsToFile(filename2, atoms, allowed_atoms, symm);}
 
     fin.close();
     if (result.count("append"))
@@ -738,6 +770,29 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
     ++aa;
   }
   fout_data.close();
+}
+
+void getAtomIdsList(const string& file)
+{
+  string str;
+  ifstream fin(file.c_str());
+  checkFileStream(fin, file);
+
+  while (getline(fin, str))
+  {
+    stringstream ss(str);
+    int tmp;
+    if (!(ss >> tmp))
+    {
+      cout << "Error reading atom ids.\n";
+      exit(FILE_FORMAT_ERROR);
+    }
+    else
+    {
+      input.atom_ids_list.push_back(tmp);
+    }
+  }
+  sort(input.atom_ids_list.begin(), input.atom_ids_list.end());
 }
 
 int main(int argc, char** argv)
@@ -763,6 +818,7 @@ int main(int argc, char** argv)
         ("s,slip-vector", "Flag specifying that the user wants the slip-vector parameter calculated.  Not yet implemented", cxxopts::value<bool>(calculate_slip_vector)->default_value("false")->implicit_value("true"))
         ("o,output", "Output file for calculated data", cxxopts::value<string>(output_file)->default_value("data.txt"), "file")
         ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>(input.nn_filebase)->default_value("nearest_neighbors_*.txt"), "file")
+        ("atom-ids", "Only output the results for the specified IDs from the file (containing a list of atom ids)", cxxopts::value<string>(), "file")
         ("q,quiet", "Suppress warnings from the code", cxxopts::value<bool>(quiet)->implicit_value("true")->default_value("false"))
         ("i,ignore", "Ignore atoms of a specific type during neighbor list creation - each type must be specified with -i or --ignore=", cxxopts::value<vector <int> >(), "atom_type")
         ("h,help", "Show the help");
@@ -775,7 +831,7 @@ int main(int argc, char** argv)
       cout << options.help() << endl << endl
            << "The first line of the input file must contain the following six items:\n"
            << "\t1. The number of files to be processed.\n"
-           << "\t2. The misorientation angle of the grains with respect to each other.\n"
+           << "\t2. The additional rotation to apply to the system.\n"
            << "\t3. The number of atom types in the simulation.\n"
            << "\t4. The cutoff distance (r_cut) for determining grain assignment in \n\t   terms of the lattice parameter.\n"
            << "\t5. The cutoff value (fi_cut) for which orientation parameters are \n\t   assigned to each grain.\n"
@@ -809,6 +865,11 @@ int main(int argc, char** argv)
     if (result.count("print-nearest-neighbors"))
     {
       print_nearest_neighbors = true;
+    }
+
+    if (result.count("atom-ids"))
+    {
+      getAtomIdsList(result["atom-ids"].as<string>());
     }
 
     if (result.count("file"))
