@@ -19,7 +19,7 @@ parser.add_argument('-d','--delimiter', default = ',', help = "The delimiter bet
 args = parser.parse_args()
 
 if not args.x_label:
-    args.x_label = " ")
+    args.x_label = " "
 if not args.y_label:
     args.y_label = " "
 if not args.title:
