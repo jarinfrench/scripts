@@ -1,5 +1,4 @@
 #include <iostream>
-//#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -83,9 +82,9 @@ void parseFile(const string& input_file, const string& output_file,
   string str, date1, date2, date3, date, str2;
   double Lx, Ly, Lz;
   double a1;
-  int N, time_step, n_labels = 0;
+  double time_step;
+  int N, n_labels = 0;
   string unit_style;
-  bool set_unit_style = false, written_labels = false;
   vector <string> default_indicators;
   map <string, int> labels;
   map <int, string> flipped_labels;
@@ -119,11 +118,17 @@ void parseFile(const string& input_file, const string& output_file,
   // Write the LAMMPS version to the file
   fout << "\"LAMMPS version:\"" << separator << "\"" << date << "\"" << endl;
 
+  bool box_size_found = false;
+  bool n_atoms_found = false;
+  bool time_step_found = false;
+  bool unit_style_set = false;
+  bool labels_written = false;
+
   while (getline(fin, str))
   {
 
     // box length
-    if (str.find(default_indicators[0]) != string::npos)
+    if (str.find(default_indicators[0]) != string::npos && !box_size_found)
     {
       double a1, a2, a3, a4, a5, a6;
       str2 = str.substr(str.find("("));
@@ -135,49 +140,80 @@ void parseFile(const string& input_file, const string& output_file,
       Lz = a6 - a3;
 
       fout << "\"Lx Ly Lz =\"" << separator << Lx << separator << Ly << separator << Lz << endl;
+      box_size_found = true;
       continue; // we're done with this line
     }
 
     // Number of atoms.
-    if (str.find(default_indicators[1]) != string::npos)
+    if (str.find(default_indicators[1]) != string::npos && !n_atoms_found)
     { // Found "reading atoms ..."
       ss.clear();
       getline(fin, str);
       ss.str(str);
       ss >> N >> str2;
+      n_atoms_found = true;
 
       fout << "\"N =\"" << separator << N << endl;
       continue;
     }
+    else if (str.find(default_indicators[1]) != string::npos && n_atoms_found)
+    {
+      ss.clear();
+      getline(fin, str);
+      ss.str(str);
+      int tmp;
+      ss >> tmp >> str2;
 
-    if (str.find(default_indicators[2]) != string::npos)
+      if (tmp != N)
+      {
+        fout << "\"N =\"" << separator << tmp << endl;
+      }
+      continue;
+    }
+
+    if (str.find(default_indicators[2]) != string::npos && !n_atoms_found)
     { // found "Created"
       ss.clear();
       ss.str(str);
       ss >> str2 >> N >> str2;
+      n_atoms_found = true;
 
       fout << "\"N =\"" << separator << N << endl; // TODO: Make sure this only occurs once!
       continue;
     }
+    else if (str.find(default_indicators[2]) != string::npos && n_atoms_found)
+    {
+      ss.clear();
+      ss.str(str);
+      int tmp;
+      ss >> str2 >> tmp >> str2;
+
+      if (tmp != N)
+      {
+        fout << "\"N =\"" << separator << N << endl;
+      }
+      continue;
+    }
 
     // Unit style
-    if (str.find(default_indicators[6]) != string::npos && !set_unit_style)
+    if (str.find(default_indicators[6]) != string::npos && !unit_style_set)
     {
       ss.clear();
       ss.str(str);
       ss >> str2 >> str2 >> str2 >> unit_style;
-      set_unit_style = true;
+      unit_style_set = true;
 
       fout << "\"Unit style:\"" << separator << unit_style << endl;
       continue;
     }
 
     // Time step
-    if (str.find(default_indicators[7]) != string::npos)
+    if (str.find(default_indicators[7]) != string::npos && !time_step_found)
     {
       ss.clear();
       ss.str(str);
       ss >> str2 >> str2 >> str2 >> time_step;
+      time_step_found = true;
 
       fout << "\"Time step:\"" << separator << time_step << endl;
       continue;
@@ -196,22 +232,30 @@ void parseFile(const string& input_file, const string& output_file,
         {
           // if we have already written the labels, but we don't yet have this
           // label, we need to rewrite the labels.
-          if (written_labels)
+          if (labels_written)
           {
-            written_labels = false;
+            labels_written = false;
           }
           labels.insert(pair <string, int> (str2, ++n_labels));
         }
       }
-      if (!written_labels)
+      if (!labels_written)
       {
+        if (!time_step_found)
+        {
+          fout << "\"This data is (assumed) to be from a minimization\"\n";
+        }
         writeLabels(fout, labels, separator);
-        written_labels = true;
+        labels_written = true;
       }
 
       while (getline(fin, str2)) // Now get the data
       {
-        if (str2.find(default_indicators[5]) != string::npos) {break;}
+        if (str2.find(default_indicators[5]) != string::npos)
+        {
+          fout << endl; // break up the data
+          break;
+        }
         else
         {
           ss.clear();
@@ -232,12 +276,12 @@ void parseFile(const string& input_file, const string& output_file,
   fin.close();
   fout.close();
 
-  if ((Lx == 0.0) && (Ly == 0.0) && (Lz == 0.0))
+  if (!box_size_found)
   {
     cout << "Warning: unable to determine box size.\n";
   }
 
-  if (N <= 0)
+  if (!n_atoms_found)
   {
     cout << "Warning: unable to determine the number of atoms.\n";
   }
@@ -249,7 +293,7 @@ int main(int argc, char** argv)
   string input_file, output_file, separator;
   try
   {
-    cxxopts::Options options(argv[0], "LAMMPS ouput parsing program.");
+    cxxopts::Options options(argv[0], "LAMMPS output parsing program.");
     options
       .positional_help("Input")
       .show_positional_help();
