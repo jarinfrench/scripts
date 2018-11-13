@@ -60,7 +60,12 @@ def parsePlottedInput(string):
     if not remaining:
         return eval(string)
 
-parser = argparse.ArgumentParser(usage = '%(prog)s [-h] parsed_output.txt', description = "Script that extracts datasets from a parsed LAMMPS output file (using the parse_lammps_output script) and plots user-specified subsets.")
+parser = argparse.ArgumentParser(usage = '%(prog)s [-h] parsed_output.txt',
+    description = "Script that extracts datasets from a parsed LAMMPS output file (using the parse_lammps_output script) and plots user-specified subsets.",
+    epilog = "Combining the datasets appends the data from each consecutive subset to the first subset, but keeps the separate subsets in memory.  " +
+        "Averaging subsets gives an average value for each subset specified for each label except \'Step\' and \'Time\', where a string defining the range is used.  " +
+        "Printing the data prints all unique datasets specified to be plotted into one file, one column per data set.  As some data sets may have less values than another, " +
+        "blank lines may be present for the smaller data sets.")
 parser.add_argument('file', metavar = 'parsed_output', help = 'The parsed output file')
 parser.add_argument('--one-dataset', action = 'store_true', help = "Combine all subsets into one dataset")
 parser.add_argument('--no-combination', action = 'store_true', help = "Do not combine any datasets (default: prompt for combinations)")
@@ -175,6 +180,11 @@ for row in reader:
     # two possibilities here: blank line, or more data
     # a blank line indicates a separation between data sets
     if not row:
+        try:
+            row = next(reader)
+        except StopIteration:
+            break
+
         # new data set
         data_all.append(data[:]) #store the last data set
         labels_all.append(labels[:])
@@ -182,8 +192,6 @@ for row in reader:
         data_set_counter += 1
         # we know that the next line will be either data (using the same labels
         # as the previous data set), or a new timestep, and/or a new label set
-
-        row = next(reader)
         if row[0] == "Time step:": # We have a new timestep to take into account
             time_step.append(float(row[1]))
             row = next(reader)
@@ -313,7 +321,10 @@ if not args.no_average:
         data_all.append(data)
         labels_all.append(labels)
 
-print("Added average dataset")
+        print("Added average dataset")
+
+    else:
+        args.no_average = True
 
 while not args.no_combination:
     combine = input("Would you like to combine any subsets? (y|n): ")
@@ -332,8 +343,9 @@ if not args.no_combination:
             else:
                 sets_to_combine[i] = int(sets_to_combine[i]) - 1
         sets_to_combine.sort()
+        combined_data_set_index = sets_to_combine[0] + 1
         if avg_data_set_index in sets_to_combine:
-            print("Removing averaged data set from combinining command")
+            print("Removing averaged data set from combining command")
             sets_to_combine.remove(avg_data_set_index)
 
         # sanity check: make sure we don't go past the maximum index
@@ -343,21 +355,31 @@ if not args.no_combination:
         for i in sets_to_combine[1:]:
             for j in range(len(data_all[i])):
                 data_all[sets_to_combine[0]][j] += data_all[i][j]
-            data_set_counter -= 1
 
-    # this removes duplicate step results from each subset of data
-    for i in range(data_set_counter): # for each subset of data
-        for dup in sorted(list_duplicates(data_all[i][0]), reverse = True):
-            for j in range(len(labels_all[i])):
-                del data_all[i][j][dup[1][1]]
+        # this removes duplicate step results from each subset of data
+        for i in range(data_set_counter - len(sets_to_combine)): # for each subset of data
+            for dup in sorted(list_duplicates(data_all[i][0]), reverse = True):
+                for j in range(len(labels_all[i])):
+                    del data_all[i][j][dup[1][1]]
+    else:
+        args.no_combination = True
 
 plot_again = True
 num_new_plots = 0
 while plot_again:
     print("Please enter the dataset(s) you would like to plot.")
-    print("All numbers must be within the range 1-{}".format(data_set_counter))
-    if not args.no_average:
-        print("The averaged data set has index number {}".format(avg_data_set_index))
+
+    if data_set_counter != 1:
+        if not args.no_combination:
+            if not args.no_average:
+                print("All numbers must be in the set {}".format([i + 1 for i in range(data_set_counter + 1) if i not in sets_to_combine[1:]]))
+                print("The averaged data set has index number {}".format(avg_data_set_index))
+            else:
+                print("All numbers must be in the set {}".format([i + 1 for i in range(data_set_counter) if i not in sets_to_combine[1:]]))
+            print("The combined dataset has index number {}".format(combined_data_set_index))
+        else:
+            print("All numbers must be within the range 1-{}".format(data_set_counter))        
+
     data_sets_to_plot = [-1];
     while not set(data_sets_to_plot).issubset(list(range(1,data_set_counter+1)) + [avg_data_set_index]):
         data_sets_to_plot = input("Enter as a space separated list of integers, or using slicing (i.e. \'1 2 3:10\'): ").split()
@@ -475,17 +497,19 @@ while plot_again:
 
         # now we actually plot the data
         if depth(x) > 1 and depth(y) > 1:
+            plot_style_index = 0
             for j in range(depth(x)):
                 for m in range(depth(y)):
-                    plt.plot(data_to_use[x[j]], data_to_use[y[m]], label = labels_to_use[y[m]])
+                    plt.plot(data_to_use[x[j]], data_to_use[y[m]], plot_style[plot_style_index], label = labels_to_use[y[m]])
+                    plot_style_index += 1
         elif depth(x) > 1 and depth(y) == 1:
             for j in range(depth(x)):
-                plt.plot(data_to_use[x[j]], data_to_use[y], label = labels_to_use[y])
+                plt.plot(data_to_use[x[j]], data_to_use[y], plot_style[j], label = labels_to_use[y])
         elif depth(x) == 1 and depth(y) > 1:
             for j in range(depth(y)):
-                plt.plot(data_to_use[x], data_to_use[y[j]], label = labels_to_use[y[j]])
+                plt.plot(data_to_use[x], data_to_use[y[j]], plot_style[j], label = labels_to_use[y[j]])
         else:
-            plt.plot(data_to_use[x], data_to_use[y], label=labels_to_use[y])
+            plt.plot(data_to_use[x], data_to_use[y], plot_style[0], label=labels_to_use[y])
 
         # label the plot
         plt.title(title_label_main + "\n")
