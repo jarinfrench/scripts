@@ -371,14 +371,15 @@ while plot_again:
 
     if data_set_counter != 1:
         if not args.no_combination:
-            if not args.no_average:
-                print("All numbers must be in the set {}".format([i + 1 for i in range(data_set_counter + 1) if i not in sets_to_combine[1:]]))
-                print("The averaged data set has index number {}".format(avg_data_set_index))
-            else:
-                print("All numbers must be in the set {}".format([i + 1 for i in range(data_set_counter) if i not in sets_to_combine[1:]]))
+            print("All numbers must be in the set {}".format([i + 1 for i in range(data_set_counter + 1) if i not in sets_to_combine[1:]]))
             print("The combined dataset has index number {}".format(combined_data_set_index))
+            if not args.no_average:
+                print("The averaged data set has index number {}".format(avg_data_set_index))
         else:
-            print("All numbers must be within the range 1-{}".format(data_set_counter))        
+            print("All numbers must be within the range 1-{}".format(data_set_counter))
+            if not args.no_average:
+                print("The averaged data set has index number {}".format(avg_data_set_index))
+
 
     data_sets_to_plot = [-1];
     while not set(data_sets_to_plot).issubset(list(range(1,data_set_counter+1)) + [avg_data_set_index]):
