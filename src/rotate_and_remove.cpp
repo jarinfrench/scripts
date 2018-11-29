@@ -878,7 +878,26 @@ void rotateAndRemove(map <int, string>& elements)
   if (marked) {writeMarkedFile(marked_filename, atoms);}
   if (rotated) {writeRotatedFile(rotated_filename, atoms);}
   if (removed) {writeRemovedFile(removed_filename, atoms, n_removed);}
+}
 
+void writeLogFile()
+{
+  ofstream fout("rotate_and_remove.log", fstream::app);
+  checkFileStream(fout, "rotate_and_remove.log");
+
+  fout << "File: " << input.data_file << endl
+       << "Theta: " << input.theta << endl
+       << "Cutoff values: \n";
+  for (map <pair <int, int>, double>::iterator it = input.rcut.begin(); it != input.rcut.end(); ++it)
+  {
+    fout << "\t" << (*it).first.first << "-" << (*it).first.second << ": "
+         << (*it).second << endl;
+  }
+  vector <string> temp = determineFilename();
+  fout << "Outputs: \n";
+  if (marked) {fout << "\tMarked: " << temp[0] << "\n";}
+  if (rotated) {fout << "\tRotated: " << temp[1] << "\n";}
+  if (removed) {fout << "\tRemoved: " << temp[2] << "\n";}
 }
 
 int main(int argc, char **argv)
@@ -968,6 +987,7 @@ int main(int argc, char **argv)
       }
       elements = determineElementRatios();
       rotateAndRemove(elements);
+      writeLogFile();
     }
   }
   catch (const cxxopts::OptionException& e)
