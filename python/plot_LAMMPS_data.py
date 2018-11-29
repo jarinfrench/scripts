@@ -60,6 +60,13 @@ def parsePlottedInput(string):
     if not remaining:
         return eval(string)
 
+def flatten(data_list):
+    if data_list == []:
+        return data_list
+    if isinstance(data_list[0], list):
+        return flatten(data_list[0]) + flatten(data_list[1:])
+    return data_list[:1] + flatten(data_list[1:])
+
 parser = argparse.ArgumentParser(usage = '%(prog)s [-h] parsed_output.txt',
     description = "Script that extracts datasets from a parsed LAMMPS output file (using the parse_lammps_output script) and plots user-specified subsets.",
     epilog = "Combining the datasets appends the data from each consecutive subset to the first subset, but keeps the separate subsets in memory.  " +
@@ -71,6 +78,8 @@ parser.add_argument('--one-dataset', action = 'store_true', help = "Combine all 
 parser.add_argument('--no-combination', action = 'store_true', help = "Do not combine any datasets (default: prompt for combinations)")
 parser.add_argument('--no-average', action = 'store_true', help = "Do not average any datasets (default: prompt for averaging)")
 parser.add_argument('--print-used-data', action = 'store_true', help = 'Option to print the data used in plotting in individual text files')
+parser.add_argument('-b','--ignore-beginning', default = 0, type = int, help = "Number of entries (for each data set) to ignore at the beginning of the data set")
+parser.add_argument('-e','--ignore-end', default = 0, type = int, help = "Number of entries (for each data set) to ignore at the end of the data set")
 args = parser.parse_args()
 
 if args.print_used_data:
@@ -310,9 +319,15 @@ if not args.no_average:
             for j in range(len(data_all[i])):
                 labels[j] = (labels_all[i][j] + '_avg')
                 if labels_all[i][j] in ['Step', 'Time']: # we don't average step numbers or Time
-                    data[j].append(str(data_all[i][j][0]) + "--" + str(data_all[i][j][-1]))
+                    if args.ignore_end == 0:
+                        data[j].append(str(data_all[i][j][args.ignore_beginning]) + "--" + str(data_all[i][j][-1]))
+                    else:
+                        data[j].append(str(data_all[i][j][args.ignore_beginning]) + "--" + str(data_all[i][j][-args.ignore_end]))
                 else:
-                    data[j].append(np.mean(data_all[i][j]))
+                    if args.ignore_end == 0:
+                        data[j].append(np.mean(data_all[i][j][args.ignore_beginning:]))
+                    else:
+                        data[j].append(np.mean(data_all[i][j][args.ignore_beginning:-args.ignore_end]))
 
         lammps_thermo_avg = dict()
         for key in lammps_thermo.keys():
@@ -354,7 +369,10 @@ if not args.no_combination:
             sets_to_combine = [i for i in sets_to_combine if i <= data_set_counter]
         for i in sets_to_combine[1:]:
             for j in range(len(data_all[i])):
-                data_all[sets_to_combine[0]][j] += data_all[i][j]
+                if args.ignore_end == 0:
+                    data_all[sets_to_combine[0]][j] += data_all[i][j][args.ignore_beginning:]
+                else:
+                    data_all[sets_to_combine[0]][j] += data_all[i][j][args.ignore_beginning:-args.ignore_end]
 
         # this removes duplicate step results from each subset of data
         for i in range(data_set_counter - len(sets_to_combine)): # for each subset of data
@@ -413,7 +431,13 @@ while plot_again:
                 tmp.append("() - {label}".format(option_num = option_num, label = curr_label))
             else:
                 tmp.append("{option_num} - {label}".format(option_num = option_num, label = curr_label))
-                data_to_use.append(data_all[data_sets_to_plot[i] - 1][j])
+                if not args.no_combination and (data_sets_to_plot[i] == combined_data_set_index):
+                    data_to_use.append(data_all[data_sets_to_plot[i] - 1][j][args.ignore_beginning:])
+                else:
+                    if args.ignore_end == 0:
+                        data_to_use.append(data_all[data_sets_to_plot[i] - 1][j][args.ignore_beginning:])
+                    else:
+                        data_to_use.append(data_all[data_sets_to_plot[i] - 1][j][args.ignore_beginning:-args.ignore_end])
                 labels_to_use.append(curr_label)
                 option_num += 1
         if len(tmp) < max_num_labels:
@@ -437,11 +461,16 @@ while plot_again:
     print("Slicing is allowed")
     plotted = eval(input("Use tuple format (ex: [[x_data,y_data], [x_data2,y_data2]]): "))
 
-    plotted = parsePlottedInput(plotted)
+    while not ('[[' in str(plotted) and ']]' in str(plotted)):
+        print("Please input as tuple format ([[x_data,y_data]])")
+        plotted = eval(input("Use tuple format (ex: [[x_data,y_data], [x_data2,y_data2]]): "))
 
-    data_len = []
-    for i in range(len(plotted)): # find the lengths of each data set being plotted
-        data_len.append([i, [depth(plotted[i][0]), depth(plotted[i][1])]])
+    plotted = parsePlottedInput(plotted)
+    plot_one_dataset = False
+
+    # data_len = []
+    # for i in range(len(plotted)): # find the lengths of each data set being plotted
+    #     data_len.append([i, [depth(plotted[i][0]), depth(plotted[i][1])]])
 
     for i in range(len(plotted)):
         try:
@@ -452,7 +481,11 @@ while plot_again:
         try:
             y = [j - 1 for j in plotted[i][1]] # index of y data and label
         except:
-            y = plotted[i][1] - 1
+            try:
+                y = plotted[i][1] - 1
+            except:
+                y = x
+                plot_one_dataset = True
 
         if not depth(y) == 1: # if there are multiple y axis data
             title_label_main = "["
@@ -465,26 +498,30 @@ while plot_again:
         else:
             title_label_main = labels_to_use[y] + " vs "
 
-        if not depth(x) == 1: # same thing with the x axis
-            title_label_main += "["
-            for j in range(len(x)):
-                title_label_main += labels_to_use[x[j]]
-                if not j + 1 == len(x):
-                    title_label_main ++ ", "
-                else:
-                    title_label_main += "]"
-        else:
-            title_label_main += labels_to_use[x]
-
         title_label_right = "LAMMPS version: " + version + "; N = " + str(N)
 
-        if depth(x) > 1: # determine the units for the x axis
-            labels_x = []
-            for j in range(len(x)):
-                labels_x.append(labels_to_use[x[j]])
-            x_label = determine_label(labels_x, lammps_thermo, unit_labels)
+        if not plot_one_dataset:
+            if not depth(x) == 1: # same thing with the x axis
+                title_label_main += "["
+                for j in range(len(x)):
+                    title_label_main += labels_to_use[x[j]]
+                    if not j + 1 == len(x):
+                        title_label_main ++ ", "
+                    else:
+                        title_label_main += "]"
+            else:
+                title_label_main += labels_to_use[x]
+
+
+            if depth(x) > 1: # determine the units for the x axis
+                labels_x = []
+                for j in range(len(x)):
+                    labels_x.append(labels_to_use[x[j]])
+                x_label = determine_label(labels_x, lammps_thermo, unit_labels)
+            else:
+                x_label = labels_to_use[x] + " (" + determine_label([labels_to_use[x]], lammps_thermo, unit_labels)[0] + ")"
         else:
-            x_label = labels_to_use[x] + " (" + determine_label([labels_to_use[x]], lammps_thermo, unit_labels)[0] + ")"
+            x_label = ""
 
         if depth(y) > 1:
             labels_y = []
@@ -497,7 +534,9 @@ while plot_again:
         plt.figure(i + 1)
 
         # now we actually plot the data
-        if depth(x) > 1 and depth(y) > 1:
+        if plot_one_dataset:
+            plt.plot(data_to_use[y], plot_style[0], label=labels_to_use[y])
+        elif depth(x) > 1 and depth(y) > 1:
             plot_style_index = 0
             for j in range(depth(x)):
                 for m in range(depth(y)):
@@ -521,7 +560,7 @@ while plot_again:
             plt.legend(loc='best')
 
     if args.print_used_data:
-        unique_indices = list(set([item for sublist in plotted for item in sublist]))
+        unique_indices = list(set(flatten(plotted)))
         unique_indices.sort()
         fopen = open(output_filename, 'w')
         for i in unique_indices:
