@@ -541,10 +541,7 @@ vector <Atom> readDataFile()
 
   checkGrainSize(box.Lx);
   checkGrainSize(box.Ly);
-  if (is_sphere)
-  {
-    checkGrainSize(box.Lz);
-  }
+  if (is_sphere) {checkGrainSize(box.Lz);}
 
   // scale the dimensions
   box.xlow *= scale_factor_a;
@@ -587,15 +584,15 @@ vector <Atom> readDataFile()
 
     switch (data.size())
     {
-      // atom has charge, and only wrapped coordinates
+      // atom has charge
       case 6: charge = data[2];
               x = data[3]; y = data[4]; z = data[5];
               break;
-      // atom does not have charge, and only wrapped coordinates
+      // atom does not have charge
       case 5: charge = 0.0;
               x = data[2]; y = data[3]; z = data[4];
               break;
-      default: cout << "Unrecognized file format.  Expected format: id type charge* x y z xu* yu* zu*.  Note, elements marked with * are optional.\n";
+      default: cout << "Unrecognized file format.  Expected format: id type charge* x y z.  * = optional.\n";
                exit(FILE_FORMAT_ERROR);
     }
 
@@ -887,7 +884,7 @@ void writeLogFile()
 
   fout << "File: " << input.data_file << endl
        << "Theta: " << input.theta << endl
-       << "Cutoff values: \n";
+       << "Cutoff value(s): \n";
   for (map <pair <int, int>, double>::iterator it = input.rcut.begin(); it != input.rcut.end(); ++it)
   {
     fout << "\t" << (*it).first.first << "-" << (*it).first.second << ": "
@@ -897,7 +894,9 @@ void writeLogFile()
   fout << "Outputs: \n";
   if (marked) {fout << "\tMarked: " << temp[0] << "\n";}
   if (rotated) {fout << "\tRotated: " << temp[1] << "\n";}
-  if (removed) {fout << "\tRemoved: " << temp[2] << "\n";}
+  if (removed) {fout << "\tRemoved: " << temp[2] << "\n\n";}
+
+  fout.close();
 }
 
 int main(int argc, char **argv)
