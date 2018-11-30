@@ -250,7 +250,7 @@ for i in range(data_set_counter):
         data_all[i].append([])
         totEngIndex = labels_all[i].index("TotEng")
         for j in range(len(data_all[i][totEngIndex])):
-            data_all[i][len(labels_all[i])].append(data_all[i][totEngIndex][i] / N)
+            data_all[i][len(labels_all[i])].append(data_all[i][totEngIndex][j] / N)
         labels_all[i].append("E_per_atom")
 
     # Potential Energy per atom
@@ -258,7 +258,7 @@ for i in range(data_set_counter):
         data_all[i].append([])
         potEngIndex = labels_all[i].index("PotEng")
         for j in range(len(data_all[i][potEngIndex])):
-            data_all[i][len(labels_all[i])].append(data_all[i][potEngIndex][i] / N)
+            data_all[i][len(labels_all[i])].append(data_all[i][potEngIndex][j] / N)
         labels_all[i].append("PE_per_atom")
 
     # Enthalpy per atom
@@ -266,7 +266,7 @@ for i in range(data_set_counter):
         data_all[i].append([])
         enthalpyIndex = labels_all[i].index("Enthalpy")
         for j in range(len(data_all[i][enthalpyIndex])):
-            data_all[i][len(labels_all[i])].append(data_all[i][enthalpyIndex][i] / N)
+            data_all[i][len(labels_all[i])].append(data_all[i][enthalpyIndex][j] / N)
         labels_all[i].append("Enthalpy_per_atom")
 
     # Volume per atom
@@ -274,7 +274,7 @@ for i in range(data_set_counter):
         data_all[i].append([])
         volumeIndex = labels_all[i].index("Volume")
         for j in range(len(data_all[i][volumeIndex])):
-            data_all[i][len(labels_all[i])].append(data_all[i][volumeIndex][i] / N)
+            data_all[i][len(labels_all[i])].append(data_all[i][volumeIndex][j] / N)
         labels_all[i].append("Volume_per_atom")
 
     # Calculate the times if not already printed
@@ -400,7 +400,10 @@ while plot_again:
 
 
     data_sets_to_plot = [-1];
-    while not set(data_sets_to_plot).issubset(list(range(1,data_set_counter+1)) + [avg_data_set_index]):
+    subset = list(range(1,data_set_counter + 1))
+    if not args.no_average:
+        subset += [avg_data_set_index]
+    while not set(data_sets_to_plot).issubset(subset):
         data_sets_to_plot = input("Enter as a space separated list of integers, or using slicing (i.e. \'1 2 3:10\'): ").split()
 
         for i in range(len(data_sets_to_plot)):
