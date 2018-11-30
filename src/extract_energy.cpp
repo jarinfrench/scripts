@@ -36,7 +36,7 @@ double extractAngleFromInfile(const string& file)
 
   if (degree_pos == string::npos)
   {
-    cout << "Error: filename must contain the the angle in the format \"*_degree*\" in order to be processed correctly.\n";
+    cout << "Error: filename must contain the the angle in the format \"*_<angle>degree*\" in order to be processed correctly.\n";
     exit(FILE_NAME_ERROR);
   }
   size_t angle_pos = file.rfind("_", degree_pos) + 1;
