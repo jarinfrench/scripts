@@ -436,6 +436,8 @@ while plot_again:
                 tmp.append("{option_num} - {label}".format(option_num = option_num, label = curr_label))
                 if not args.no_combination and (data_sets_to_plot[i] == combined_data_set_index):
                     data_to_use.append(data_all[data_sets_to_plot[i] - 1][j][args.ignore_beginning:])
+                elif not args.no_average and (data_sets_to_plot[i] == avg_data_set_index):
+                    data_to_use.append(data_all[data_sets_to_plot[i] - 1][j])
                 else:
                     if args.ignore_end == 0:
                         data_to_use.append(data_all[data_sets_to_plot[i] - 1][j][args.ignore_beginning:])
