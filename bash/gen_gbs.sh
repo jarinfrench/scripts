@@ -40,16 +40,17 @@ echo $FN $radius $ntypes $cutoff > rotate_input.txt
 # this point.  Further modifications may be necessary to handle larger axes.
 # Currently assumes (as of 1 March 2018) that the axis is immediately before a
 # period, and that no other set of three numbers immediately precedes a period.
-axis=`echo $FN | grep -o "1[0-9][0-9]\." | cut -d. -f1`
+axis=`echo $FN | grep -o "[0-9][0-9][0-9]\." | cut -d. -f1`
 
 # Utilize the symmetry of the axis.
-if [ $axis -eq 111 ]; then
-  let range=360/5
-elif [ $axis -eq 110 ]; then
+if [ ${axis} -eq 111 ]; then
+  let range=120/5
+elif [ ${axis} -eq 110 ]; then
   let range=180/5
-elif [ $axis -eq 100 ]; then
-  let range=90/5
+elif [ ${axis} -eq 100 ]; then
+  let range=360/5
 else
+  echo "Not using a high-symmetry axis: setting range = 360 degrees"
   let range=360/5 # This may be too high, but generally not.
 fi
 
@@ -57,22 +58,22 @@ fi
 # that here.
 read -p "Are you reading angles from a txt file? " angles
 
-case $angles in
+case ${angles} in
   y|Y)
     read -e -p "Please enter the filename of the angles txt file: " FN2
     while read -r theta; do
-      rotate_and_remove rotate_input.txt $theta
-    done < "$FN2"
-    for i in $(seq 1 $range);
+      rotate_and_remove rotate_input.txt ${theta} ${FLAGS}
+    done < "${FN2}"
+    for i in $(seq 1 ${range});
     do
-      rotate_and_remove rotate_input.txt $(($i*5))
+      rotate_and_remove rotate_input.txt $(($i*5)) ${FLAGS}
     done
     ;;
   n|N)
     echo "Generating default layouts..."
-    for i in $(seq 1 $range);
+    for i in $(seq 1 ${range});
     do
-      rotate_and_remove rotate_input.txt $(($i*5))
+      rotate_and_remove rotate_input.txt $(($i*5)) ${FLAGS}
     done
     ;;
   *)
@@ -86,9 +87,9 @@ esac
 # visualization in TecPlot)
 
 # Make the directories
-mkdir -p Marked/$axis Removed/$axis Rotated/$axis
+mkdir -p Removed/${axis} Marked/${axis} Rotated/${axis}
 
 # Assumes that these directories already exist.
-mv *_marked*.dat Marked/$axis
-mv *_removed*.dat Removed/$axis
-mv *_rotated*.dat Rotated/$axis
+mv *_removed*.dat Removed/${axis}
+mv *_marked*.dat Marked/${axis}
+mv *_rotated*.dat Rotated/${axis}

@@ -1,3 +1,10 @@
+trap ctrl_c INT
+
+function ctrl_c() {
+  # Force exiting of the script, rather than just the current executable
+  exit 1
+}
+
 read -p "Please enter the element: " element
 if [[ "${element,,}" =~ ^(al|cu|fe)$ ]]; then
   element=${element,,}
@@ -8,6 +15,10 @@ elif [[ "${element,,}" =~ ^uo2$ ]]; then
   element=${element^^}
   num_files=$(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5"_"$6"_"$7"_"$8}' | uniq | wc -l)
   files=$(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5"_"$6"_"$7"_"$8}' | uniq)
+elif [[ "${element,,}" =~ ^u$ ]]; then
+  element=${element,,}
+  num_files=$(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5"_"$6}' | uniq | wc -l)
+  files=$(ls T*_[1-9]*.txt | awk -F '_' '{print $1"_"$2"_"$3"_"$4"_"$5"_"$6}' | uniq)
 else
   echo "$element is not recognized.  Please enter either UO2, Fe, Cu, or Al"
   exit 3
@@ -16,6 +27,7 @@ fi
 num=1
 for i in $files; do
   echo ${i}
+  echo ""
   echo "Processing file $num of $num_files"
   temp=$(echo $i | awk -F '_' '{print $1}' | cut -c 2-)
   if [[ "${element}" =~ ^UO2$ ]]; then
