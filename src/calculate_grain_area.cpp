@@ -254,7 +254,15 @@ int main(int argc, char **argv)
       listPotentials(fits);
       lattice_fit = promptForPotential(fits);
     }
-    else {lattice_fit = fits[potential - 1];}
+    else
+    {
+      if (potential > fits.size())
+      {
+        cout << "Invalid potential";
+        return BOUNDS_ERROR;
+      }
+      else {lattice_fit = fits[potential - 1];}
+    }
 
     if (result.count("show-lattice-parameter"))
     {

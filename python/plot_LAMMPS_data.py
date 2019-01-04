@@ -226,7 +226,7 @@ for row in reader:
                 try:
                     data.append([])
                     data[i].append(float(row[i]))
-                except:
+                except: #TODO: Fix an error if an additional data set is read in (changes N!), i.e. we have a line that says "N = ", #
                     print("Error appending data to set {}".format(data_set_counter + 1)) # we use the +1 because we are indexing from 0
                     print("New labels found")
 
@@ -278,8 +278,6 @@ for i in range(data_set_counter):
         labels_all[i].append("Volume_per_atom")
 
     # Calculate the times if not already printed
-    # NOTE: This may need to be edited to properly account for the time difference
-    # when the time step changes
     if "Step" in labels_all[i] and not "Time" in labels_all[i] and time_step[i] is not None:
         data_all[i].append([])
         stepIndex = labels_all[i].index("Step")
@@ -359,9 +357,10 @@ if not args.no_combination:
                 sets_to_combine[i] = int(sets_to_combine[i]) - 1
         sets_to_combine.sort()
         combined_data_set_index = sets_to_combine[0] + 1
-        if avg_data_set_index in sets_to_combine:
-            print("Removing averaged data set from combining command")
-            sets_to_combine.remove(avg_data_set_index)
+        if not args.no_average:
+            if avg_data_set_index in sets_to_combine:
+                print("Removing averaged data set from combining command")
+                sets_to_combine.remove(avg_data_set_index)
 
         # sanity check: make sure we don't go past the maximum index
         if max(sets_to_combine) > data_set_counter:

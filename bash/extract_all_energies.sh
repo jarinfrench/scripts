@@ -5,7 +5,7 @@
 # specified by FN.  Note that this assumes that extract_energy is found in PATH!
 
 # extract the .txt files
-targets=($(ls -v | grep ^minimize_))
+targets=($(ls -v | grep ^minimize*))
 value=($(ls | grep -E "(^minimize[_0-3]*_no_GB)")) # This is the single grain value
 
 read -p "Please enter the filename to be written to: " FN
@@ -25,7 +25,7 @@ if [ -z ${j+x} ]; then
   echo "Error finding initial energy configuration."
   exit 2
 else
-  extract_energy ${targets[$j]} $FN # gets the base value for a single grain
+  extract_energy ${targets[$j]} $FN -a 0.00 # gets the base value for a single grain
 fi
 
 # Extract the energy for each value.
