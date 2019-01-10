@@ -10,9 +10,9 @@ ATOMDBGPROGS = rotate_and_remove_dbg calculate_displacement_dbg calculate_MSD_db
 dump2dat_dbg find_grains_dbg track_atoms_dbg generate_impurities_dbg xyz2dat_dbg \
 shift_upper_grain_dbg
 NOATOMPROGS = calculate_GBE calculate_grain_area csv2tecplot \
-dump2tec extract_energy parse_lammps_output
+dump2tec extract_energy parse_lammps_output grains2slice
 NOATOMDBGPROGS = calculate_GBE_dbg calculate_grain_area_dbg csv2tecplot_dbg \
-dump2tec_dbg extract_energy_dbg parse_lammps_output_dbg
+dump2tec_dbg extract_energy_dbg parse_lammps_output_dbg grains2slice_dbg
 
 ERRORCODES = error_code_defines.h
 
