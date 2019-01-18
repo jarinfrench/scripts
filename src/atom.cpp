@@ -33,6 +33,7 @@ bool operator==(const Atom& lhs, const Atom& rhs)
   return (lhs.getId() == rhs.getId() &&
           lhs.getType() == rhs.getType() &&
           lhs.getCharge() == rhs.getCharge() &&
+          //lhs.getWrapped() == rhs.getWrapped()
           lhs.getX() == rhs.getX() &&
           lhs.getY() == rhs.getY() &&
           lhs.getZ() == rhs.getZ() &&
