@@ -38,6 +38,9 @@ non_atom_builds_dbg: $(addprefix $(BIN)/, $(NOATOMDBGPROGS))
 atom.o : atom.h atom.cpp
 	$(CC) -O3 -std=c++11 -c atom.cpp
 
+position.o : position.h position.cpp
+	$(CC) -O3 -std=c++11 -c position.cpp
+
 # Explanation of this rule:
 # the % sign is simply what caused this rule to be used.
 # $(@F) gives the filename (which in this case is equal to the %, though I couldn't use that)
