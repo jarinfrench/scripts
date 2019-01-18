@@ -5,9 +5,147 @@
 #include <vector>
 #include <cmath>
 #include <cstdlib>
+
 #include "atom.h"
+/*#include <cxxopts.hpp>
+#include "error_code_defines.h"*/
 
 using namespace std;
+
+/*template <typename T>
+void checkFileStream(T& stream, const string& file)
+{
+  if (stream.fail())
+  {
+    cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
+  }
+}
+
+pair <string, vector <string> > parseInputFile(const string& input_file)
+{
+  string files, reference;
+  vector <string> compared;
+
+  ifstream fin(input_file.c_str());
+  checkFileStream(fin, input_file);
+
+  getline(fin, reference); // get's the first line: assumes it to be the file
+
+  while (getline(fin, str))
+  {
+    compared.push_back(str);
+  }
+
+  return make_pair(reference, compared);
+}
+
+void processFile(const string& file, vector <Atom>& atoms)
+{
+  string str;
+  unsigned int atom_id, n_read = 0;
+  int atom_type, grain_num;
+  bool warned = false; // user has been warned of no wrapped coordinates
+  double charge, x, y, z, f_i, xu, yu, zu;
+
+  ifstream fin(file.c_str());
+  checkFileStream(fin, file);
+
+  getline(fin, str); // we ignore the first line
+  while (getline(fin, str))
+  {
+    stringstream ss(str);
+    stringstream::pos_type pos = ss.tellg();
+    if (!(ss >> atom_id >> atom_type >> charge >> x >> y >> z >> grain_num >> f_i >> xu >> yu >> zu))
+    {
+      ss.clear(); // clear the error state of the stream
+      ss.seekg(pos, ss.beg);
+      charge = 0.0; // Assumed to not find any charge
+      if (!(ss >> atom_id >> atom_type >> x >> y >> z >> grain_num >> f_i >> xu >> yu >> zu))
+      {
+        if (!warned)
+        {
+          cout << "WARNING: Not enough entries per line.  Assuming unwrapped coordinates do not exist.\n";
+          warned = true;
+        }
+
+        xu = x;
+        yu = y;
+        zu = z;
+      }
+    }
+
+    if (atom_id > atoms.size()) {atoms.resize(atom_id, Atom());}
+
+    atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, x, y, z);
+    atoms[atom_id - 1].setXu(xu);
+    atoms[atom_id - 1].setYu(yu);
+    atoms[atom_id - 1].setZu(zu);
+    atoms[atom_id - 1].setMark(grain_num);
+    ++n_read;
+  }
+
+  fin.close();
+}
+
+int main(int argc, char** argv)
+{
+  string reference, input_file, output_file;
+  vector <string> compared;
+  vector <Atom> reference_atoms, compared_atoms;
+  try
+  {
+    cxxopts:Options options(argv[0], "Calculate the displacement vectors between two snapshots.")
+    options
+      .positional_help("reference compared [compared2 compared3 ...]")
+      .show_positional_help();
+
+    options
+      .allow_unrecognised_options()
+      .add_options()
+        ("r,reference", "Reference state of atomic system", cxxopts::value<string>(reference), "reference")
+        ("c,compared", "Atomic state(s) to compare to the reference", cxxopts::value<vector<string> >(compared), "compared")
+        ("o,outfile", "Name of the output file", cxxopts::value<string>(output_file), "output_file")
+        ("i,input", "Option to compare a list of files.  Specify the file containing this list.", cxxopts::valule<string>(input_file), "input_file")
+        ("first-only", "Compares all files to the first")
+        ("h,help", "Show the help");
+
+    options.parse_positional({"reference", "compared"});
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help") || ((result.count("reference") == 0 && result.count("compared") == 0) && result.count("input") == 0))
+    {
+      cout << options.help() << endl << endl
+           << "Note that " << argv[0] << " --input input_file can be used in place of "
+           << argv[0] << " reference compared\n";
+      return EXIT_SUCCESS;
+    }
+
+    if (result.count("reference") && result.count("compared") && result.count("input"))
+    {
+      cout << "Error: either use an input file, or a command line list, not both.\n";
+      return OPTION_PARSING_ERROR;
+    }
+
+    if (result.count("input"))
+    {
+      pair <string, vector <string> > files;
+      files = parseInputFile(input_file);
+      reference = files.first;
+      compared = files.second;
+    }
+
+    processFile(reference, reference_atoms);
+
+  }
+  catch (const cxxopts::OptionException& e)
+  {
+    cout << "Error parsing options: " << e.what() << endl;
+    return OPTION_PARSING_ERROR;
+  }
+
+  return EXIT_SUCCESS;
+}*/
 
 bool checkUnwrapped(const vector <Atom> & a)
 {
