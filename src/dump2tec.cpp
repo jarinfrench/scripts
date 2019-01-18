@@ -32,12 +32,16 @@ void convertFile(const string& infile, const string& outfile)
   }
 
   // read through the file one item at a time (stopping at ','), then output that item with a space.
-  while (getline(fin, str)) {fout << str << " ";}
+  while (getline(fin, str)) {fout << str << "\n";}
+
+  cout << "File " << infile << " processed.\r";
+  cout.flush();
 }
 
 int main(int argc, char** argv)
 {
-  string infile, outfile;
+  vector <string> infile;
+  string outfile;
 
   try
   {
@@ -49,11 +53,11 @@ int main(int argc, char** argv)
     options
     .allow_unrecognised_options()
     .add_options()
-      ("i,input", "Input file", cxxopts::value<string>(infile), "file")
+      ("i,input", "Input file", cxxopts::value<vector <string> >(infile), "file")
       ("o,output", "Name of converted file", cxxopts::value<string>(outfile)->default_value("*.tec"), "file")
       ("h,help", "Show the help");
 
-    options.parse_positional({"input", "output"});
+    options.parse_positional({"input"});
     auto result = options.parse(argc, argv);
 
     if (result.count("help") || !(result.count("input")))
@@ -62,14 +66,17 @@ int main(int argc, char** argv)
       return EXIT_SUCCESS;
     }
 
-    if (!(result.count("output")))
-    {
-      outfile = infile.substr(0,infile.find(".dump")) + ".tec";
-    }
-
     if (result.count("input"))
     {
-      convertFile(infile, outfile);
+      for (unsigned int i = 0; i < infile.size(); ++i)
+      {
+        if (!(result.count("output")))
+        {
+          outfile = infile[i].substr(0, infile[i].find(".dump")) + ".tec";
+        }
+        convertFile(infile[i], outfile);
+      }
+      cout << endl;
     }
   }
   catch (const cxxopts::OptionException& e)
