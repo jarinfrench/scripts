@@ -140,7 +140,7 @@ void showInputFileHelp()
        << "\t(2) datafile molecule_name atom_id r_cut1 [r_cut2 r_cut3 ....]\n"
        << "\t(3) datafile molecule_name file_containing_atom_ids r_cut1 [r_cut2 r_cut3 ....]\n\n"
        << "In all of these, the cutoff value must be specified for determining nearest neighbor\n"
-       << "interactions. Note hat the number of cutoff radii is dependent on the number\n"
+       << "interactions. Note that the number of cutoff radii is dependent on the number\n"
        << "of unique elements in the structure.  For example, a system of two unique atoms\n"
        << "would require three cutoff radii: one for each of the same-element interactions,\n"
        << "and one for the interaction between the two elements.  All the radii must be\n"
@@ -155,8 +155,8 @@ void showInputFileHelp()
        << "Format (2) and (3) description:\n"
        << "   the only parameter required is the atom ID number being replaced.\n"
        << "   or alternatively the file containing a list of atom IDs."
-       << "   This is useful for situations where only one defect(s) is(are) desired at\n"
-       << "   (a) specific location(s).\n\n";
+       << "   This is useful for situations where only defects are desired at\n"
+       << "   specific locations.\n\n";
 }
 
 void writeVacancyFile(const string& vac_file, const vector <Atom>& atoms,
