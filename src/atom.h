@@ -12,6 +12,7 @@
 ******************************************************************************/
 
 #include <iostream>
+//#include "position.h"
 
 class Atom
 {
@@ -22,9 +23,11 @@ private:
   double x; // x position
   double y; // y position
   double z; // z position
+  // Position wrapped;
   double xu; // unwrapped x position
   double yu; // unwrapped y position
   double zu; // unwrapped z position
+  //Position unwrapped;
   int mark; // the mark on the atom.
 
 public:
@@ -38,9 +41,11 @@ public:
   double getX() const {return x;}
   double getY() const {return y;}
   double getZ() const {return z;}
+  //Position getWrapped const {return wrapped;}
   double getXu() const {return xu;}
   double getYu() const {return yu;}
   double getZu() const {return zu;}
+  //Position getUnwrapped {return unwrapped;}
   int getMark() const {return mark;}
 
   // All the setters
@@ -50,9 +55,11 @@ public:
   void setX(double x) {this->x = x;}
   void setY(double y) {this->y = y;}
   void setZ(double z) {this->z = z;}
+  //void setWrapped(Position pos) {this->wrapped = pos;}
   void setXu(double x) {this->xu = x;}
   void setYu(double y) {this->yu = y;}
   void setZu(double z) {this->zu = z;}
+  //void setUnwrapped(Position pos) {this->unwrapped = pos;}
   void setMark(int mark) {this->mark = mark;}
 
 };
