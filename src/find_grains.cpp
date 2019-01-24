@@ -18,7 +18,7 @@ using namespace std;
 bool warnings = true;
 bool print_nearest_neighbors = false;
 bool has_charge = false;
-bool no_data_files = false;
+unsigned int every = 0;
 
 struct inputVars
 {
@@ -755,7 +755,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
 
     fout_data << n_grain_1 << " " << n_grain_2 << endl;
 
-    if (!no_data_files) {writeAtomsToFile(filename2, atoms, allowed_atoms, symm);}
+    if (every != 0 && ((aa - 1) % every == 0 || aa + 1 == files.size())) {writeAtomsToFile(filename2, atoms, allowed_atoms, symm);}
 
     fin.close();
     if (result.count("append"))
@@ -812,7 +812,7 @@ int main(int argc, char** argv)
       .add_options()
         ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
         ("a,append", "Append to the processed data file. (Not yet implemented)", cxxopts::value<bool>(append)->default_value("false"))
-        ("no-data-file", "Flag specifying that no output data files should be written (only the file from -o(--output) is written)", cxxopts::value<bool>(no_data_files)->default_value("false"))
+        ("e,every", "Option to specify how frequently interface files should be written.  1 specifies every file, 0 specifies none, any other integer specifies that every n files should have one written.  First and last interface files are always written if n != 0.", cxxopts::value<unsigned int>(every)->default_value("1"), "n")
         ("t,type", "Flag specifying the input file type - LAMMPS input file (dat), or LAMMPS dump file (dump)", cxxopts::value<string>(filetype)->default_value("dump"))
         ("m,microrotation", "Flag specifying that the user wants the microrotation parameter calculated. Not yet implemented", cxxopts::value<bool>(calculate_microrotation)->default_value("false")->implicit_value("true"))
         ("s,slip-vector", "Flag specifying that the user wants the slip-vector parameter calculated.  Not yet implemented", cxxopts::value<bool>(calculate_slip_vector)->default_value("false")->implicit_value("true"))
