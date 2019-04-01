@@ -33,9 +33,6 @@ void convertFile(const string& infile, const string& outfile)
 
   // read through the file one item at a time (stopping at ','), then output that item with a space.
   while (getline(fin, str)) {fout << str << "\n";}
-
-  cout << "File " << infile << " processed.\r";
-  cout.flush();
 }
 
 int main(int argc, char** argv)

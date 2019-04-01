@@ -165,7 +165,8 @@ void calculateGrainArea(const fit& lattice_fit, const string& output_file)
   string str;
   double t0, t1, structure_factor; // Times
   int N1_0, N2_0, N1_next, N2_next; // atom numbers
-  double scale_factor = input.a0 / latticeParam(input.temperature, lattice_fit);
+  double lattice_param = latticeParam(input.temperature, lattice_fit);
+  double scale_factor = lattice_param / input.a0;
   double Lz = input.height * scale_factor;
   double n_extra = estimateAtomFluctuations(input.temperature);
 
@@ -190,7 +191,7 @@ void calculateGrainArea(const fit& lattice_fit, const string& output_file)
 
   fin >> str >> str >> str; // ignore the minimization step
 
-  structure_factor = input.a0 * input.a0 * input.a0;
+  structure_factor = lattice_param * lattice_param * lattice_param;
   if (input.structure.compare("sc") == 0) {structure_factor /= Lz;}
   if (input.structure.compare("fcc") == 0) {structure_factor /= 4 * Lz;}
   if (input.structure.compare("bcc") == 0) {structure_factor /= 2 * Lz;}
@@ -245,6 +246,7 @@ int main(int argc, char **argv)
     {
       cout << options.help() << endl << endl;
       showInputFileHelp();
+      return EXIT_SUCCESS;
     }
 
     fits = setPotentials(database_file);
