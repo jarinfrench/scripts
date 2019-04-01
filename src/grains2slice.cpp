@@ -71,13 +71,14 @@ pair <vector<int>, vector<string> > parseInputFile(const string& infile)
 
 void makeZonedData(const vector<int>& atom_ids, const vector<string>& grain_files)
 {
+  //TODO: Allow for arbitrary assigning of atoms to zones based on an inequality, or a value
   string str;
   vector <vector <string> > zones (3, vector <string> (0, ""));
   bool has_charge = false;
 
   for (unsigned int i = 0; i < grain_files.size(); ++i)
   {
-    string outfile = grain_files[i].substr(0, grain_files[i].find(".dat")) + "_updated.dat";
+    string outfile = grain_files[i].substr(0, grain_files[i].find(".dat")) + "_zoned.dat";
     ofstream fout(outfile.c_str());
     checkFileStream(fout, outfile);
 
@@ -147,6 +148,7 @@ int main(int argc, char** argv)
       .allow_unrecognised_options()
       .add_options()
         ("i,infile", "Input file", cxxopts::value<string>(infile), "infile")
+        //("c,column", "Column to assign zones by (must be integers)", cxxopts::value<int>(), "col_num")
         ("h,help", "Show the help");
 
     options.parse_positional({"infile"});

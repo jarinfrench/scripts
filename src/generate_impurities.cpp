@@ -303,7 +303,7 @@ void writeMarkedFile(const string& marked_file, const vector <Atom>& atoms)
 
 void writeAtomsToFiles(const vector <Atom>& atoms, const string& datafile,
                        const vector <Atom> substituted_atoms, const boxData& box,
-                       const ratio& compound_ratio)
+                       const ratio& compound_ratio, const string & outfile = "none")
 {
   string vac_file, sub_file, marked_file;
   size_t ending_pos = datafile.find(".dat");
@@ -320,6 +320,17 @@ void writeAtomsToFiles(const vector <Atom>& atoms, const string& datafile,
   ss >> vac_file;
   sub_file = vac_file.substr(0,vac_file.find("vac.dat")) + "sub.dat";
   marked_file = datafile.substr(0, ending_pos) + "_marked.dat";
+
+  if (outfile.compare("none") != 0)
+  {
+    if (substitutions) {sub_file = outfile;}
+    else if (vacancies) {vac_file = outfile;}
+    else if (marked) {marked_file = outfile;}
+    else
+    {
+      cout << "Error: no output specification found.\n";
+    }
+  }
 
   if (vacancies) {writeVacancyFile(vac_file, atoms, substituted_atoms, box, compound_ratio);}
   if (substitutions) {writeSubstitutionFile(sub_file, atoms, substituted_atoms, box, compound_ratio);}
@@ -963,7 +974,7 @@ vector <vector <string> > parseInputFile(const string& input_file)
 
 int main(int argc, char **argv)
 {
-  string input_file;
+  string input_file, outfile;
   vector <vector <string> > impurity_commands;
   vector <vector <int> > iatom; // Cell-linked list
   vector <Atom> atoms;
@@ -983,6 +994,7 @@ int main(int argc, char **argv)
       .add_options()
         ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
         ("d,defect-type", "Specify which output files are wanted: (m)arked atoms for removal, atoms with (s)ubstitutions,  or (v)acancies.  Interstitials not implemented.", cxxopts::value<string>()->default_value("msv"), "m, s and/or v")
+        ("o,outfile", "In the case of only one output file, specify the file name. (Assumes \'-d s\' unless otherwise specified).", cxxopts::value<string>(outfile), "Output file")
         ("no-molecule-removal", "Only remove the atom(s) specified for removal, without removing the whole molecule")
         ("h,help", "Show the help");
 
@@ -1020,6 +1032,24 @@ int main(int argc, char **argv)
             cout << "Unknown output file specification \'" << (*it) << "\'.\n";
             return OUTPUT_SPECIFICATION_ERROR;
           }
+        }
+      }
+    }
+
+    if (result.count("outfile"))
+    {
+      if (!result.count("defect-type"))
+      {
+        marked = false;
+        substitutions = true;
+        vacancies = false;
+      }
+      else
+      {
+        if (marked + substitutions + vacancies > 1)
+        {
+          cout << "Output file name option only allowed with one output type!\n";
+          return INPUT_FORMAT_ERROR;
         }
       }
     }
@@ -1092,8 +1122,16 @@ int main(int argc, char **argv)
           }
         }
 
-        writeAtomsToFiles(atoms, impurity_commands[i][0], substituted_atoms,
+        if (result.count("outfile"))
+        {
+          writeAtomsToFiles(atoms, impurity_commands[i][0], substituted_atoms,
+                          box, compound_ratio, outfile);
+        }
+        else
+        {
+          writeAtomsToFiles(atoms, impurity_commands[i][0], substituted_atoms,
                           box, compound_ratio);
+        }
 
       }
 
