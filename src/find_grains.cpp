@@ -755,7 +755,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
 
     fout_data << n_grain_1 << " " << n_grain_2 << endl;
 
-    if (every != 0 && ((aa - 1) % every == 0 || aa + 1 == files.size())) {writeAtomsToFile(filename2, atoms, allowed_atoms, symm);}
+    if (every != 0 && ((aa - 1) % every == 0 || aa == files.size())) {writeAtomsToFile(filename2, atoms, allowed_atoms, symm);}
 
     fin.close();
     if (result.count("append"))
