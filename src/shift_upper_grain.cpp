@@ -129,29 +129,25 @@ pair <int, int> getAtomData(const string& filename, vector <Atom>& atoms)
   return make_pair(N, ntypes);
 }
 
-void createShiftedBoundaries(const string& filename, const pair <int, int>& ncell,
-                             const pair <int, int>& ngrid, vector <Atom>& atoms,
+void createShiftedBoundaries(const string& filename, const pair <double, double>& shift,
+                             const pair <int, int>& maxes, vector <Atom>& atoms,
                              const pair <int, int>& num_atoms_num_types)
 {
   string newFileName;
-  int ntotal, num_types;
+  int ntotal;
   int N = num_atoms_num_types.first, ntypes = num_atoms_num_types.second;
   double xshift, yshift, lcellx, lcelly; // total shift in the x/y direction, length of cells in x/y direction
   bool has_charge = false;
   vector <Atom> shifted_atoms;
 
-  lcellx = box.Lx / ncell.first;
-  lcelly = box.Ly / ncell.second;
+  cout << "Total shift distance: " << shift.first * maxes.first << " in x, and " << shift.second * maxes.second << " in y.\n";
 
   if ((*max_element(atoms.begin(), atoms.end(), compareAtomCharge)).getCharge() != 0.0) {has_charge = true;}
 
-  // The atoms need to be sorted (from greatest to least) by their Z value
-  sort(shifted_atoms.begin(), shifted_atoms.end(), compareAtomZ);
-
   // for each grid unit, create a separate structure
-  for (int ix = 1; ix <= ngrid.first; ++ix)
+  for (int ix = 0; ix <= maxes.first; ++ix)
   {
-    for (int iy = 1; iy <= ngrid.second; ++iy)
+    for (int iy = 1; iy <= maxes.second; ++iy)
     {
       ntotal = 0;
 
@@ -163,7 +159,7 @@ void createShiftedBoundaries(const string& filename, const pair <int, int>& ncel
       ofstream fout(newFileName.c_str());
       checkFileStream(fout, newFileName);
 
-      fout << "These coordinates have the top grain shifted by " << ix << "X" << iy << "Y: [ID type ";
+      fout << "These coordinates have the top grain shifted by " << ix * shift.first << " in x and " << iy * shift.second << " in y: [ID type ";
       if (has_charge) {fout << "charge ";}
       fout << "x y z]\n\n"
            << N << " atoms\n"
@@ -179,11 +175,14 @@ void createShiftedBoundaries(const string& filename, const pair <int, int>& ncel
       fout << "\nAtoms\n\n";
 
       shifted_atoms = atoms;
+
+      // The atoms need to be sorted (from greatest to least) by their Z value
+      sort(shifted_atoms.begin(), shifted_atoms.end(), compareAtomZ);
+
       for (unsigned int i = 0; i < shifted_atoms.size(); ++i)
       {
         ++ntotal;
 
-        if (shifted_atoms[i].getType() > num_types) {num_types = shifted_atoms[i].getType();}
         if (shifted_atoms[i].getType() > ntypes)
         {
           cout << "Error: atom type is greater than expected. atom_type = "
@@ -191,24 +190,16 @@ void createShiftedBoundaries(const string& filename, const pair <int, int>& ncel
           exit(ATOM_TYPE_ERROR);
         }
 
-        if (ntotal >= N / 2.0)
+        if (shifted_atoms[i].getZ() >= (box.zhigh - box.zlow) / 2.0)
         {
-          xshift = ((double)(ix) - 1.0) / (double)(ngrid.first - 1) * lcellx;
-          yshift = ((double)(iy) - 1.0) / (double)(ngrid.second - 1) * lcelly;
-        }
-        else
-        {
-          xshift = 0.0;
-          yshift = 0.0;
-        }
+          shifted_atoms[i].setX(shifted_atoms[i].getX() + ix * shift.first);
+          shifted_atoms[i].setY(shifted_atoms[i].getY() + iy * shift.second);
 
-        shifted_atoms[i].setX(shifted_atoms[i].getX() + xshift);
-        shifted_atoms[i].setY(shifted_atoms[i].getY() + yshift);
-
-        // Apply PBCs
-        shifted_atoms[i].setX(shifted_atoms[i].getX() - anInt(shifted_atoms[i].getX() / box.Lx) * box.Lx);
-        shifted_atoms[i].setY(shifted_atoms[i].getY() - anInt(shifted_atoms[i].getY() / box.Ly) * box.Ly);
-        // We're not shifting in the z direction, so we don't need to worry about PBCs.
+          // Apply PBCs
+          shifted_atoms[i].setX(shifted_atoms[i].getX() - anInt(shifted_atoms[i].getX() / box.Lx) * box.Lx);
+          shifted_atoms[i].setY(shifted_atoms[i].getY() - anInt(shifted_atoms[i].getY() / box.Ly) * box.Ly);
+          // We're not shifting in the z direction, so we don't need to worry about PBCs in that direction
+        }
 
         if (shifted_atoms[i].getX() < box.xlow || shifted_atoms[i].getX() > box.xhigh)
         {
@@ -251,7 +242,8 @@ void createShiftedBoundaries(const string& filename, const pair <int, int>& ncel
 int main(int argc, char** argv)
 {
   string filename;
-  pair <int, int> ncell, ngrid;
+  pair <double, double> shift;
+  pair <int, int> maxes;
   vector <Atom> atoms;
 
   try
@@ -265,18 +257,22 @@ int main(int argc, char** argv)
       .allow_unrecognised_options()
       .add_options()
         ("f,file", "Original grain boundary structure file", cxxopts::value<string>(filename), "file")
-        ("ncell_x", "Number of cells in the x direction", cxxopts::value<int>(ncell.first), "n")
-        ("ncell_y", "Number of cells in the y direction", cxxopts::value<int>(ncell.second), "n")
-        ("ngrid_x", "Number of grid lines in the x direction", cxxopts::value<int>(ngrid.first), "n")
-        ("ngrid_y", "Number of grid lines in the y direction", cxxopts::value<int>(ngrid.second), "n")
+        ("shift_x", "Shift size in the x direction", cxxopts::value<double>(shift.first), "value")
+        ("shift_y", "Shift size in the y direction", cxxopts::value<double>(shift.second), "value")
+        ("max_x", "Maximum number of displacements in x direction", cxxopts::value<int>(maxes.first), "n")
+        ("max_y", "Maximum number of displacements in y direction", cxxopts::value<int>(maxes.second), "n")
+        // ("ncell_x", "Number of cells in the x direction", cxxopts::value<int>(ncell.first), "n") // these two parameters determine the shift size in each direction
+        // ("ncell_y", "Number of cells in the y direction", cxxopts::value<int>(ncell.second), "n")
+        // ("ngrid_x", "Number of grid lines in the x direction", cxxopts::value<int>(ngrid.first), "n") // these two determine the number of shifts that occur.
+        // ("ngrid_y", "Number of grid lines in the y direction", cxxopts::value<int>(ngrid.second), "n")
         ("h,help", "Show the help");
 
-    options.parse_positional({"file", "ncell_x", "ncell_y", "ngrid_x", "ngrid_y"});
+    options.parse_positional({"file", "shift_x", "shift_y", "max_x", "max_y"});
     auto result = options.parse(argc, argv);
 
     bool has_required_params = false;;
-    if (result.count("file") && result.count("ncell_x") && result.count("ncell_y") &&
-        result.count("ngrid_x") && result.count("ngrid_y"))
+    if (result.count("file") && result.count("shift_x") && result.count("shift_y") &&
+        result.count("max_x") && result.count("max_y"))
     {
       has_required_params = true;
     }
@@ -291,7 +287,7 @@ int main(int argc, char** argv)
     {
       pair <int, int> num_atoms_num_types;
       num_atoms_num_types = getAtomData(filename, atoms);
-      createShiftedBoundaries(filename, ncell, ngrid, atoms, num_atoms_num_types);
+      createShiftedBoundaries(filename, shift, maxes, atoms, num_atoms_num_types);
     }
 
   }
