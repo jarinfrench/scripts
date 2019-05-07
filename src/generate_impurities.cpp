@@ -157,9 +157,9 @@ void showInputFileHelp()
        << "   atom_type specifies where substitutional atoms will be placed\n"
        << "   seed is used for random number generation\n"
        << "Format (2) and (3) description:\n"
-       << "   the only parameter required is the atom ID number being replaced.\n"
-       << "   or alternatively the file containing a list of atom IDs."
-       << "   This is useful for situations where only defects are desired at\n"
+       << "   the only parameter required is the atom ID number being replaced,\n"
+       << "   or alternatively the file containing a list of atom IDs.\n"
+       << "   This is useful for situations where defects are desired at\n"
        << "   specific locations.\n\n";
 }
 
