@@ -13,6 +13,15 @@ Atom::Atom(int id, int type, double charge, Position p)
   mark = 0;
 }
 
+void Atom::setExtraInfo(unsigned int index, double val)
+{
+  if (index > this->extra_info.size())
+  {
+    setExtraInfoSize(index);
+  }
+  this->extra_info[index] = val;
+}
+
 std::ostream& operator << (std::ostream& os, const Atom& atom)
 {
   os << "Atom " << atom.getId() << ":\n"
