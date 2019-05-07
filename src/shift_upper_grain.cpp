@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <fstream>
 #include <algorithm>
@@ -10,6 +11,8 @@
 #include "error_code_defines.h"
 
 using namespace std;
+
+static string progress = "|>                                                  |";
 
 struct boxData
 {
@@ -26,12 +29,31 @@ struct boxData
   }
 } box;
 
+void showProgress(const int& current_iter, const int& max_iters)
+{
+  // We increase the number of equal signs every 2% of the max iterations
+
+  int num_replace = current_iter / (max_iters * 0.02); // the number of = replacements we make
+  for (int i = 0; i < num_replace; ++i)
+  {
+    progress.replace(i+1, 2,"=>");
+  }
+
+  double tmp = (double)(current_iter) / (double)(max_iters) * 100.0;
+  cout << progress << " (" << setprecision(4) << tmp << "%)    \r" << flush;
+
+  if (current_iter == max_iters)
+  {
+    cout << progress << " (100%)" << endl;
+  }
+}
+
 // Calculate the rounded value of x
 double anInt(double x)
 {
-  // NOTE: This function is different from other version of this same function.
-  // Here, we DO NOT round the value!  We take the floor() value!
   int temp; // temporary variable to hold the integer value of x
+  // if (x > 0.0) {x += 0.5;}
+  // if (x < 0.0) {x -= 0.5;}
   temp = (int)(x);
   return (double)(temp);
 }
@@ -132,8 +154,8 @@ pair <int, int> getAtomData(const string& filename, vector <Atom>& atoms)
   return make_pair(N, ntypes);
 }
 
-void createShiftedBoundaries(const string& filename, const pair <double, double>& shift,
-                             const pair <int, int>& maxes, vector <Atom>& atoms,
+void createShiftedBoundaries(const string& filename, const vector <double>& shifts,
+                             const vector <int>& maxes, vector <Atom>& atoms,
                              const pair <int, int>& num_atoms_num_types)
 {
   string newFileName;
@@ -143,107 +165,144 @@ void createShiftedBoundaries(const string& filename, const pair <double, double>
   bool has_charge = false;
   vector <Atom> shifted_atoms;
 
-  cout << "Total shift distance: " << shift.first * maxes.first << " in x, and " << shift.second * maxes.second << " in y.\n";
+  if (shifts[2] < 1.0e-8)
+  {
+    cout << "Total shift distance: " << shifts[0] * maxes[0] << " in x, and " << shifts[1] * maxes[1] << " in y.\n";
+  }
+  else
+  {
+    cout << "Total shift distance: " << shifts[0] * maxes[0] << " in x, " << shifts[1] * maxes[1] << " in y, and " << shifts[2] * maxes[2] << " in z.\n";
+  }
 
   if ((*max_element(atoms.begin(), atoms.end(), compareAtomCharge)).getCharge() != 0.0) {has_charge = true;}
 
+  int iter = 0;
+  int max_iters = (maxes[0] + 1) * maxes[1] * (maxes[2] + 1); // the x and z iterations start from 0, so we add 1
+
   // for each grid unit, create a separate structure
-  for (int ix = 0; ix <= maxes.first; ++ix)
+  for (int iz = 0; iz <= maxes[2]; ++iz) // This should always run through the outer loop at least once
   {
-    for (int iy = 1; iy <= maxes.second; ++iy)
+    for (int ix = 0; ix <= maxes[0]; ++ix)
     {
-      ntotal = 0;
-
-      // create the new filename
-      stringstream ss;
-      ss << filename.substr(0, filename.find(".dat")) << "_" << ix << "X" << iy << "Y.dat";
-      ss >> newFileName;
-
-      ofstream fout(newFileName.c_str());
-      checkFileStream(fout, newFileName);
-
-      fout << "These coordinates have the top grain shifted by " << ix * shift.first << " in x and " << iy * shift.second << " in y: [ID type ";
-      if (has_charge) {fout << "charge ";}
-      fout << "x y z]\n\n"
-           << N << " atoms\n"
-           << ntypes << " atom types\n"
-           << box.xlow << " " << box.xhigh << " xlo xhi\n"
-           << box.ylow << " " << box.yhigh << " ylo yhi\n"
-           << box.zlow << " " << box.zhigh << " zlo zhi\n";
-      if (box.is_triclinic) // NOTE: This code may not work with triclinic systems
+      for (int iy = 1; iy <= maxes[1]; ++iy)
       {
-        cout << "Warning: This code may not work correctly with triclinic systems!\n";
-        fout << box.xy << " " << box.xz << " " << box.yz << " xz xy yz\n";
+        ntotal = 0;
+
+        // create the new filename
+        stringstream ss;
+        if (shifts[2] < 1.0e-8)
+        {
+          ss << filename.substr(0, filename.find(".dat")) << "_" << ix << "X" << iy << "Y.dat";
+        }
+        else
+        {
+          ss << filename.substr(0, filename.find(".dat")) << "_" << ix << "X" << iy << "Y" << iz << "Z.dat";
+        }
+        ss >> newFileName;
+
+        ofstream fout(newFileName.c_str());
+        checkFileStream(fout, newFileName);
+
+        if (shifts[2] == 0)
+        {
+          fout << "These coordinates have the top grain shifted by " << ix * shifts[0] << " in x and " << iy * shifts[1] << " in y: [ID type ";
+        }
+        else
+        {
+          fout << "These coordinates have the top grain shifted by " << ix * shifts[0] << " in x, " << iy * shifts[1] << " in y, and " << iz * shifts[2] << " in z: [ID type ";
+        }
+
+        if (has_charge) {fout << "charge ";}
+        fout << "x y z]\n\n"
+             << N << " atoms\n"
+             << ntypes << " atom types\n"
+             << box.xlow << " " << box.xhigh << " xlo xhi\n"
+             << box.ylow << " " << box.yhigh << " ylo yhi\n";
+        if (shifts[2] > 1e-8)
+        {
+          fout << box.zlow << " " << box.zhigh + (iz * shifts[2]) << " zlo zhi\n";
+        }
+        else
+        {
+          fout << box.zlow << " " << box.zhigh << " zlo zhi\n";
+        }
+        if (box.is_triclinic) // NOTE: This code may not work with triclinic systems
+        {
+          cout << "Warning: This code may not work correctly with triclinic systems!\n";
+          fout << box.xy << " " << box.xz << " " << box.yz << " xz xy yz\n";
+        }
+        fout << "\nAtoms\n\n";
+
+        shifted_atoms = atoms;
+
+        // The atoms need to be sorted (from greatest to least) by their Z value
+        sort(shifted_atoms.begin(), shifted_atoms.end(), compareAtomZ);
+
+        for (unsigned int i = 0; i < shifted_atoms.size(); ++i)
+        {
+          ++ntotal;
+
+          if (shifted_atoms[i].getType() > ntypes)
+          {
+            cout << "Error: atom type is greater than expected. atom_type = "
+            << shifted_atoms[i].getType() << " > ntypes = " << ntypes << endl;
+            exit(ATOM_TYPE_ERROR);
+          }
+
+          if (shifted_atoms[i].getZ() > (box.zhigh /*- box.zlow*/) / 2.0) // Safest to assume that the box height (zhigh) is the box length...
+          {
+            //cout << "Atom " << shifted_atoms[i].getId() << " is being shifted: z = " << setprecision(10) << shifted_atoms[i].getZ() << " (cutoff is " << setprecision(10) << (box.zhigh - box.zlow) / 2.0 << ")\n";
+            shifted_atoms[i].setX(shifted_atoms[i].getX() + ix * shifts[0]);
+            shifted_atoms[i].setY(shifted_atoms[i].getY() + iy * shifts[1]);
+            shifted_atoms[i].setZ(shifted_atoms[i].getZ() + iz * shifts[2]);
+
+            // Apply PBCs
+            shifted_atoms[i].setX(shifted_atoms[i].getX() - anInt(shifted_atoms[i].getX() / box.Lx) * box.Lx);
+            shifted_atoms[i].setY(shifted_atoms[i].getY() - anInt(shifted_atoms[i].getY() / box.Ly) * box.Ly);
+            // We don't want to wrap atoms in a direction normal to the GB.
+          }
+          // else
+          // {
+          //   cout << "Atom " << shifted_atoms[i].getId() << " is NOT being shifted: z = " << setprecision(10) << shifted_atoms[i].getZ() << " (cutoff is " << setprecision(10) << (box.zhigh - box.zlow) / 2.0 << ")\n";
+          // }
+
+          if (shifted_atoms[i].getX() < box.xlow || shifted_atoms[i].getX() > box.xhigh)
+          {
+            cout << "Error: atom " << ntotal << " is outside the bounds set by xlow ("
+            << box.xlow << ") and xhigh (" << box.xhigh << "): "
+            << shifted_atoms[i].getX() << endl;
+            exit(BOUNDS_ERROR);
+          }
+
+          if (shifted_atoms[i].getY() < box.ylow || shifted_atoms[i].getY() > box.yhigh)
+          {
+            cout << "Error: atom " << ntotal << " is outside the bounds set by ylow ("
+            << box.ylow << ") and yhigh (" << box.yhigh << "): "
+            << shifted_atoms[i].getY() << endl;
+            exit(BOUNDS_ERROR);
+          }
+
+          if (shifted_atoms[i].getZ() < box.zlow || shifted_atoms[i].getZ() > box.zhigh + (iz * shifts[2]))
+          {
+            cout << "Error: atom " << ntotal << " is outside the bounds set by zlow ("
+            << box.zlow << ") and zhigh (" << box.zhigh  + (iz * shifts[2]) << "): "
+            << shifted_atoms[i].getZ() << endl;
+            exit(BOUNDS_ERROR);
+          }
+
+          fout << shifted_atoms[i].getId() << " " << shifted_atoms[i].getType() << " ";
+
+          if (has_charge) {fout << shifted_atoms[i].getCharge() << " ";}
+
+          fout << shifted_atoms[i].getX() << " " << shifted_atoms[i].getY() << " "
+          << shifted_atoms[i].getZ() << endl;
+        }
+
+        fout.close();
+
+        ++iter;
       }
-      fout << "\nAtoms\n\n";
-
-      shifted_atoms = atoms;
-
-      // The atoms need to be sorted (from greatest to least) by their Z value
-      sort(shifted_atoms.begin(), shifted_atoms.end(), compareAtomZ);
-
-      for (unsigned int i = 0; i < shifted_atoms.size(); ++i)
-      {
-        ++ntotal;
-
-        if (shifted_atoms[i].getType() > ntypes)
-        {
-          cout << "Error: atom type is greater than expected. atom_type = "
-               << shifted_atoms[i].getType() << " > ntypes = " << ntypes << endl;
-          exit(ATOM_TYPE_ERROR);
-        }
-
-        if (shifted_atoms[i].getWrapped()[2] >= (box.zhigh - box.zlow) / 2.0)
-        {
-          Position p = shifted_atoms[i].getWrapped();
-          p += Position(ix * shift.first, iy * shift.second, 0.0);
-          shifted_atoms[i].setWrapped(p);
-          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped()[0] + ix * shift.first);
-          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped()[1] + iy * shift.second);
-
-          // Apply PBCs
-          p.setX(shifted_atoms[i].getWrapped()[0] - anInt(shifted_atoms[i].getWrapped()[0] / box.Lx) * box.Lx);
-          p.setY(shifted_atoms[i].getWrapped()[1] - anInt(shifted_atoms[i].getWrapped()[1] / box.Ly) * box.Ly);
-          // We're not shifting in the z direction, so we don't need to worry about PBCs in that direction
-
-          shifted_atoms[i].setWrapped(p);
-          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped()[0] - anInt(shifted_atoms[i].getWrapped()[0] / box.Lx) * box.Lx);
-          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped()[1] - anInt(shifted_atoms[i].getWrapped()[1] / box.Ly) * box.Ly);
-        }
-
-        if (shifted_atoms[i].getWrapped()[0] < box.xlow || shifted_atoms[i].getWrapped()[0] > box.xhigh)
-        {
-          cout << "Error: atom " << ntotal << " is outside the bounds set by xlow ("
-               << box.xlow << ") and xhigh (" << box.xhigh << "): "
-               << shifted_atoms[i].getWrapped()[0] << endl;
-          exit(BOUNDS_ERROR);
-        }
-
-        if (shifted_atoms[i].getWrapped()[1] < box.ylow || shifted_atoms[i].getWrapped()[1] > box.yhigh)
-        {
-          cout << "Error: atom " << ntotal << " is outside the bounds set by ylow ("
-               << box.ylow << ") and yhigh (" << box.yhigh << "): "
-               << shifted_atoms[i].getWrapped()[1] << endl;
-          exit(BOUNDS_ERROR);
-        }
-
-        if (shifted_atoms[i].getWrapped()[2] < box.zlow || shifted_atoms[i].getWrapped()[2] > box.zhigh)
-        {
-          cout << "Error: atom " << ntotal << " is outside the bounds set by zlow ("
-               << box.zlow << ") and zhigh (" << box.zhigh << "): "
-               << shifted_atoms[i].getWrapped()[2] << endl;
-          exit(BOUNDS_ERROR);
-        }
-
-        fout << shifted_atoms[i].getId() << " " << shifted_atoms[i].getType() << " ";
-
-        if (has_charge) {fout << shifted_atoms[i].getCharge() << " ";}
-
-        fout << shifted_atoms[i].getWrapped()[0] << " " << shifted_atoms[i].getWrapped()[1] << " "
-             << shifted_atoms[i].getWrapped()[2] << endl;
-      }
-
-      fout.close();
+      showProgress(iter, max_iters);
     }
   }
 }
@@ -251,39 +310,64 @@ void createShiftedBoundaries(const string& filename, const pair <double, double>
 int main(int argc, char** argv)
 {
   string filename;
-  pair <double, double> shift;
-  pair <int, int> maxes;
+  vector <double> shifts;
+  vector <int> maxes;
+  double shift_x, shift_y, shift_z;
+  int max_x, max_y, max_z;
   vector <Atom> atoms;
 
   try
   {
     cxxopts::Options options(argv[0], "Creates a series of grain boundary structures for gamma surface mapping.");
     options
-      .positional_help("file ncell_x ncell_y ngrid_x ngrid_y")
+      .positional_help("file x-shift y-shift x-max y-max")
       .show_positional_help();
 
     options
       .allow_unrecognised_options()
       .add_options()
         ("f,file", "Original grain boundary structure file", cxxopts::value<string>(filename), "file")
-        ("shift_x", "Shift size in the x direction", cxxopts::value<double>(shift.first), "value")
-        ("shift_y", "Shift size in the y direction", cxxopts::value<double>(shift.second), "value")
-        ("max_x", "Maximum number of displacements in x direction", cxxopts::value<int>(maxes.first), "n")
-        ("max_y", "Maximum number of displacements in y direction", cxxopts::value<int>(maxes.second), "n")
+        ("x,x-shift", "Shift size in the x direction", cxxopts::value<double>(shift_x), "value")
+        ("y,y-shift", "Shift size in the y direction", cxxopts::value<double>(shift_y), "value")
+        ("z,z-shift", "Shift size in the z direction", cxxopts::value<double>(shift_z)->default_value("0.0"), "value")
+        ("x-max", "Maximum number of displacements in x direction", cxxopts::value<int>(max_x), "n")
+        ("y-max", "Maximum number of displacements in y direction", cxxopts::value<int>(max_y), "n")
+        ("z-max", "Maximum number of displacements in z direction", cxxopts::value<int>(max_z)->default_value("0"), "n")
         // ("ncell_x", "Number of cells in the x direction", cxxopts::value<int>(ncell.first), "n") // these two parameters determine the shift size in each direction
         // ("ncell_y", "Number of cells in the y direction", cxxopts::value<int>(ncell.second), "n")
         // ("ngrid_x", "Number of grid lines in the x direction", cxxopts::value<int>(ngrid.first), "n") // these two determine the number of shifts that occur.
         // ("ngrid_y", "Number of grid lines in the y direction", cxxopts::value<int>(ngrid.second), "n")
         ("h,help", "Show the help");
 
-    options.parse_positional({"file", "shift_x", "shift_y", "max_x", "max_y"});
+    options.parse_positional({"file", "x-shift", "y-shift", "x-max", "y-max"});
     auto result = options.parse(argc, argv);
 
     bool has_required_params = false;;
-    if (result.count("file") && result.count("shift_x") && result.count("shift_y") &&
-        result.count("max_x") && result.count("max_y"))
+    if (result.count("file") && result.count("x-shift") && result.count("y-shift") &&
+        result.count("x-max") && result.count("y-max"))
     {
       has_required_params = true;
+      shifts.push_back(shift_x);
+      shifts.push_back(shift_y);
+      shifts.push_back(shift_z);
+
+      maxes.push_back(max_x);
+      maxes.push_back(max_y);
+      maxes.push_back(max_z);
+    }
+
+    auto exists1 = result.count("z-shift");
+    auto exists2 = result.count("z-max");
+    if (result.count("z-shift") && !result.count("z-max"))
+    {
+      cout << "Error: both the z shift and the max number of shifts in z must be specified.\n";
+      return INPUT_FORMAT_ERROR;
+    }
+
+    if (!result.count("z-shift") && result.count("z-max"))
+    {
+      cout << "Error: both the z shift and the max number of shifts in z must be specified.\n";
+      return INPUT_FORMAT_ERROR;
     }
 
     if (result.count("help") || !has_required_params)
@@ -296,7 +380,7 @@ int main(int argc, char** argv)
     {
       pair <int, int> num_atoms_num_types;
       num_atoms_num_types = getAtomData(filename, atoms);
-      createShiftedBoundaries(filename, shift, maxes, atoms, num_atoms_num_types);
+      createShiftedBoundaries(filename, shifts, maxes, atoms, num_atoms_num_types);
     }
 
   }
