@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <vector>
 #include <algorithm>
+#include <numeric>
 #include <cxxopts.hpp>
 #include "atom.h"
 #include "error_code_defines.h"
@@ -51,7 +52,7 @@ struct boxData
   double xlow, xhigh, ylow, yhigh, zlow, zhigh;
   double Lx, Ly, Lz;
 
-  double calculateBoxLengths()
+  void calculateBoxLengths()
   {
     Lx = xhigh - xlow;
     Ly = yhigh - ylow;
