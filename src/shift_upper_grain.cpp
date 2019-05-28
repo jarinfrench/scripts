@@ -16,7 +16,7 @@ struct boxData
   double Lx, Ly, Lz;
   bool is_triclinic = false;
 
-  double calculateBoxLengths()
+  void calculateBoxLengths()
   {
     Lx = xhigh - xlow;
     Ly = yhigh - ylow;
