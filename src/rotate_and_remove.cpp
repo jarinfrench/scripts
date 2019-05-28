@@ -82,7 +82,7 @@ struct boxData
   double Lx, Ly, Lz;
   bool is_triclinic = false;
 
-  double calculateBoxLengths()
+  void calculateBoxLengths()
   {
     Lx = xhigh - xlow;
     Ly = yhigh - ylow;
@@ -503,10 +503,7 @@ vector <Atom> readDataFile()
 {
   string str; // junk string variable
   int N, n_types, n_total = 0; // number of atoms, number of atom types
-  int n_atom_id = 0;
   double scale_factor_a, scale_factor_b, scale_factor_c;
-  double xy, xz, yz;
-  bool is_triclinic;
   vector <Atom> atoms;
   int atom_id, type;
   double charge, x, y, z, x1, y1, z1, xtemp, ytemp;

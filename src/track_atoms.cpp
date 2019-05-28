@@ -39,7 +39,7 @@ struct boxData
   double xy, xz, yz;
   double Lx, Ly, Lz;
 
-  double calculateBoxLengths()
+  void calculateBoxLengths()
   {
     Lx = xhigh - xlow;
     Ly = yhigh - ylow;
