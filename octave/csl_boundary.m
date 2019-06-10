@@ -1,65 +1,234 @@
 function csl_boundary (_size, misorientation, _axis=100)
-  if (_axis ~= 100)
-    disp('Different axes not yet implemented');
-    return
-  end
+
+  if (mod(_size,2)==1)
+    _size -= 1;
+    printf('Changed size to %d',_size);
+  endif
+
+  c1 = cos(misorientation * pi/180);
+  s1 = sin(misorientation * pi/180);
+
+  % Generate the original lattice
   x1 = ones(_size+1).*[0:_size] - _size/2;
   y1 = transpose(x1);
-  rotation_matrix = [cos(misorientation * pi/180.0) sin(misorientation * pi / 180.0); -sin(misorientation * pi / 180.0) cos(misorientation * pi / 180.0)];
 
   % Turn them into column vectors
   x1 = x1(:);
   y1 = y1(:);
 
-  % create the point matrix
-  p1 = [x1 y1];
-
-  % Likewise for the second point matrix
-  x2 = ones(_size*2 + 1).*[0:_size*2] - _size;
+  if (mod(_size*1.5,2)==1)
+    modifier = 1;
+  else
+    modifier = 0;
+  endif
+  x2 = ones(_size*1.5 + 1).*[0:_size*1.5] - (_size*1.5 + modifier)/2;
   y2 = transpose(x2);
   x2 = x2(:);
   y2 = y2(:);
 
-  % Specify the end points of the lattice lines for the first point matrix
-  horz_x1 = [min(x1)*ones(size(unique(y1))) max(x1) * ones(size(unique(y1)))];
-  horz_y1 = [unique(y1) unique(y1)];
-  vert_x1 = [unique(x1) unique(x1)];
-  vert_y1 = [min(y1) * ones(size(unique(x1))) max(y1) * ones(size(unique(x1)))];
+  if (_axis == 100)
+    r = [cos(misorientation * pi/180.0) sin(misorientation * pi / 180.0);...
+        -sin(misorientation * pi / 180.0) cos(misorientation * pi / 180.0)];
 
-  lines_x1 = [horz_x1; vert_x1];
-  lines_y1 = [horz_y1; vert_y1];
-
-  % Likewise for the second point matrix
-  horz_x2 = [min(x2)*ones(size(unique(y2))) max(x2) * ones(size(unique(y2)))];
-  horz_y2 = [unique(y2) unique(y2)];
-  vert_x2 = [unique(x2) unique(x2)];
-  vert_y2 = [min(y2) * ones(size(unique(x2))) max(y2) * ones(size(unique(x2)))];
-
-  lines_x2 = [horz_x2; vert_x2];
-  lines_y2 = [horz_y2; vert_y2];
-
-  tmp = (rotation_matrix * [lines_x2(:) lines_y2(:)]')'; % rotate the second lattice
-  lines_x2 = reshape(tmp(:,1), length(tmp)/2, 2);
-  lines_y2 = reshape(tmp(:,2), length(tmp)/2, 2);
-
-
-  % rotate the second matrix
-  for i = 1:length(x2)
-    point = rotation_matrix * [x2(i); y2(i)];
-    if (point(1) < min(x1) || point(1) > max(x1) || ...
-        point(2) < min(y1) || point(2) > max(y1))
-      x2(i) = NaN;
-      y2(i) = NaN;
-    else
-      x2(i) = point(1);
-      y2(i) = point(2);
+      % rotate the second matrix
+    for i = 1:length(x2)
+      point = r * [x2(i); y2(i)];
+      if (point(1) < min(x1) || point(1) > max(x1) || ...
+          point(2) < min(y1) || point(2) > max(y1))
+        x2(i) = NaN;
+        y2(i) = NaN;
+      else
+        x2(i) = point(1);
+        y2(i) = point(2);
+      end
     end
+  elseif (_axis == 110)
+    a_vec = [1 1 0]/norm([1 1 0]);
+
+    % Create the cube for lattice 1
+    x1_2 = repmat(x1,length(min(x1):max(x1)),1);
+    y1_2 = repmat(y1,length(min(x1):max(x1)),1);
+    z1_2 = min(x1_2):max(x1_2);
+    z1_2 = repelems(z1_2, [1:length(z1_2); (length(z1_2)^2)*ones(size(z1_2))])';
+
+    % Create the cube for lattice 2
+    x2_2 = repmat(x2, length(min(x2):max(x2)), 1);
+    y2_2 = repmat(y2, length(min(x2):max(x2)), 1);
+    z2_2 = min(x2_2):max(x2_2);
+    z2_2 = repelems(z2_2, [1:length(z2_2); (length(z2_2)^2)*ones(size(z2_2))])';
+
+    % This rotates about the [110] axis by misorientation
+    r = [c1+a_vec(1)^2*(1-c1)                  a_vec(1)*a_vec(2)*(1-c1)-a_vec(3)*s1   a_vec(1)*a_vec(3)*(1-c1)+a_vec(2)*s1
+         a_vec(1)*a_vec(2)*(1-c1)+a_vec(3)*s1  c1+a_vec(2)^2*(1-c1)                   a_vec(2)*a_vec(3)*(1-c1)-a_vec(1)*s1
+         a_vec(1)*a_vec(3)*(1-c1)-a_vec(2)*s1  a_vec(2)*a_vec(3)*(1-c1)+a_vec(1)*s1   c1+a_vec(3)^2*(1-c1)];
+
+    tmp2 = transpose([x2_2 y2_2 z2_2]);
+
+    rot_lat2 = r*tmp2;
+
+    tmp_x = rot_lat2(1,:);
+    tmp_y = rot_lat2(2,:);
+    tmp_z = rot_lat2(3,:);
+
+    x1_updated = [];
+    y1_updated = [];
+    z1_updated = [];
+    x2_updated = [];
+    y2_updated = [];
+    z2_updated = [];
+
+    % The (110) plane is defined by the equation -x -y = 0, so:
+    for i=1:length(tmp_z)
+      if (abs(-tmp_x(i) - tmp_y(i)) < 1e-8)
+        x2_updated = [x2_updated; tmp_x(i)];
+        y2_updated = [y2_updated; tmp_y(i)];
+        z2_updated = [z2_updated; tmp_z(i)];
+      end
+      if (i > length(x1_2))
+        continue
+      else
+        if (abs(-x1_2(i) - y1_2(i)) < 1e-8)
+          x1_updated = [x1_updated; x1_2(i)];
+          y1_updated = [y1_updated; y1_2(i)];
+          z1_updated = [z1_updated; z1_2(i)];
+        end
+      end
+    end
+
+    x1 = x1_updated;
+    y1 = y1_updated;
+    z1 = z1_updated;
+
+    x2 = x2_updated;
+    y2 = y2_updated;
+    z2 = z2_updated;
+
+    t = [0 0 1];
+    v = cross(a_vec,t);
+    u = v / norm(v);
+    c = dot(a_vec, t);
+    h = (1 - c) / dot(v, v);
+
+    rot2z = [c + h*v(1)^2      h*v(1)*v(2)-v(3)  h*v(1)*v(3)+v(2);
+             h*v(1)*v(2)+v(3)  c + h*v(2)^2      h*v(2)*v(3)-v(1);
+             h*v(1)*v(3)-v(2)  h*v(2)*v(3)+v(1)  c+h*v(3)^2];
+
+    single_plane_1 = rot2z * transpose([x1,y1,z1]);
+    single_plane_2 = rot2z * transpose([x2,y2,z2]);
+
+    x1 = single_plane_1(1,:)';
+    y1 = single_plane_1(2,:)';
+
+    x2 = single_plane_2(1,:)';
+    y2 = single_plane_2(2,:)';
+
+    for i = 1:length(x2)
+      if (x2(i) < min(x1) || x2(i) > max(x1) || y2(i) < min(y1) || y2(i) > max(y1))
+        x2(i) = NaN;
+        y2(i) = NaN;
+      end
+    end
+  elseif (_axis == 111)
+    a_vec = [1 1 1]/norm([1 1 1]);
+
+    % Create the cube for lattice 1
+    x1_2 = repmat(x1,length(min(x1):max(x1)),1);
+    y1_2 = repmat(y1,length(min(x1):max(x1)),1);
+    z1_2 = min(x1_2):max(x1_2);
+    z1_2 = repelems(z1_2, [1:length(z1_2); (length(z1_2)^2)*ones(size(z1_2))])';
+
+    % Create the cube for lattice 2
+    x2_2 = repmat(x2, length(min(x2):max(x2)), 1);
+    y2_2 = repmat(y2, length(min(x2):max(x2)), 1);
+    z2_2 = min(x2_2):max(x2_2);
+    z2_2 = repelems(z2_2, [1:length(z2_2); (length(z2_2)^2)*ones(size(z2_2))])';
+
+    % This rotates about the [111] axis by misorientation
+    r = [c1+a_vec(1)^2*(1-c1)                  a_vec(1)*a_vec(2)*(1-c1)-a_vec(3)*s1   a_vec(1)*a_vec(3)*(1-c1)+a_vec(2)*s1
+         a_vec(1)*a_vec(2)*(1-c1)+a_vec(3)*s1  c1+a_vec(2)^2*(1-c1)                   a_vec(2)*a_vec(3)*(1-c1)-a_vec(1)*s1
+         a_vec(1)*a_vec(3)*(1-c1)-a_vec(2)*s1  a_vec(2)*a_vec(3)*(1-c1)+a_vec(1)*s1   c1+a_vec(3)^2*(1-c1)];
+
+    tmp2 = transpose([x2_2 y2_2 z2_2]);
+
+    rot_lat2 = r*tmp2;
+
+    tmp_x = rot_lat2(1,:);
+    tmp_y = rot_lat2(2,:);
+    tmp_z = rot_lat2(3,:);
+
+    x1_updated = [];
+    y1_updated = [];
+    z1_updated = [];
+    x2_updated = [];
+    y2_updated = [];
+    z2_updated = [];
+
+    % The (111) plane is defined by the equation x + y + z = 0, so:
+    for i=1:length(tmp_z)
+      if (abs(tmp_x(i) + tmp_y(i) + tmp_z(i)) < 1e-8)
+        x2_updated = [x2_updated; tmp_x(i)];
+        y2_updated = [y2_updated; tmp_y(i)];
+        z2_updated = [z2_updated; tmp_z(i)];
+      end
+      if (i > length(x1_2))
+        continue
+      else
+        if (abs(x1_2(i) + y1_2(i) + z1_2(i)) < 1e-8)
+          x1_updated = [x1_updated; x1_2(i)];
+          y1_updated = [y1_updated; y1_2(i)];
+          z1_updated = [z1_updated; z1_2(i)];
+        end
+      end
+    end
+
+    x1 = x1_updated;
+    y1 = y1_updated;
+    z1 = z1_updated;
+
+    x2 = x2_updated;
+    y2 = y2_updated;
+    z2 = z2_updated;
+
+    % Now lets rotate everything so [111] is aligned with [001]
+    t = [0 0 1];
+    v = cross(a_vec,t);
+    u = v / norm(v);
+    c = dot(a_vec, t);
+    h = (1 - c) / dot(v, v);
+
+    rot2z = [c + h*v(1)^2      h*v(1)*v(2)-v(3)  h*v(1)*v(3)+v(2);
+             h*v(1)*v(2)+v(3)  c + h*v(2)^2      h*v(2)*v(3)-v(1);
+             h*v(1)*v(3)-v(2)  h*v(2)*v(3)+v(1)  c+h*v(3)^2];
+
+    single_plane_1 = rot2z * transpose([x1,y1,z1]);
+    single_plane_2 = rot2z * transpose([x2,y2,z2]);
+
+    x1 = single_plane_1(1,:)';
+    y1 = single_plane_1(2,:)';
+
+    x2 = single_plane_2(1,:)';
+    y2 = single_plane_2(2,:)';
+
+    for i = 1:length(x2)
+      if (x2(i) < min(x1) || x2(i) > max(x1) || y2(i) < min(y1) || y2(i) > max(y1))
+        x2(i) = NaN;
+        y2(i) = NaN;
+      end
+    end
+  else
+    disp('This can only do the high symmetry rotation axes (100, 110, or 111)');
+    return;
   end
+
+  % create the original point matrix
+  p1 = [x1 y1];
 
   x2(isnan(x2)) = [];
   y2(isnan(y2)) = [];
 
   p2 = [x2 y2];
+
+
   all_lattice_points = [p1; p2];
   p3 = NaN(size(p1));
 
@@ -147,7 +316,7 @@ function csl_boundary (_size, misorientation, _axis=100)
       ryij = ryij - round(ryij / ly) * ly;
 
       drij_sq = rxij^2 + ryij^2;
-      if (drij_sq < 1.0e-8)
+      if (drij_sq < 1.0e-5)
 
         p3(i,1) = all_lattice_points(i,1);
         p3(i,2) = all_lattice_points(i,2);
@@ -159,17 +328,20 @@ function csl_boundary (_size, misorientation, _axis=100)
   p3 = unique(p3, 'rows');
 
   figure();
-  scatter(x1,y1,25,"r","filled")
-  axis([min(x1) max(x2) min(y1) max(y1)], "square");
-  hold on
-  scatter(x2,y2,25,"b")
-  scatter(p3(:,1),p3(:,2),36,"g","filled")
-  scatter(0, 0, 49, "k", "filled");
-
-  line(lines_x1', lines_y1', "linestyle", "-", "color", "r");
-  line(lines_x2', lines_y2', "linestyle", "-", "color", "b");
+  xvals = {x1, x2, p3(:,1), 0};
+  yvals = {y1, y2, p3(:,2), 0};
+  sizes = {1, 1 , 2, 3};
+  colors = {[1 0 0], [0 0 1], [0 1 0], [0 0 0]};
+  styles = {'o','o','o','o'};
+  scatter_series_set(xvals, yvals, sizes, colors, styles);
+  axis([min(x1)-5 max(x2)+5 min(y1)-5 max(y1)+5], 'square');
 
 
+  % scatter(x1,y1,25,"r","filled")
+  % hold on
+  % scatter(x2,y2,25,"b")
+  % scatter(p3(:,1),p3(:,2),36,"g","filled")
+  % scatter(0, 0, 49, "k", "filled");
 
-
+  legend('Original lattice', 'Rotated lattice', 'CSL Points', 'Origin', 'location', 'northeast')
 end
