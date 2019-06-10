@@ -510,7 +510,7 @@ while plot_again:
                 for j in range(len(x)):
                     title_label_main += labels_to_use[x[j]]
                     if not j + 1 == len(x):
-                        title_label_main ++ ", "
+                        title_label_main += ", "
                     else:
                         title_label_main += "]"
             else:
