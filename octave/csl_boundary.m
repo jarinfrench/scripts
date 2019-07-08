@@ -103,6 +103,7 @@ function csl_boundary (_size, misorientation, _axis=100)
     y2 = y2_updated;
     z2 = z2_updated;
 
+    % rotate to the <100> frame so it looks nice.
     t = [0 0 1];
     v = cross(a_vec,t);
     u = v / norm(v);
@@ -122,6 +123,7 @@ function csl_boundary (_size, misorientation, _axis=100)
     x2 = single_plane_2(1,:)';
     y2 = single_plane_2(2,:)';
 
+    % remove extra points
     for i = 1:length(x2)
       if (x2(i) < min(x1) || x2(i) > max(x1) || y2(i) < min(y1) || y2(i) > max(y1))
         x2(i) = NaN;
@@ -200,6 +202,10 @@ function csl_boundary (_size, misorientation, _axis=100)
              h*v(1)*v(2)+v(3)  c + h*v(2)^2      h*v(2)*v(3)-v(1);
              h*v(1)*v(3)-v(2)  h*v(2)*v(3)+v(1)  c+h*v(3)^2];
 
+    ##    rot2z = [-1/sqrt(2) -1/sqrt(6) 1/sqrt(3);
+    ##              1/sqrt(2) -1/sqrt(6) 1/sqrt(3);
+    ##              0          2/sqrt(6) 1/sqrt(3)];
+
     single_plane_1 = rot2z * transpose([x1,y1,z1]);
     single_plane_2 = rot2z * transpose([x2,y2,z2]);
 
@@ -216,8 +222,112 @@ function csl_boundary (_size, misorientation, _axis=100)
       end
     end
   else
-    disp('This can only do the high symmetry rotation axes (100, 110, or 111)');
-    return;
+    if (length(_axis) < 3)
+      disp('Only the high symmetry rotation axes can be specified by one number. All others must be specified by a vector of length 3 (e.g. [1 1 2])')
+      disp('Warning: Not currently implemented correctly')
+    end
+    a_vec = _axis/norm(_axis);
+
+    % Create the cube for lattice 1
+    x1_2 = repmat(x1,length(min(x1):max(x1)),1);
+    y1_2 = repmat(y1,length(min(x1):max(x1)),1);
+    z1_2 = min(x1_2):max(x1_2);
+    z1_2 = repelems(z1_2, [1:length(z1_2); (length(z1_2)^2)*ones(size(z1_2))])';
+
+    % Create the cube for lattice 2
+    x2_2 = repmat(x2, length(min(x2):max(x2)), 1);
+    y2_2 = repmat(y2, length(min(x2):max(x2)), 1);
+    z2_2 = min(x2_2):max(x2_2);
+    z2_2 = repelems(z2_2, [1:length(z2_2); (length(z2_2)^2)*ones(size(z2_2))])';
+
+    % This rotates about _axis by misorientation
+    r = [c1+a_vec(1)^2*(1-c1)                  a_vec(1)*a_vec(2)*(1-c1)-a_vec(3)*s1   a_vec(1)*a_vec(3)*(1-c1)+a_vec(2)*s1
+         a_vec(1)*a_vec(2)*(1-c1)+a_vec(3)*s1  c1+a_vec(2)^2*(1-c1)                   a_vec(2)*a_vec(3)*(1-c1)-a_vec(1)*s1
+         a_vec(1)*a_vec(3)*(1-c1)-a_vec(2)*s1  a_vec(2)*a_vec(3)*(1-c1)+a_vec(1)*s1   c1+a_vec(3)^2*(1-c1)];
+
+    tmp2 = transpose([x2_2 y2_2 z2_2]);
+
+    rot_lat2 = r*tmp2;
+
+    tmp_x = rot_lat2(1,:);
+    tmp_y = rot_lat2(2,:);
+    tmp_z = rot_lat2(3,:);
+
+    x1_updated = [];
+    y1_updated = [];
+    z1_updated = [];
+    x2_updated = [];
+    y2_updated = [];
+    z2_updated = [];
+
+    % The _axis plane:
+    % get two other points on the plane to define the equation
+    w = min(a_vec) == a_vec;
+    p1 = cross(w,a_vec);
+    p2 = cross(a_vec,p1);
+
+    % define the plane variables
+    a1 = p1(1); a2 = p2(1);
+    b1 = p1(2); b2 = p2(2);
+    c1 = p1(3); c2 = p2(3);
+
+    a = b1*c2-b2*c1;
+    b = a2*c1-a1*c2;
+    c = a1*b2-a2*b1;
+
+    % plane equation is a*x + b*y + c*z + d(=0) = 0, so
+    for i=1:length(tmp_z)
+      if (abs(a*tmp_x(i) + b*tmp_y(i) + c * tmp_z(i)) < 1e-8)
+        x2_updated = [x2_updated; tmp_x(i)];
+        y2_updated = [y2_updated; tmp_y(i)];
+        z2_updated = [z2_updated; tmp_z(i)];
+      end
+      if (i > length(x1_2))
+        continue
+      else
+        if (abs(a*tmp_x(i) + b*tmp_y(i) + c * tmp_z(i)) < 1e-8)
+          x1_updated = [x1_updated; x1_2(i)];
+          y1_updated = [y1_updated; y1_2(i)];
+          z1_updated = [z1_updated; z1_2(i)];
+        end
+      end
+    end
+
+    x1 = x1_updated;
+    y1 = y1_updated;
+    z1 = z1_updated;
+
+    x2 = x2_updated;
+    y2 = y2_updated;
+    z2 = z2_updated;
+
+    % rotate to the <100> frame so it looks nice.
+    t = [0 0 1];
+    v = cross(a_vec,t);
+    u = v / norm(v);
+    c = dot(a_vec, t);
+    h = (1 - c) / dot(v, v);
+
+    rot2z = [c + h*v(1)^2      h*v(1)*v(2)-v(3)  h*v(1)*v(3)+v(2);
+             h*v(1)*v(2)+v(3)  c + h*v(2)^2      h*v(2)*v(3)-v(1);
+             h*v(1)*v(3)-v(2)  h*v(2)*v(3)+v(1)  c+h*v(3)^2];
+
+    single_plane_1 = rot2z * transpose([x1,y1,z1]);
+    single_plane_2 = rot2z * transpose([x2,y2,z2]);
+
+    x1 = single_plane_1(1,:)';
+    y1 = single_plane_1(2,:)';
+
+    x2 = single_plane_2(1,:)';
+    y2 = single_plane_2(2,:)';
+
+    % remove extra points
+    for i = 1:length(x2)
+      if (x2(i) < min(x1) || x2(i) > max(x1) || y2(i) < min(y1) || y2(i) > max(y1))
+        x2(i) = NaN;
+        y2(i) = NaN;
+      end
+    end
   end
 
   % create the original point matrix
@@ -326,6 +436,11 @@ function csl_boundary (_size, misorientation, _axis=100)
 
   p3(any(isnan(p3),2),:) = [];
   p3 = unique(p3, 'rows');
+  
+  if (isempty(p3))
+    disp('No coincident points found')
+    p3 = [0 0];
+  end
 
   figure();
   xvals = {x1, x2, p3(:,1), 0};
