@@ -1,0 +1,85 @@
+#! /usr/bin/env python
+
+import matplotlib.pyplot as plt
+import numpy as np
+from sys import argv, exit
+import argparse
+
+parser = argparse.ArgumentParser(usage = '%(prog)s [-h] file[s]', description = "A script to plot grain sizes over time.")
+parser.add_argument('files', nargs = '+', help = "The data files to plot")
+parser.add_argument('-g','--grain-ids', type = int, nargs = '+', help = "The specific grain numbers to plot (indexed from 0)")
+parser.add_argument('--dt', type = float, nargs = '+', help = "Optional timesteps for each file (multiplied by the step number to get a time value)")
+parser.add_argument('--names', nargs = '+', help = "The legend names for each file specified, defaults to the file name")
+parser.add_argument('-i','--ic', help = "The (optional) initial condition image to be embedded in the figure")
+
+args = parser.parse_args()
+
+if args.grain_ids is not None:
+    grain_ids = [i + 1 for i in args.grain_ids]
+
+if args.dt is not None:
+    if not len(args.dt) == len(args.files):
+        print("The number of dt's specified must be equal to the number of files specified.")
+        exit(10)
+
+if args.names is None:
+    args.names = []
+    for i in args.files:
+        args.names.append(i)
+plot_colors = ['b', 'g', 'r', 'c', 'm', 'y', 'tab:orange', 'tab:purple', 'tab:brown',
+               'tab:pink', 'tab:olive']
+marker_styles = ['o', 'v', '^', 's', 'p', '*', 'P', 'x', '8', 'd']
+
+all_data = [None for i in range(len(args.files))]
+color_index = 0
+marker_index = 0
+plot_grains = []
+plot_sets = []
+
+for i,file in enumerate(args.files):
+    all_data[i] = np.loadtxt(file, delimiter = ' ')
+
+all_data = np.array(all_data)
+for i in range(len(args.files)):
+    step = [j[0] for j in all_data[i]] # step is the first value in each row
+    data = [j[1:] for j in all_data[i]] # the remaining lines are the sizes for each grain
+    mark_every = int(len(step) / 20)
+    plt.xlabel("Step")
+    plt.title("Area of all grains")
+    if args.dt is not None:
+        plt.xlabel("Time")
+        step = [args.dt[i] * x for x in step]
+
+    if args.grain_ids is not None:
+        plt.title("Area of grain(s) {}".format(args.grain_ids))
+        data = [j[grain_ids] for j in all_data[i]]
+
+    for j in range(len(data[0])): # each 'row' of data has the number of grains being plotted
+        if i == 0:
+            grain_num = args.grain_ids[j] if args.grain_ids is not None else j
+            plot_grains.append(plt.plot(step, [k[j] for k in data], plot_colors[color_index] + marker_styles[marker_index] + '-', label = "Grain {}".format(grain_num), markevery = mark_every))
+        else:
+            plt.plot(step, [k[j] for k in data], plot_colors[color_index] + marker_styles[marker_index] + '-', markevery = mark_every)
+        color_index += 1
+    plot_sets.append(plt.plot([], [], 'k-'+marker_styles[marker_index], label = '{}'.format(args.names[i]), markevery = mark_every))
+    marker_index += 1
+    if marker_index >= len(marker_styles):
+        marker_index = 0
+    color_index = 0
+
+plot_sets = [item for sublist in plot_sets for item in sublist]
+plot_grains = [item for sublist in plot_grains for item in sublist]
+file_legend = plt.legend(handles = plot_sets, bbox_to_anchor = (1.04, 1), loc = 'upper left')
+plt.gca().add_artist(file_legend)
+plt.legend(handles = plot_grains, bbox_to_anchor = (1.04, 0), loc = 'lower left', markerscale = 0)
+plt.ylabel("Area")
+plt.tight_layout()
+fig = plt.gcf()
+fig.set_size_inches(16.0,9.0, forward = True)
+if args.ic is not None:
+    image = plt.imread(args.ic)
+    newax = fig.add_axes([0.65, 0.25, 0.3, 0.5], anchor = 'E')
+    newax.imshow(image)
+    newax.axis('off')
+
+plt.show()
