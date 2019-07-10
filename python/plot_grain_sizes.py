@@ -19,22 +19,26 @@ if args.grain_ids is not None:
 
 if args.dt is not None:
     if not len(args.dt) == len(args.files):
-        print("The number of dt's specified must be equal to the number of files specified.")
+        print("The number of dt's specified must be equal to the number of files")
         exit(10)
 
 if args.names is None:
     args.names = []
     for i in args.files:
         args.names.append(i)
+else:
+    if not len(args.names) == len(args.files):
+        print("The number of legend names specified must be equal to the number of files")
+
 plot_colors = ['b', 'g', 'r', 'c', 'm', 'y', 'tab:orange', 'tab:purple', 'tab:brown',
                'tab:pink', 'tab:olive']
 marker_styles = ['o', 'v', '^', 's', 'p', '*', 'P', 'x', '8', 'd']
 
 all_data = [None for i in range(len(args.files))]
-color_index = 0
-marker_index = 0
-plot_grains = []
-plot_sets = []
+color_index = 0 # index for current color
+marker_index = 0 # index for current marker style
+plot_grains = [] # the list of plots labeled with 'Grain {i}' (for identifying color trends)
+plot_sets = [] # the list of ghost plots for labeling marker styles
 
 for i,file in enumerate(args.files):
     all_data[i] = np.loadtxt(file, delimiter = ' ')
@@ -67,16 +71,17 @@ for i in range(len(args.files)):
         marker_index = 0
     color_index = 0
 
+# flatten the arrays
 plot_sets = [item for sublist in plot_sets for item in sublist]
 plot_grains = [item for sublist in plot_grains for item in sublist]
-file_legend = plt.legend(handles = plot_sets, bbox_to_anchor = (1.04, 1), loc = 'upper left')
+file_legend = plt.legend(handles = plot_sets, bbox_to_anchor = (1.04, 1), loc = 'upper left') # legend for the marker styles
 plt.gca().add_artist(file_legend)
-plt.legend(handles = plot_grains, bbox_to_anchor = (1.04, 0), loc = 'lower left', markerscale = 0)
+plt.legend(handles = plot_grains, bbox_to_anchor = (1.04, 0), loc = 'lower left', markerscale = 0) # legend for the grain colors
 plt.ylabel("Area")
 plt.tight_layout()
 fig = plt.gcf()
 fig.set_size_inches(16.0,9.0, forward = True)
-if args.ic is not None:
+if args.ic is not None: # embeds the initial condition image on the right side of the plot for easy comparison
     image = plt.imread(args.ic)
     newax = fig.add_axes([0.65, 0.25, 0.3, 0.5], anchor = 'E')
     newax.imshow(image)
