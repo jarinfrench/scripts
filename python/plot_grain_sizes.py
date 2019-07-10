@@ -11,6 +11,7 @@ parser.add_argument('-g','--grain-ids', type = int, nargs = '+', help = "The spe
 parser.add_argument('--dt', type = float, nargs = '+', help = "Optional timesteps for each file (multiplied by the step number to get a time value)")
 parser.add_argument('--names', nargs = '+', help = "The legend names for each file specified, defaults to the file name")
 parser.add_argument('-i','--ic', help = "The (optional) initial condition image to be embedded in the figure")
+parser.add_argument('-s','--save', help = "Filename to save the figure as (saves as a png image)")
 
 args = parser.parse_args()
 
@@ -87,4 +88,6 @@ if args.ic is not None: # embeds the initial condition image on the right side o
     newax.imshow(image)
     newax.axis('off')
 
+if args.save is not None:
+    fig.savefig(args.save, format = 'png')
 plt.show()
