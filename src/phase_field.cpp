@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <map>
 #include <cmath>
 #include <random>
 #include <unistd.h>
@@ -24,7 +25,7 @@ unsigned int NUMSTEPS; // number of timesteps to run
 unsigned int NSKIP; // number of timesteps to run before outputting a file
 int NCHECK; // number of timesteps to run before giving the user a progress update
 double DT; // timestep
-string mobility_file;
+string mobility_file; // the name of the txt file containing the L matrix
 
 template <typename T>
 struct Point
@@ -242,6 +243,28 @@ void printField(const vector <Field> & etas, const string& filename, const bool&
   fout.close();
 }
 
+void printIndividualFields(const vector <Field>& etas, const int& step)
+{
+  string file;
+  for (size_t i = 0; i < N_ETA; ++i)
+  {
+    stringstream ss;
+    ss << "eta_" << i << "_step_" << step << ".txt";
+    ss >> file;
+    ofstream fout(file.c_str());
+    checkFileStream(fout, file);
+    for (unsigned int j = 0; j < GRID_X; ++j)
+    {
+      for (unsigned int k = 0; k < GRID_Y; ++k)
+      {
+        fout << etas[i].values[j][k] << " ";
+      }
+      fout << "\n";
+    }
+    fout.close();
+  }
+}
+
 void calculateGrainSizeDistribution(const vector <Field>& etas, ostream& fout, const int& step)
 {
   vector <double> sizes(N_ETA, 0.0);
@@ -270,6 +293,72 @@ void calculateGrainSizeDistribution(const vector <Field>& etas, ostream& fout, c
     fout << " " << sizes[i];
   }
   fout << endl;
+}
+
+void calculateGrainBoundaryLengths(const vector <Field>& etas, ostream& fout)
+{
+  map <pair <unsigned int, unsigned int>, double> gb_lengths;
+  for (unsigned int i = 0; i < N_ETA - 1; ++i)
+  {
+    for (unsigned int j = i + 1; j < N_ETA; ++j)
+    {
+      gb_lengths[make_pair(i,j)] = 0.0;
+    }
+  }
+  
+  double active_threshold = 0.2;
+  
+  for (unsigned int i = 0; i < GRID_X; ++i)
+  {
+    for (unsigned int j = 0; j < GRID_Y; ++j)
+    {
+      unsigned int num_active = 0;
+      vector <unsigned int> active_etas;
+      for (unsigned int k = 0; k < N_ETA; ++k)
+      {
+        if (etas[k].values[i][j] > active_threshold) 
+        {
+          ++num_active;
+          active_etas.push_back(k);
+        }
+      }
+      
+      if (num_active > 2)
+      {
+        for (size_t k = 0; k < active_etas.size() - 1; ++k)
+        {
+          for (size_t l = k + 1; l < active_etas.size(); ++l)
+          {
+            unsigned int first, second;
+            if (active_etas[k] < active_etas[l])
+            {
+              first = active_etas[k];
+              second = active_etas[l];
+            }
+            else
+            {
+              first = active_etas[l]; 
+              second = active_etas[k];
+            }
+            gb_lengths[make_pair(first, second)] += DX;
+          }
+        }
+      }
+    }
+  }
+  
+  double total = 0.0;
+  pair <unsigned int, unsigned int> index;
+  for (unsigned int i = 0; i < N_ETA - 1; ++i)
+  {
+    for (unsigned int j = i + 1; j < N_ETA; ++j)
+    {
+      index = make_pair(i,j);
+      fout << gb_lengths[index] << " ";
+      total += gb_lengths[index];
+    }
+  }
+  fout << total << "\n";
 }
 
 // eq (11) from Fan and Chen
@@ -488,6 +577,19 @@ int main(int argc, char** argv)
   ofstream fout("grain_size_distribution.txt");
   checkFileStream(fout, "grain_size_distribution.txt");
   
+  ofstream fout_GB("grain_boundary_lengths.txt");
+  checkFileStream(fout_GB, "grain_boundary_lengths.txt");
+  
+  fout_GB << "# ";
+  for (unsigned int i = 0; i < N_ETA - 1; ++i)
+  {
+    for (unsigned int j = i + 1; j < N_ETA; ++j)
+    {
+      fout_GB << "gr" << i << "gr" << j << "_gb ";
+    }
+  }
+  fout_GB << "total\n";
+  
   printField(etas_old, "initial_structure.txt", true);
   calculateGrainSizeDistribution(etas_old, fout, 0);
   
@@ -578,6 +680,8 @@ int main(int argc, char** argv)
     if ((a % 100) == 0)
     {
       calculateGrainSizeDistribution(etas_old, fout, a);
+      // printIndividualFields(etas, a); // for debugging and individual field analysis
+      calculateGrainBoundaryLengths(etas_old, fout_GB);
     }
     
     checkActiveEtas(etas);
