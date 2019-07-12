@@ -25,6 +25,7 @@ unsigned int NUMSTEPS; // number of timesteps to run
 unsigned int NSKIP; // number of timesteps to run before outputting a file
 int NCHECK; // number of timesteps to run before giving the user a progress update
 double DT; // timestep
+int EQUILIBRIUM = 500; // The number of timesteps for the sharp interface to equilibrate
 string mobility_file; // the name of the txt file containing the L matrix
 
 template <typename T>
@@ -78,6 +79,64 @@ double anInt(double x)
   return (double)(temp);
 }
 
+vector <Point <double> > getCentroidsFromFile(const string& file)
+{
+  string str;
+  int num_grains = 0;
+  vector <Point <double> > centroids (N_ETA, Point <double>());
+  ifstream fin(file.c_str());
+  checkFileStream(fin, file);
+  
+  getline(fin, str); // first two lines are comment lines
+  getline(fin, str);
+  
+  while (num_grains < N_ETA)
+  {
+    double x, y;
+    getline(fin, str);
+    stringstream ss(str);
+    ss >> x >> y; // get the x and y positions of the centroids
+    
+    Point <double> center(MAX_X * x, MAX_Y * y);
+    centroids[num_grains++] = center;
+  }
+  
+  fin.close();
+  return centroids;
+}
+
+void assignGridToEta(vector <Field>& etas)
+{
+  for (unsigned int i = 0; i < GRID_X; ++i)
+  {
+    for (unsigned int j = 0; j < GRID_Y; ++j)
+    {
+      int min_id = -1; // invalid id number
+      double min = 1e12; // some arbitrarily large number
+      
+      for (unsigned int k = 0; k < N_ETA; ++k)
+      {
+        // find the distance to each point
+        double x = i * DX - etas[k].center.getX();
+        double y = j * DX - etas[k].center.getY();
+        
+        x = x - anInt(x / MAX_X) * MAX_X;
+        y = y - anInt(y / MAX_Y) * MAX_Y;
+        
+        double distance = (x * x) + (y * y);
+        
+        if (distance < min)
+        {
+          min = distance;
+          min_id = k;
+        }
+      }
+
+      etas[min_id].values[i][j] = 1.0;
+    }
+  }
+}
+
 // Voronoi tesselation initial condition.  Centers of the voronoi points are
 // specified randomly.  Each grid point is compared to the voronoi centers,
 // and assigned to the one nearest to them.  Current implementation is not very
@@ -99,34 +158,7 @@ void generateICRandom(vector <Field>& etas)
   }
   
   // now assign each grid point to a specific eta.
-  for (unsigned int i = 0; i < GRID_X; ++i)
-  {
-    for (unsigned int j = 0; j < GRID_Y; ++j)
-    {
-      int min_id = -1; // invalid id number
-      double min = 100000; // some arbitrarily large number
-      
-      for (unsigned int k = 0; k < N_ETA; ++k)
-      {
-        // find the distance to each point
-        double x = i * DX - etas[k].center.getX();
-        double y = j * DX - etas[k].center.getY();
-        
-        x = x - anInt(x / MAX_X) * MAX_X;
-        y = y - anInt(y / MAX_Y) * MAX_Y;
-        
-        double distance = (x * x) + (y * y);
-        
-        if (distance < min)
-        {
-          min = distance;
-          min_id = k;
-        }
-      }
-      // C++ indexes from 0, so assign a grain num of index + 1
-      etas[min_id].values[i][j] = 1.0;
-    }
-  }
+  assignGridToEta(etas);
 }
 
 void generateICFluid(vector <Field>& etas)
@@ -173,35 +205,26 @@ void generateICHex(vector <Field>& etas)
   }
   
   // now assign each grid point to a specific eta.
-  for (unsigned int i = 0; i < GRID_X; ++i)
+  assignGridToEta(etas);
+}
+
+void generateVoronoiIC(vector <Field>& etas, const vector <Point <double> >& centroids)
+{
+  if (centroids.size() != etas.size())
   {
-    for (unsigned int j = 0; j < GRID_Y; ++j)
+    cout << "Error: number of centroids must match the number of grains.\n";
+    exit(INPUT_FORMAT_ERROR);
+  }
+  else
+  {
+    for (size_t i = 0; i < centroids.size(); ++i)
     {
-      int min_id = -1; // invalid id number
-      double min = 1.0e12; // some arbitrarily large number
-      
-      for (unsigned int k = 0; k < N_ETA; ++k)
-      {
-        // find the distance to each point
-        double x = i * DX - etas[k].center.getX();
-        double y = j * DX - etas[k].center.getY();
-
-        
-        x = x - anInt(x / MAX_X) * MAX_X;
-        y = y - anInt(y / MAX_Y) * MAX_Y;
-
-        double distance = (x * x) + (y * y);
-        
-        if (distance < min)
-        {
-          min = distance;
-          min_id = k;
-        }
-      }
-      // C++ indexes from 0, so assign a grain num of index + 1
-      etas[min_id].values[i][j] = 1.0;
+      etas[i].center = centroids[i];
     }
   }
+  
+  // now assign each grid point to a specific eta.
+  assignGridToEta(etas);
 }
 
 // Prints the eta field via the equation: phi(x,y) = sum(eta[i]^2)
@@ -243,6 +266,8 @@ void printField(const vector <Field> & etas, const string& filename, const bool&
   fout.close();
 }
 
+// Mostly for debugging purposes, this functions creates N_ETA files that
+// show the values of the eta_{i} field over the whole domain
 void printIndividualFields(const vector <Field>& etas, const int& step)
 {
   string file;
@@ -268,22 +293,25 @@ void printIndividualFields(const vector <Field>& etas, const int& step)
 void calculateGrainSizeDistribution(const vector <Field>& etas, ostream& fout, const int& step)
 {
   vector <double> sizes(N_ETA, 0.0);
+  double gb_length = 0.0;
+  double cutoff = 0.75; // if an eta value is greater than or equal to this cutoff, the grid point is assigned to that eta
+  // Note that this parameter is NOT independent - this value plus active-threshold (in calculateGBLengths) must equal 1!
   
   for (unsigned int i = 0; i < GRID_X; ++i)
   {
     for (unsigned int j = 0; j < GRID_Y; ++j)
     {
-      int max_index = -1;
-      double max_value = -10000;
+      int index = -1;
       for (unsigned int k = 0; k < N_ETA; ++k)
       {
-        if (etas[k].values[i][j] > max_value)
+        if (etas[k].values[i][j] >= cutoff) // only adds to the grain size if above the cutoff value
         {
-          max_value = etas[k].values[i][j];
-          max_index = k;
+          index = k;
+          sizes[k] += DX * DX; // each grid point adds an additional DX * DX of area to the current grain (assuming a square mesh)
+          break; // Exit the eta loop
         }
       }
-      sizes[max_index] += DX * DX; // each grid points adds an additional DX * DX of area to the current grain (assuming a square mesh)
+      if (index == -1) {gb_length += DX;}
     }
   }
   
@@ -292,10 +320,10 @@ void calculateGrainSizeDistribution(const vector <Field>& etas, ostream& fout, c
   {
     fout << " " << sizes[i];
   }
-  fout << endl;
+  fout << " " << gb_length << endl;
 }
 
-void calculateGrainBoundaryLengths(const vector <Field>& etas, ostream& fout)
+void calculateGBLengths(const vector <Field>& etas, ostream& fout)
 {
   map <pair <unsigned int, unsigned int>, double> gb_lengths;
   for (unsigned int i = 0; i < N_ETA - 1; ++i)
@@ -306,7 +334,7 @@ void calculateGrainBoundaryLengths(const vector <Field>& etas, ostream& fout)
     }
   }
   
-  double active_threshold = 0.2;
+  double active_threshold = 0.25;
   
   for (unsigned int i = 0; i < GRID_X; ++i)
   {
@@ -367,7 +395,7 @@ void calculateLaplacian(const vector <Field>& etas, vector <Field>& laplacian)
 {
   for (unsigned int i = 0; i < N_ETA; ++i)
   {
-    if (!etas[i].is_active) {continue;}
+    if (!etas[i].is_active) {continue;} // if the current eta is all zeros, move to the next one
     for (unsigned int j = 0; j < GRID_X; ++j)
     {
       for (unsigned int k = 0; k < GRID_Y; ++k)
@@ -524,11 +552,12 @@ int main(int argc, char** argv)
     if (argc >= 3)
     {
       ic = argv[2];
-      if (!(ic.compare("random") == 0 ||
-            ic.compare("fluid")  == 0 ||
-            ic.compare("hex")    == 0))
+      if (!(ic.compare("random")   == 0 ||
+            ic.compare("fluid")    == 0 ||
+            ic.compare("hex")      == 0 ||
+            ic.compare("centroid") == 0))
       {
-        cout << "The initial condition should be specified by 'random', 'fluid', or 'hex'\n";
+        cout << "The initial condition should be specified by 'random', 'fluid', 'hex', or 'centroid'\n";
         return INPUT_FORMAT_ERROR;
       }
     }
@@ -573,9 +602,29 @@ int main(int argc, char** argv)
   {
     generateICHex(etas_old);
   }
+  else if (ic.compare("centroid") == 0)
+  {
+    if (argc >= 4)
+    {
+      vector <Point <double> > centroids = getCentroidsFromFile(argv[3]);
+      generateVoronoiIC(etas_old, centroids);
+    }
+    else
+    {
+      cout << "Please specify the list of centroids in a file.\n";
+      return INPUT_FORMAT_ERROR;
+    }
+  }
   
   ofstream fout("grain_size_distribution.txt");
   checkFileStream(fout, "grain_size_distribution.txt");
+  
+  fout << "# Step ";
+  for (unsigned int i = 0; i < N_ETA; ++i)
+  {
+    fout << "gr" << i << " ";
+  }
+  fout << "total_gb_length\n";
   
   ofstream fout_GB("grain_boundary_lengths.txt");
   checkFileStream(fout_GB, "grain_boundary_lengths.txt");
@@ -591,16 +640,16 @@ int main(int argc, char** argv)
   fout_GB << "total\n";
   
   printField(etas_old, "initial_structure.txt", true);
-  calculateGrainSizeDistribution(etas_old, fout, 0);
   
   cout << "DX = " << DX << endl 
        << "DT = " << DT << endl;
   
   for (unsigned int a = 1; a < NUMSTEPS + 1; ++a)
   {
-    if (all_of(etas_old.begin(), etas_old.end(), [](Field f) {return f.is_active == false;}))
+    if (all_of(etas_old.begin(), etas_old.end(), [](Field f) {return f.is_active == false;}) || 
+        accumulate(etas_old.begin(), etas_old.end(), 0, [](int a, Field f) {return a + f.is_active;}) == 1)
     {
-      cout << "\nNo active order parameters.  Ending simulation loop.\n";
+      cout << "\nNumber of active order parameters <= 1.  Ending simulation loop.\n";
       break;
     }
     
@@ -677,11 +726,11 @@ int main(int argc, char** argv)
       printField(etas, next_filename);
     }
     
-    if ((a % 100) == 0)
+    if ((a % 100) == 0 && a >= EQUILIBRIUM)
     {
       calculateGrainSizeDistribution(etas_old, fout, a);
       // printIndividualFields(etas, a); // for debugging and individual field analysis
-      calculateGrainBoundaryLengths(etas_old, fout_GB);
+      calculateGBLengths(etas_old, fout_GB);
     }
     
     checkActiveEtas(etas);
