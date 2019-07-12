@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from sys import argv, exit
+from tqdm import tqdm
 import argparse
 
 parser = argparse.ArgumentParser(usage = '%(prog)s [-h] file[s]', description = "A script to plot grain sizes over time.")
@@ -12,6 +13,7 @@ parser.add_argument('--dt', type = float, nargs = '+', help = "Optional timestep
 parser.add_argument('--names', nargs = '+', help = "The legend names for each file specified, defaults to the file name")
 parser.add_argument('-i','--ic', help = "The (optional) initial condition image to be embedded in the figure")
 parser.add_argument('-s','--save', help = "Filename to save the figure as (saves as a png image)")
+parser.add_argument('--no-display', action = 'store_true', help = "Flag to not display the figure")
 
 args = parser.parse_args()
 
@@ -45,10 +47,10 @@ for i,file in enumerate(args.files):
     all_data[i] = np.loadtxt(file, delimiter = ' ')
 
 all_data = np.array(all_data)
-for i in range(len(args.files)):
+for i in tqdm(range(len(args.files))):
     step = [j[0] for j in all_data[i]] # step is the first value in each row
     data = [j[1:] for j in all_data[i]] # the remaining lines are the sizes for each grain
-    mark_every = int(len(step) / 20)
+    mark_every = int(len(step) / 20) # keep 20 markers to avoid clutter
     plt.xlabel("Step")
     plt.title("Area of all grains")
     if args.dt is not None:
@@ -56,7 +58,10 @@ for i in range(len(args.files)):
         step = [args.dt[i] * x for x in step]
 
     if args.grain_ids is not None:
-        plt.title("Area of grain(s) {}".format(args.grain_ids))
+        if len(args.grain_ids) > 1:
+            plt.title("Area of grains {}".format(','.join([str(a) for a in args.grain_ids])))
+        else:
+            plt.title("Area of grain {}".format(','.join([str(a) for a in args.grain_ids])))
         data = [j[grain_ids] for j in all_data[i]]
 
     for j in range(len(data[0])): # each 'row' of data has the number of grains being plotted
@@ -66,7 +71,7 @@ for i in range(len(args.files)):
         else:
             plt.plot(step, [k[j] for k in data], plot_colors[color_index] + marker_styles[marker_index] + '-', markevery = mark_every)
         color_index += 1
-    plot_sets.append(plt.plot([], [], 'k-'+marker_styles[marker_index], label = '{}'.format(args.names[i]), markevery = mark_every))
+    plot_sets.append(plt.plot([], [], 'k-' + marker_styles[marker_index], label = '{}'.format(args.names[i]), markevery = mark_every))
     marker_index += 1
     if marker_index >= len(marker_styles):
         marker_index = 0
@@ -84,10 +89,12 @@ fig = plt.gcf()
 fig.set_size_inches(16.0,9.0, forward = True)
 if args.ic is not None: # embeds the initial condition image on the right side of the plot for easy comparison
     image = plt.imread(args.ic)
-    newax = fig.add_axes([0.65, 0.25, 0.3, 0.5], anchor = 'E')
+    newax = fig.add_axes([0.70, 0.25, 0.3, 0.5], anchor = 'E') # FIXME: These values need to change for every plot... is there a way to automatically determine them?
     newax.imshow(image)
     newax.axis('off')
 
 if args.save is not None:
     fig.savefig(args.save, format = 'png')
-plt.show()
+
+if not args.no_display:
+    plt.show()
