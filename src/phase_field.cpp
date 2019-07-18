@@ -59,6 +59,18 @@ struct Field
   }
 };
 
+struct MultiJunction
+{
+  vector <unsigned int> active_etas; // list of active etas for this junction
+  vector <Point <double> > points; // list of points that have the same active etas within the same general location
+};
+
+template <typename T>
+ostream& operator << (ostream& stream, const Point <T> p)
+{
+    return stream << "(" << p.getX() << "," << p.getY() << ")\n";
+}
+
 template <typename T>
 void checkFileStream(T& stream, const string& file)
 {
@@ -77,6 +89,29 @@ double anInt(double x)
   if (x < 0.0) x -= 0.5;
   temp = (int)(x);
   return (double)(temp);
+}
+
+template <typename T>
+Point <double> calculateMultiJunctionPosition(vector <Point <T> > positions)
+{
+  double x_avg = 0.0;
+  double y_avg = 0.0;
+  
+  for (size_t i = 0; i < positions.size(); ++i)
+  {
+    x_avg += positions[i].getX();
+    y_avg += positions[i].getY();
+  }
+  
+  x_avg /= positions.size();
+  y_avg /= positions.size();
+  
+  x_avg = (x_avg >= GRID_X) ? x_avg - GRID_X : x_avg;
+  y_avg = (y_avg >= GRID_Y) ? y_avg - GRID_Y : y_avg;
+  x_avg = (x_avg <= -1) ? x_avg + GRID_X : x_avg;
+  y_avg = (y_avg <= -1) ? y_avg + GRID_Y : y_avg;
+  
+  return Point<double> (y_avg * DX, x_avg * DX); // This is to match how the fields are viewed i.e. via python
 }
 
 vector <Point <double> > getCentroidsFromFile(const string& file)
@@ -290,42 +325,22 @@ void printIndividualFields(const vector <Field>& etas, const int& step)
   }
 }
 
-void calculateGrainSizeDistribution(const vector <Field>& etas, ostream& fout, const int& step)
+void calculateInfo(const vector <Field>& etas, 
+  ostream& fout1, /*for grain size*/
+  ostream& fout2, /*for gb lengths*/
+  ostream& fout3, /*for multi junctions*/
+  const int& step)
 {
   vector <double> sizes(N_ETA, 0.0);
-  double gb_length = 0.0;
-  double cutoff = 0.75; // if an eta value is greater than or equal to this cutoff, the grid point is assigned to that eta
-  // Note that this parameter is NOT independent - this value plus active-threshold (in calculateGBLengths) must equal 1!
-  
-  for (unsigned int i = 0; i < GRID_X; ++i)
-  {
-    for (unsigned int j = 0; j < GRID_Y; ++j)
-    {
-      int index = -1;
-      for (unsigned int k = 0; k < N_ETA; ++k)
-      {
-        if (etas[k].values[i][j] >= cutoff) // only adds to the grain size if above the cutoff value
-        {
-          index = k;
-          sizes[k] += DX * DX; // each grid point adds an additional DX * DX of area to the current grain (assuming a square mesh)
-          break; // Exit the eta loop
-        }
-      }
-      if (index == -1) {gb_length += DX;}
-    }
-  }
-  
-  fout << step;
-  for (unsigned int i = 0; i < N_ETA; ++i)
-  {
-    fout << " " << sizes[i];
-  }
-  fout << " " << gb_length << endl;
-}
-
-void calculateGBLengths(const vector <Field>& etas, ostream& fout)
-{
+  double total_gb_length = 0.0;
+  double activity_threshold = 0.12; // if an eta value is greater than or equal to this cutoff, the grid point is assigned to that eta
+  // the value of 0.12 was calculated based on Moelans et al.'s paper - see page 172 of lab notebook Vol. 3
   map <pair <unsigned int, unsigned int>, double> gb_lengths;
+  unsigned int num_junctions = 0;
+  vector <MultiJunction> multi_junctions;
+  Field checked_grid_points; // field for multi junction checking
+
+  // initialize the individual gb lengths
   for (unsigned int i = 0; i < N_ETA - 1; ++i)
   {
     for (unsigned int j = i + 1; j < N_ETA; ++j)
@@ -333,25 +348,37 @@ void calculateGBLengths(const vector <Field>& etas, ostream& fout)
       gb_lengths[make_pair(i,j)] = 0.0;
     }
   }
-  
-  double active_threshold = 0.25;
-  
+
   for (unsigned int i = 0; i < GRID_X; ++i)
   {
     for (unsigned int j = 0; j < GRID_Y; ++j)
     {
       unsigned int num_active = 0;
       vector <unsigned int> active_etas;
+      bool bulk_value_added = false;
+
       for (unsigned int k = 0; k < N_ETA; ++k)
       {
-        if (etas[k].values[i][j] > active_threshold) 
+        double val = etas[k].values[i][j];
+
+        // check for whether the eta is active at this point
+        if (val >= activity_threshold)
         {
           ++num_active;
           active_etas.push_back(k);
         }
-      }
-      
-      if (num_active > 2)
+
+        if (val >= (1.0 - activity_threshold) && !bulk_value_added)
+        {
+          sizes[k] += DX * DX;
+          bulk_value_added = true;
+        }
+      } // eta loop
+
+      if (!bulk_value_added) {total_gb_length += DX;} // add to total GB length is no bulk value added.
+
+      // calculate individual gb lengths
+      if (num_active >= 2)
       {
         for (size_t k = 0; k < active_etas.size() - 1; ++k)
         {
@@ -365,28 +392,95 @@ void calculateGBLengths(const vector <Field>& etas, ostream& fout)
             }
             else
             {
-              first = active_etas[l]; 
+              first = active_etas[l];
               second = active_etas[k];
             }
-            gb_lengths[make_pair(first, second)] += DX;
+            gb_lengths[make_pair(first,second)] += DX;
           }
         }
       }
-    }
+      
+      // get positions of multi-junctions
+      if (num_active >= 3 && checked_grid_points.values[i][j] < 1.0)
+      {
+        multi_junctions.push_back(MultiJunction());
+        for (int ii = (int)(i) - (GRID_X / 20); ii < (int)(i) + (GRID_X / 20) + 1; ++ii)
+        {
+          for (int jj = (int)(j) - (GRID_X / 20); jj < (int)(j) + (GRID_X / 20) + 1; ++jj)
+          {
+            // apply PBCs
+            int ii_before = ii;
+            int jj_before = jj;
+            int ii_after, jj_after;
+            ii_after = (ii >= GRID_X) ? ii - GRID_X : ii;
+            jj_after = (jj >= GRID_Y) ? jj - GRID_Y : jj;
+            ii_after = (ii <= -1) ? ii + GRID_X : ii_after; // because we have already checked the right boundary
+            jj_after = (jj <= -1) ? jj + GRID_Y : jj_after; // because we have already checked the top boundary
+            
+            if (checked_grid_points.values[ii_after][jj_after] > 0) {continue;}
+            for (size_t a = 0; a < active_etas.size(); ++a)
+            {
+              checked_grid_points.values[ii_after][jj_after] = 1;
+              if (!(etas[active_etas[a]].values[ii_after][jj_after] >= activity_threshold))
+              {
+                break; // this grid point is not a triple junction point
+              }
+              else
+              {
+                // use the before value so averaging works
+                multi_junctions[num_junctions].active_etas = active_etas;
+                multi_junctions[num_junctions].points.push_back(Point<double>(ii_before, jj_before));
+              }
+            }
+          }
+        }
+        
+        ++num_junctions;
+      }
+    } // GRID_Y loop
+  } // GRID_X loop
+
+  // output the grain size data to fout1
+  fout1 << step;
+  for (unsigned int i = 0; i < N_ETA; ++i)
+  {
+    fout1 << " " << sizes[i];
   }
-  
-  double total = 0.0;
+  fout1 << endl;
+
+  // output the gb data to fout2
+  double total2 = 0.0;
   pair <unsigned int, unsigned int> index;
   for (unsigned int i = 0; i < N_ETA - 1; ++i)
   {
     for (unsigned int j = i + 1; j < N_ETA; ++j)
     {
       index = make_pair(i,j);
-      fout << gb_lengths[index] << " ";
-      total += gb_lengths[index];
+      fout2 << gb_lengths[index] << " ";
+      total2 += gb_lengths[index];
     }
   }
-  fout << total << "\n";
+  if (abs(total2 - total_gb_length) < 1.0e-8)
+  {
+    fout2 << total2 << endl;
+  }
+  else
+  {
+    fout2 << total_gb_length << " " << total2 << endl;
+  }
+
+  // output the multi junction data to fout3
+  fout3 << step << " ";
+  for (size_t a = 0; a < multi_junctions.size(); ++a)
+  {
+    for (size_t b = 0; b < multi_junctions[a].active_etas.size(); ++b)
+    {
+      fout3 << multi_junctions[a].active_etas[b];
+      if (b + 1 != multi_junctions[a].active_etas.size()) {fout3 << ",";}
+    }
+    fout3 << calculateMultiJunctionPosition(multi_junctions[a].points) << endl;
+    if (a + 1 != multi_junctions.size()) {fout3 << "---- ";}
+  }
 }
 
 // eq (11) from Fan and Chen
@@ -616,15 +710,15 @@ int main(int argc, char** argv)
     }
   }
   
-  ofstream fout("grain_size_distribution.txt");
-  checkFileStream(fout, "grain_size_distribution.txt");
+  ofstream fout_grain_size("grain_size_distribution.txt");
+  checkFileStream(fout_grain_size, "grain_size_distribution.txt");
   
-  fout << "# Step ";
+  fout_grain_size << "# Step ";
   for (unsigned int i = 0; i < N_ETA; ++i)
   {
-    fout << "gr" << i << " ";
+    fout_grain_size << "gr" << i << " ";
   }
-  fout << "total_gb_length\n";
+  fout_grain_size << "\n";
   
   ofstream fout_GB("grain_boundary_lengths.txt");
   checkFileStream(fout_GB, "grain_boundary_lengths.txt");
@@ -637,7 +731,11 @@ int main(int argc, char** argv)
       fout_GB << "gr" << i << "gr" << j << "_gb ";
     }
   }
-  fout_GB << "total\n";
+  fout_GB << "total (total2 if different)\n";
+  
+  ofstream fout_multi_junctions("multi_junctions.txt");
+  checkFileStream(fout_multi_junctions, "multi_junctions.txt");
+  fout_multi_junctions << "# Step active_etas junction_position\n";
   
   printField(etas_old, "initial_structure.txt", true);
   
@@ -728,9 +826,8 @@ int main(int argc, char** argv)
     
     if ((a % 100) == 0 && a >= EQUILIBRIUM)
     {
-      calculateGrainSizeDistribution(etas_old, fout, a);
+      calculateInfo(etas_old, fout_grain_size, fout_GB, fout_multi_junctions, a);
       // printIndividualFields(etas, a); // for debugging and individual field analysis
-      calculateGBLengths(etas_old, fout_GB);
     }
     
     checkActiveEtas(etas);
@@ -739,6 +836,8 @@ int main(int argc, char** argv)
     etas_old = etas;
   }
   
-  fout.close();
+  fout_grain_size.close();
+  fout_GB.close();
+  fout_multi_junctions.close();
   return EXIT_SUCCESS;
 }
