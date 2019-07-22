@@ -6,12 +6,16 @@
 #include <vector>
 #include <map>
 #include <cmath>
-#include <random>
+#include <random> // 
 #include <unistd.h>
+#include <numeric> // iota
+#include <algorithm> // sort
 
 #include "error_code_defines.h"
 
 using namespace std;
+
+#define PI 3.141592653589793
 
 // global variables - read in (or determined) by an input file
 int GRID_X; // number of grid points in x
@@ -43,12 +47,34 @@ public:
   T getY() const {return y;}
   void setX(T x) {this->x = x;}
   void setY(T y) {this->y = y;}
+  
+  Point<T> operator - (const Point<T> &p) const {return Point<T>(this->x - p.getX(), this->y - p.getY());}
+  Point<T> operator + (const Point<T> &p) const {return Point<T>(this->x + p.getX(), this->y + p.getY());}
+  T operator * (const Point<T> &p) const {return (this->x * p.getX() + this->y * p.getY());} // dot product
 };
+
+template <typename T>
+bool operator == (const Point<T>& lhs, const Point<T>& rhs) 
+{
+  return (abs(lhs.getX() - rhs.getX()) < 1.0e-8 && abs(lhs.getY() - rhs.getY()) < 1.0e-8);
+}
+
+template <typename T>
+bool operator != (const Point<T>& lhs, const Point<T>& rhs)
+{
+  return !(lhs == rhs);
+}
+
+template <typename T>
+ostream& operator << (ostream& stream, const Point <T> p)
+{
+    return stream << "(" << p.getX() << "," << p.getY() << ")";
+}
 
 struct Field
 {
   vector <vector <double> > values;
-  Point<double> center;
+  Point<double> center; // original center point
   bool is_active; // whether or not the field is active
   
   // constructor
@@ -63,13 +89,38 @@ struct MultiJunction
 {
   vector <unsigned int> active_etas; // list of active etas for this junction
   vector <Point <double> > points; // list of points that have the same active etas within the same general location
+  Point <double> position; // The position of the multi junction, calculated as an average of points
 };
 
-template <typename T>
-ostream& operator << (ostream& stream, const Point <T> p)
+bool operator == (const MultiJunction& lhs, const MultiJunction& rhs)
 {
-    return stream << "(" << p.getX() << "," << p.getY() << ")\n";
+  if (lhs.active_etas.size() != rhs.active_etas.size()) {return false;}
+  for (unsigned int i = 0; i < lhs.active_etas.size(); ++i)
+  {
+    if ((lhs.active_etas)[i] != rhs.active_etas[i]) {return false;}
+  }
+  
+  if (lhs.points.size() != rhs.points.size()) {return false;}
+  for (unsigned int i = 0; i < lhs.points.size(); ++i)
+  {
+    if ((lhs.points)[i] != rhs.points[i]) {return false;}
+  }
+  
+  if (lhs.position != rhs.position) {return false;}
+  
+  return true;
 }
+
+bool operator != (const MultiJunction& lhs, const MultiJunction& rhs)
+{
+  return !(lhs == rhs);
+}
+
+struct JunctionNeighbors
+{
+  MultiJunction junction;
+  vector <MultiJunction> neighbors;
+};
 
 template <typename T>
 void checkFileStream(T& stream, const string& file)
@@ -92,7 +143,61 @@ double anInt(double x)
 }
 
 template <typename T>
-Point <double> calculateMultiJunctionPosition(vector <Point <T> > positions)
+Point <T> PBCs(Point <T> p)
+{
+  T x = p.getX();
+  T y = p.getY();
+  
+  x = x - anInt(x / MAX_X) * MAX_X;
+  y = y - anInt(y / MAX_Y) * MAX_Y;
+  
+  return Point <T> (x,y);
+}
+
+template <typename T>
+bool clockwiseSort(Point <T> a, Point <T> b /*, Point <T> center*/)
+{
+  // see https://stackoverflow.com/questions/6989100/sort-points-in-clockwise-order
+  // WARNING: points a and b should have _already_ had the center subtracted from it!
+  if (a.getX() /*- center.getX()*/ >= 0)
+  {  
+    if (b.getX() /*- center.getX()*/ < 0) {return true;}
+    else {return false;}
+  }
+  if (abs(a.getX() /*- center.getX()*/) < 1.0e-8 && abs(b.getX() /*-center.getX()*/) < 1.0e-8)
+  {
+    return a.getY() > b.getY();
+  }
+  
+  double det = (a.getX() /*- center.getX()*/) * (b.getY() /*- center.getY()*/) - (b.getX() /*- center.getX()*/) * (a.getY() /*- center.getY()*/);
+  if (det < -1.0e-8) {return true;}
+  else if (det > 1.0e-8) {return false;}
+  
+  // Points are on the same line, so check which is closer to the center
+  double d1 = (a.getX() /*- center.getX()*/) * (a.getX() /*- center.getX()*/) + (a.getY() /*- center.getY()*/) * (a.getY() /*- center.getY()*/);
+  double d2 = (b.getX() /*- center.getX()*/) * (b.getX() /*- center.getX()*/) + (b.getY() /*- center.getY()*/) * (b.getY() /*- center.getY()*/);
+  return d1 > d2;
+}
+
+template <typename T>
+vector<size_t> sort_indices (vector<Point <T> >& v)
+{
+  // From https://stackoverflow.com/questions/1577475/c-sorting-and-keeping-track-of-indexes
+  // Initialize original index locations
+  vector <size_t> idx(v.size());
+  iota(idx.begin(), idx.end(), 0); // a vector of 0 to v.size() - 1 in increments of 1
+  
+  // sort indices based on comparing values in v
+  sort(idx.begin(), idx.end(),
+      [&v](size_t i1, size_t i2) {return clockwiseSort<T> (v[i1], v[i2]);});
+  
+  sort(v.begin(), v.end(), clockwiseSort<T>);
+  
+  return idx;
+}
+
+template <typename T>
+Point <double> averagePointPositions(const vector <Point <T> >& positions)
 {
   double x_avg = 0.0;
   double y_avg = 0.0;
@@ -106,12 +211,15 @@ Point <double> calculateMultiJunctionPosition(vector <Point <T> > positions)
   x_avg /= positions.size();
   y_avg /= positions.size();
   
-  x_avg = (x_avg >= GRID_X) ? x_avg - GRID_X : x_avg;
-  y_avg = (y_avg >= GRID_Y) ? y_avg - GRID_Y : y_avg;
-  x_avg = (x_avg <= -1) ? x_avg + GRID_X : x_avg;
-  y_avg = (y_avg <= -1) ? y_avg + GRID_Y : y_avg;
+  // This applies PBCs
+  // x_avg = (x_avg >= GRID_X) ? x_avg - GRID_X : x_avg;
+  // y_avg = (y_avg >= GRID_Y) ? y_avg - GRID_Y : y_avg;
+  // x_avg = (x_avg <= -1) ? x_avg + GRID_X : x_avg;
+  // y_avg = (y_avg <= -1) ? y_avg + GRID_Y : y_avg;
   
-  return Point<double> (y_avg * DX, x_avg * DX); // This is to match how the fields are viewed i.e. via python
+  // WARNING: Viewing the field i.e. in python (using meshgrid for the x and y data) _switches_ the x and y axes
+  // plotting these points on the same plot will _not_ match up unless you switch the x and y!
+  return Point<double> (x_avg * DX, y_avg * DX); 
 }
 
 vector <Point <double> > getCentroidsFromFile(const string& file)
@@ -325,6 +433,228 @@ void printIndividualFields(const vector <Field>& etas, const int& step)
   }
 }
 
+// find the updated center point of the order parameter field
+Point <double> findCenter(const Field& eta)
+{
+  // This is taken from Bai and Breen, Journal of Graphics Tools 13(4) (2008) 53-60
+  struct Tube
+  {
+    vector <double> xs; 
+    vector <double> ys; 
+    vector <double> zs; 
+    vector <double> thetas;
+    vector <double> weights;
+    double radius = (double)(GRID_X) / (2.0 * PI);
+    vector <double> com;
+
+    Tube()
+    {
+      xs.resize(GRID_X*GRID_Y, 0.0);
+      ys.resize(GRID_X*GRID_Y, 0.0);
+      zs.resize(GRID_X*GRID_Y, 0.0);
+      thetas.resize(GRID_X*GRID_Y, 0.0);
+      weights.resize(GRID_X*GRID_Y, 0.0);
+      com.resize(3,0.0);
+    }
+  };
+  
+  Tube x;
+  Tube y;
+  
+  for (int i = 0; i < GRID_X; ++i)
+  {
+    for (int j = 0; j < GRID_Y; ++j)
+    {
+      unsigned int index = GRID_X * i + j;
+      x.ys[index] = j; // no change for y in tube x
+      y.xs[index] = i; // similarly for x in tube y
+      
+      x.thetas[index] = (double)(i) * 2.0 * PI / GRID_X;
+      y.thetas[index] = (double)(j) * 2.0 * PI / GRID_Y;
+      x.xs[index] = x.radius * cos(x.thetas[index]);
+      y.ys[index] = y.radius * cos(y.thetas[index]);
+      
+      x.zs[index] = x.radius * sin(x.thetas[index]);
+      y.zs[index] = y.radius * sin(y.thetas[index]);
+      
+      x.weights[index] = eta.values[i][j];
+      y.weights[index] = eta.values[i][j];
+    }
+  }
+  
+  for (size_t i = 0; i < x.xs.size(); ++i)
+  {
+    x.com[0] += x.xs[i] * x.weights[i];
+    y.com[0] += y.xs[i] * y.weights[i];
+    x.com[1] += x.ys[i] * x.weights[i];
+    y.com[1] += y.ys[i] * y.weights[i];
+    x.com[2] += x.zs[i] * x.weights[i];
+    y.com[2] += y.zs[i] * y.weights[i];
+  }
+  
+  for (int i = 0; i < 3; ++i)
+  {
+    x.com[i] /= accumulate(x.weights.begin(), x.weights.end(), 0.0);
+    y.com[i] /= accumulate(y.weights.begin(), y.weights.end(), 0.0);
+  }
+  
+  double th_avg = atan2(-x.com[2], -x.com[0]) + PI;
+  double x_com = GRID_X * th_avg / (2.0 * PI);
+  
+  th_avg = atan2(-y.com[2], -y.com[1]) + PI;
+  double y_com = GRID_Y * th_avg / (2.0 * PI);
+
+  
+  // WARNING: Viewing the field e.g. in python (using meshgrid for the x and y data) _switches_ the x and y axes
+  // plotting these points on the same plot will _not_ match up unless you switch the x and y!
+  return Point<double> (x_com * DX, y_com * DX);
+}
+
+/*
+ * multi_junctions is a vector of the MultiJunction struct, containing a list of 
+ *   active etas for each junction, as well as the position of the junction (in length units)
+ * etas is the order parameter field
+ * Both are marked const - we do not want any changes occuring to these as we calculate the neighboring junctions.
+ */
+vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunction>& multi_junctions, const vector <Field>& etas)
+{
+  vector <Point <double> > eta_centers (N_ETA, Point<double>()); // The list of centroids of each order parameter
+  map <unsigned int, pair <Point <double>, vector <MultiJunction> > > grain_junctions, unwrapped_grain_junctions; // map of the order parameter (key) to its center and associated multi junctions (value)
+  vector <JunctionNeighbors> neighbors_list (multi_junctions.size(), JunctionNeighbors()); // A list of the neighbors for each multi junction
+  
+  for (size_t i = 0; i < etas.size(); ++i)
+  {
+    // Find the centers of the order parameters, in length units
+    eta_centers[i] = findCenter(etas[i]);
+    vector <MultiJunction> junctions, unwrapped_junctions; // the list of multi junction points
+    // Find the junctions associated with this eta
+    for (size_t j = 0; j < multi_junctions.size(); ++j)
+    {
+      for (vector <unsigned int>::const_iterator it = multi_junctions[j].active_etas.begin();
+           it != multi_junctions[j].active_etas.end();
+           ++it)
+      {
+        if (*it == i) 
+        {
+          // get the distance between this junction and the center of the order parameter
+          Point <double> diff = multi_junctions[j].position - eta_centers[i];
+          double distance = diff * diff;
+          
+          Point <double> pbc_diff = PBCs(diff); // apply pbcs, but keep original result
+          double pbc_distance = pbc_diff * pbc_diff;
+          if (abs(pbc_distance - distance) < 1.0e-8) // if the periodic distance is the same, do nothing
+          {
+            junctions.push_back(multi_junctions[j]);
+            unwrapped_junctions.push_back(multi_junctions[j]);
+          }
+          else // otherwise, we need to figure out which direction(s) needed pbcs.
+          {
+            unwrapped_junctions.push_back(multi_junctions[j]);
+            double tmp_x = multi_junctions[j].position.getX();
+            double tmp_y = multi_junctions[j].position.getY();
+            if (abs(pbc_diff.getX() - diff.getX()) < 1.0e-8)
+            {  
+              if (tmp_y - eta_centers[i].getY() > 0) {tmp_y -= MAX_Y;}
+              else /*(tmp_y - eta_centers[i].getY() <= 0)*/ {tmp_y += MAX_Y;}
+            }
+            if (abs(pbc_diff.getY() - diff.getY()) < 1.0e-8)
+            {
+              if (tmp_x - eta_centers[i].getX() > 0) {tmp_x -= MAX_X;}
+              else /*(tmp_x - eta_centers[i].getX() <= 0)*/ {tmp_x += MAX_X;}
+            }
+            MultiJunction tmp = multi_junctions[j];
+            tmp.position = Point <double> (tmp_x, tmp_y);
+            junctions.push_back(tmp);
+          }
+          break;
+        }
+      }
+    }
+    // put the info in the map
+    // This can be read as: the multi junctions for order parameter i with center eta_center are listed in vector junctions.
+    grain_junctions[i] = make_pair(eta_centers[i], junctions);
+    unwrapped_grain_junctions[i] = make_pair(eta_centers[i], unwrapped_junctions);
+  }
+  
+  // sort the list of junctions clockwise, starting from 12 o'clock
+  for (size_t i = 0; i < grain_junctions.size(); ++i)
+  {
+    vector <MultiJunction> junctions = grain_junctions[i].second; // grab the vector (grain_junctions[i])
+    vector <MultiJunction> unwrapped_junctions = unwrapped_grain_junctions[i].second;
+    
+    vector <Point <double> > junctions_positions (junctions.size());
+    
+    for (size_t j = 0; j < junctions.size(); ++j)
+    {
+      junctions_positions[j] = junctions[j].position;
+    }
+    
+    for (size_t j = 0; j < junctions_positions.size(); ++j) {junctions_positions[j] = PBCs(junctions_positions[j] - grain_junctions[i].first);} // subtract the centers off the points 
+    vector <size_t> junction_indices = sort_indices(junctions_positions); // indices will contain the original index for the map.
+    for (size_t j = 0; j < junctions_positions.size(); ++j) {junctions_positions[j] = PBCs(junctions_positions[j] + grain_junctions[i].first);} // add the centers back to the positions of the junctions.
+    
+    vector <MultiJunction> unsorted_junctions = unwrapped_junctions;
+    for (size_t j = 0; j < junction_indices.size(); ++j)
+    {
+      unwrapped_junctions[j] = unsorted_junctions[junction_indices[j]];
+    }
+    
+    grain_junctions[i].second = unwrapped_junctions;
+  }
+  
+  // Now determine the neighboring junctions
+  for (size_t i = 0; i < multi_junctions.size(); ++i)
+  {  
+    neighbors_list[i].junction = multi_junctions[i];
+    
+    // loop through the active etas at this junction
+    for (size_t j = 0; j < multi_junctions[i].active_etas.size(); ++j)
+    {
+      // for this eta, we need to find the next junction (clockwise) from the current one.
+      // this is the sorted junction list
+      vector <MultiJunction> tmp = grain_junctions[multi_junctions[i].active_etas[j]].second;
+       
+      auto it = find(tmp.begin(), tmp.end(), multi_junctions[i]);
+      if (it != tmp.end())
+      {
+        if (++it == tmp.end()) {it = tmp.begin();}
+        size_t index = distance(tmp.begin(), it);
+        neighbors_list[i].neighbors.push_back(*it);
+      }
+      else
+      {
+        cout << "ERROR: Junction not found " << j << ".\n";
+        exit(JUNCTION_NOT_FOUND);
+      }
+    }
+  }
+  
+  return neighbors_list;
+}
+
+vector <pair <MultiJunction, vector <double> > > calculateJunctionAngles(const vector <JunctionNeighbors>& neighbors_list)
+{
+  vector <pair <MultiJunction, vector <double> > > junction_angles (neighbors_list.size());
+  
+  for (size_t i = 0; i < neighbors_list.size(); ++i)
+  {
+    Point <double> junction = neighbors_list[i].junction.position;
+    junction_angles[i].first = neighbors_list[i].junction;
+    
+    for (size_t j = 0; j < neighbors_list[i].neighbors.size() - 1; ++j) // because we can calculate the last angle more cheaply
+    {
+      Point <double> line1 = neighbors_list[i].neighbors[j].position - junction;
+      unsigned int j1 = (j + 1 >= neighbors_list[i].neighbors.size()) ? 0 : j + 1;
+      Point <double> line2 = neighbors_list[i].neighbors[j1].position - junction;
+      
+      junction_angles[i].second.push_back(acos(line1 * line2 / (sqrt(line1 * line1) * sqrt(line2 * line2))) * 180.0 / PI);
+    }
+    junction_angles[i].second.push_back(360.0 - accumulate(junction_angles[i].second.begin(), junction_angles[i].second.end(), 0.0));
+  }
+  
+  return junction_angles;
+}
+
 void calculateInfo(const vector <Field>& etas, 
   ostream& fout1, /*for grain size*/
   ostream& fout2, /*for gb lengths*/
@@ -333,12 +663,12 @@ void calculateInfo(const vector <Field>& etas,
 {
   vector <double> sizes(N_ETA, 0.0);
   double total_gb_length = 0.0;
-  double activity_threshold = 0.12; // if an eta value is greater than or equal to this cutoff, the grid point is assigned to that eta
+  double activity_threshold = 0.12; // if an eta value is greater than or equal to this cutoff, the order parameter is active at this point.
   // the value of 0.12 was calculated based on Moelans et al.'s paper - see page 172 of lab notebook Vol. 3
-  map <pair <unsigned int, unsigned int>, double> gb_lengths;
+  map <pair <unsigned int, unsigned int>, double> gb_lengths; // length of the grain boundary between etas i and j
   unsigned int num_junctions = 0;
-  vector <MultiJunction> multi_junctions;
-  Field checked_grid_points; // field for multi junction checking
+  vector <MultiJunction> multi_junctions; // the list of all multi junctions
+  Field checked_grid_points; // field for multi junction checking - we only need to check each grid point once // FIXME: This may break with triple junctions within the search radius of each other.
 
   // initialize the individual gb lengths
   for (unsigned int i = 0; i < N_ETA - 1; ++i)
@@ -368,6 +698,7 @@ void calculateInfo(const vector <Field>& etas,
           active_etas.push_back(k);
         }
 
+        // Check if we are in the bulk of an order parameter
         if (val >= (1.0 - activity_threshold) && !bulk_value_added)
         {
           sizes[k] += DX * DX;
@@ -375,7 +706,7 @@ void calculateInfo(const vector <Field>& etas,
         }
       } // eta loop
 
-      if (!bulk_value_added) {total_gb_length += DX;} // add to total GB length is no bulk value added.
+      if (!bulk_value_added) {total_gb_length += DX;} // add to total GB length if no bulk value added.
 
       // calculate individual gb lengths
       if (num_active >= 2)
@@ -391,7 +722,7 @@ void calculateInfo(const vector <Field>& etas,
               second = active_etas[l];
             }
             else
-            {
+            {  // TODO: This part of the code may never be called... I can check later, and possibly remove it.
               first = active_etas[l];
               second = active_etas[k];
             }
@@ -401,12 +732,12 @@ void calculateInfo(const vector <Field>& etas,
       }
       
       // get positions of multi-junctions
-      if (num_active >= 3 && checked_grid_points.values[i][j] < 1.0)
+      if (num_active >= 3 && checked_grid_points.values[i][j] < 1.0) // if the 'checked field' shows that this multijunction grid point has not been examined
       {
-        multi_junctions.push_back(MultiJunction());
-        for (int ii = (int)(i) - (GRID_X / 20); ii < (int)(i) + (GRID_X / 20) + 1; ++ii)
+        multi_junctions.push_back(MultiJunction()); // add in a blank multijunction
+        for (int ii = (int)(i) - (GRID_X / 20); ii < (int)(i) + (GRID_X / 20) + 1; ++ii) // check all grid points within GRID_X / 20
         {
-          for (int jj = (int)(j) - (GRID_X / 20); jj < (int)(j) + (GRID_X / 20) + 1; ++jj)
+          for (int jj = (int)(j) - (GRID_Y / 20); jj < (int)(j) + (GRID_Y / 20) + 1; ++jj) // similary for GRID_Y / 20
           {
             // apply PBCs
             int ii_before = ii;
@@ -427,9 +758,8 @@ void calculateInfo(const vector <Field>& etas,
               }
               else
               {
-                // use the before value so averaging works
                 multi_junctions[num_junctions].active_etas = active_etas;
-                multi_junctions[num_junctions].points.push_back(Point<double>(ii_before, jj_before));
+                multi_junctions[num_junctions].points.push_back(Point<double>(ii_before, jj_before)); // use the before value so averaging works
               }
             }
           }
@@ -439,6 +769,19 @@ void calculateInfo(const vector <Field>& etas,
       }
     } // GRID_Y loop
   } // GRID_X loop
+  
+  for (size_t a = 0; a < multi_junctions.size(); ++a)
+  {
+    for (size_t b = 0; b < multi_junctions[a].active_etas.size(); ++b)
+    {
+      multi_junctions[a].position = averagePointPositions(multi_junctions[a].points);
+    }
+  }
+  
+  vector <JunctionNeighbors> neighbors_list = findMultiJunctionNeighbors(multi_junctions, etas);
+  
+  // Calculate the angles at the multi junction
+  vector <pair <MultiJunction, vector <double> > > junction_angles = calculateJunctionAngles(neighbors_list);
 
   // output the grain size data to fout1
   fout1 << step;
@@ -470,15 +813,27 @@ void calculateInfo(const vector <Field>& etas,
   }
 
   // output the multi junction data to fout3
+  // step junction_position active_etas junction_neighbors(positions) junction_angles
+  // Assumes that multi_junctions, neighbors_list, and junction_angles all have the same number of elements
   fout3 << step << " ";
   for (size_t a = 0; a < multi_junctions.size(); ++a)
   {
+    fout3 << multi_junctions[a].position;
     for (size_t b = 0; b < multi_junctions[a].active_etas.size(); ++b)
     {
-      fout3 << multi_junctions[a].active_etas[b];
-      if (b + 1 != multi_junctions[a].active_etas.size()) {fout3 << ",";}
+      fout3 << " " << multi_junctions[a].active_etas[b];
     }
-    fout3 << calculateMultiJunctionPosition(multi_junctions[a].points) << endl;
+    
+    for (size_t b = 0; b < neighbors_list[a].neighbors.size(); ++b)
+    {
+      fout3 << " " << neighbors_list[a].neighbors[b].position;
+    }
+    
+    for (size_t b = 0; b < junction_angles[a].second.size(); ++b)
+    {
+      fout3 << " " << junction_angles[a].second[b];
+    }
+    fout3 << endl;
     if (a + 1 != multi_junctions.size()) {fout3 << "---- ";}
   }
 }
@@ -735,7 +1090,7 @@ int main(int argc, char** argv)
   
   ofstream fout_multi_junctions("multi_junctions.txt");
   checkFileStream(fout_multi_junctions, "multi_junctions.txt");
-  fout_multi_junctions << "# Step active_etas junction_position\n";
+  fout_multi_junctions << "# Step junction_position active_etas junction_neighbors junction_angles\n";
   
   printField(etas_old, "initial_structure.txt", true);
   
