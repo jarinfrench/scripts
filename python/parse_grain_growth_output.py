@@ -53,7 +53,7 @@ if args.initial:
     plt.show()
     exit(0)
 
-for i in tqdm(range(n_step, args.cutoff + 1, n_step)):
+for i in tqdm(range(n_step, args.cutoff + 1, n_step), ncols = 80):
     file = 'out_' + str(i) + '.txt'
     z = np.loadtxt(file)
     plt.figure()
