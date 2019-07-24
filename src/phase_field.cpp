@@ -12,6 +12,7 @@
 #include <algorithm> // sort
 
 #include "error_code_defines.h"
+#include "position.h"
 
 using namespace std;
 
@@ -32,49 +33,10 @@ double DT; // timestep
 int EQUILIBRIUM = 500; // The number of timesteps for the sharp interface to equilibrate
 string mobility_file; // the name of the txt file containing the L matrix
 
-template <typename T>
-struct Point
-{
-private:
-  T x;
-  T y;
-  
-public:
-  Point() { x = 0; y = 0;}
-  Point(T x, T y) {setX(x); setY(y);}
-  
-  T getX() const {return x;}
-  T getY() const {return y;}
-  void setX(T x) {this->x = x;}
-  void setY(T y) {this->y = y;}
-  
-  Point<T> operator - (const Point<T> &p) const {return Point<T>(this->x - p.getX(), this->y - p.getY());}
-  Point<T> operator + (const Point<T> &p) const {return Point<T>(this->x + p.getX(), this->y + p.getY());}
-  T operator * (const Point<T> &p) const {return (this->x * p.getX() + this->y * p.getY());} // dot product
-};
-
-template <typename T>
-bool operator == (const Point<T>& lhs, const Point<T>& rhs) 
-{
-  return (abs(lhs.getX() - rhs.getX()) < 1.0e-8 && abs(lhs.getY() - rhs.getY()) < 1.0e-8);
-}
-
-template <typename T>
-bool operator != (const Point<T>& lhs, const Point<T>& rhs)
-{
-  return !(lhs == rhs);
-}
-
-template <typename T>
-ostream& operator << (ostream& stream, const Point <T> p)
-{
-    return stream << "(" << p.getX() << "," << p.getY() << ")";
-}
-
 struct Field
 {
   vector <vector <double> > values;
-  Point<double> center; // original center point
+  Position center; // original center point
   bool is_active; // whether or not the field is active
   
   // constructor
@@ -88,8 +50,8 @@ struct Field
 struct MultiJunction
 {
   vector <unsigned int> active_etas; // list of active etas for this junction
-  vector <Point <double> > points; // list of points that have the same active etas within the same general location
-  Point <double> position; // The position of the multi junction, calculated as an average of points
+  vector <Position> points; // list of points that have the same active etas within the same general location
+  Position position; // The position of the multi junction, calculated as an average of points
 };
 
 bool operator == (const MultiJunction& lhs, const MultiJunction& rhs)
@@ -142,20 +104,18 @@ double anInt(double x)
   return (double)(temp);
 }
 
-template <typename T>
-Point <T> PBCs(Point <T> p)
+Position PBCs(Position p)
 {
-  T x = p.getX();
-  T y = p.getY();
+  double x = p.getX();
+  double y = p.getY();
   
   x = x - anInt(x / MAX_X) * MAX_X;
   y = y - anInt(y / MAX_Y) * MAX_Y;
   
-  return Point <T> (x,y);
+  return Position (x,y);
 }
 
-template <typename T>
-bool clockwiseSort(Point <T> a, Point <T> b /*, Point <T> center*/)
+bool clockwiseSort(Position a, Position b /*, Position center*/)
 {
   // see https://stackoverflow.com/questions/6989100/sort-points-in-clockwise-order
   // WARNING: points a and b should have _already_ had the center subtracted from it!
@@ -179,8 +139,7 @@ bool clockwiseSort(Point <T> a, Point <T> b /*, Point <T> center*/)
   return d1 > d2;
 }
 
-template <typename T>
-vector<size_t> sort_indices (vector<Point <T> >& v)
+vector<size_t> sort_indices (vector<Position>& v)
 {
   // From https://stackoverflow.com/questions/1577475/c-sorting-and-keeping-track-of-indexes
   // Initialize original index locations
@@ -189,15 +148,14 @@ vector<size_t> sort_indices (vector<Point <T> >& v)
   
   // sort indices based on comparing values in v
   sort(idx.begin(), idx.end(),
-      [&v](size_t i1, size_t i2) {return clockwiseSort<T> (v[i1], v[i2]);});
+      [&v](size_t i1, size_t i2) {return clockwiseSort (v[i1], v[i2]);});
   
-  sort(v.begin(), v.end(), clockwiseSort<T>);
+  sort(v.begin(), v.end(), clockwiseSort);
   
   return idx;
 }
 
-template <typename T>
-Point <double> averagePointPositions(const vector <Point <T> >& positions)
+Position averagePositions(const vector <Position>& positions)
 {
   double x_avg = 0.0;
   double y_avg = 0.0;
@@ -212,21 +170,33 @@ Point <double> averagePointPositions(const vector <Point <T> >& positions)
   y_avg /= positions.size();
   
   // This applies PBCs
-  // x_avg = (x_avg >= GRID_X) ? x_avg - GRID_X : x_avg;
-  // y_avg = (y_avg >= GRID_Y) ? y_avg - GRID_Y : y_avg;
-  // x_avg = (x_avg <= -1) ? x_avg + GRID_X : x_avg;
-  // y_avg = (y_avg <= -1) ? y_avg + GRID_Y : y_avg;
+  x_avg = (x_avg >= GRID_X) ? x_avg - GRID_X : x_avg;
+  y_avg = (y_avg >= GRID_Y) ? y_avg - GRID_Y : y_avg;
+  x_avg = (x_avg <= -1) ? x_avg + GRID_X : x_avg;
+  y_avg = (y_avg <= -1) ? y_avg + GRID_Y : y_avg;
   
   // WARNING: Viewing the field i.e. in python (using meshgrid for the x and y data) _switches_ the x and y axes
   // plotting these points on the same plot will _not_ match up unless you switch the x and y!
-  return Point<double> (x_avg * DX, y_avg * DX); 
+  return Position (x_avg * DX, y_avg * DX); 
 }
 
-vector <Point <double> > getCentroidsFromFile(const string& file)
+vector <Field> getFieldFromFile(const string& file)
+{
+  string str;
+  vector <Field> etas (N_ETA, Field());
+  ifstream fin(file.c_str());
+  checkFileStream(fin, file);
+  
+  fin.close();
+  
+  return etas;
+}
+
+vector <Position> getCentroidsFromFile(const string& file)
 {
   string str;
   int num_grains = 0;
-  vector <Point <double> > centroids (N_ETA, Point <double>());
+  vector <Position> centroids (N_ETA, Position());
   ifstream fin(file.c_str());
   checkFileStream(fin, file);
   
@@ -240,7 +210,7 @@ vector <Point <double> > getCentroidsFromFile(const string& file)
     stringstream ss(str);
     ss >> x >> y; // get the x and y positions of the centroids
     
-    Point <double> center(MAX_X * x, MAX_Y * y);
+    Position center(MAX_X * x, MAX_Y * y);
     centroids[num_grains++] = center;
   }
   
@@ -297,7 +267,7 @@ void generateICRandom(vector <Field>& etas)
   {
     int x = dist(rng) * MAX_X;
     int y = dist(rng) * MAX_Y;
-    etas[i].center = Point<double>(x,y);
+    etas[i].center = Position (x,y);
   }
   
   // now assign each grid point to a specific eta.
@@ -341,7 +311,7 @@ void generateICHex(vector <Field>& etas)
       {
         double x = ((double)(i) / sqrt_num_centroids + (0.5 / sqrt_num_centroids * (j % 2)) + 0.5 / sqrt_num_centroids + dist(rng) * 0.1) * MAX_X;
         double y = ((double)(j) / sqrt_num_centroids + (0.5 / sqrt_num_centroids * (k % 2)) + dist(rng) * 0.1) * MAX_Y;
-        etas[num_centroids].center = Point<double>(x,y);
+        etas[num_centroids].center = Position(x,y);
         ++num_centroids;
       }
     }
@@ -351,7 +321,7 @@ void generateICHex(vector <Field>& etas)
   assignGridToEta(etas);
 }
 
-void generateVoronoiIC(vector <Field>& etas, const vector <Point <double> >& centroids)
+void generateVoronoiIC(vector <Field>& etas, const vector <Position>& centroids)
 {
   if (centroids.size() != etas.size())
   {
@@ -434,7 +404,7 @@ void printIndividualFields(const vector <Field>& etas, const int& step)
 }
 
 // find the updated center point of the order parameter field
-Point <double> findCenter(const Field& eta)
+Position findCenter(const Field& eta)
 {
   // This is taken from Bai and Breen, Journal of Graphics Tools 13(4) (2008) 53-60
   struct Tube
@@ -507,7 +477,7 @@ Point <double> findCenter(const Field& eta)
   
   // WARNING: Viewing the field e.g. in python (using meshgrid for the x and y data) _switches_ the x and y axes
   // plotting these points on the same plot will _not_ match up unless you switch the x and y!
-  return Point<double> (x_com * DX, y_com * DX);
+  return Position (x_com * DX, y_com * DX);
 }
 
 /*
@@ -518,8 +488,8 @@ Point <double> findCenter(const Field& eta)
  */
 vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunction>& multi_junctions, const vector <Field>& etas)
 {
-  vector <Point <double> > eta_centers (N_ETA, Point<double>()); // The list of centroids of each order parameter
-  map <unsigned int, pair <Point <double>, vector <MultiJunction> > > grain_junctions, unwrapped_grain_junctions; // map of the order parameter (key) to its center and associated multi junctions (value)
+  vector <Position> eta_centers (N_ETA, Position()); // The list of centroids of each order parameter
+  map <unsigned int, pair <Position, vector <MultiJunction> > > grain_junctions, unwrapped_grain_junctions; // map of the order parameter (key) to its center and associated multi junctions (value)
   vector <JunctionNeighbors> neighbors_list (multi_junctions.size(), JunctionNeighbors()); // A list of the neighbors for each multi junction
   
   for (size_t i = 0; i < etas.size(); ++i)
@@ -537,10 +507,10 @@ vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunctio
         if (*it == i) 
         {
           // get the distance between this junction and the center of the order parameter
-          Point <double> diff = multi_junctions[j].position - eta_centers[i];
+          Position diff = multi_junctions[j].position - eta_centers[i];
           double distance = diff * diff;
           
-          Point <double> pbc_diff = PBCs(diff); // apply pbcs, but keep original result
+          Position pbc_diff = PBCs(diff); // apply pbcs, but keep original result
           double pbc_distance = pbc_diff * pbc_diff;
           if (abs(pbc_distance - distance) < 1.0e-8) // if the periodic distance is the same, do nothing
           {
@@ -563,7 +533,7 @@ vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunctio
               else /*(tmp_x - eta_centers[i].getX() <= 0)*/ {tmp_x += MAX_X;}
             }
             MultiJunction tmp = multi_junctions[j];
-            tmp.position = Point <double> (tmp_x, tmp_y);
+            tmp.position = Position (tmp_x, tmp_y);
             junctions.push_back(tmp);
           }
           break;
@@ -582,7 +552,7 @@ vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunctio
     vector <MultiJunction> junctions = grain_junctions[i].second; // grab the vector (grain_junctions[i])
     vector <MultiJunction> unwrapped_junctions = unwrapped_grain_junctions[i].second;
     
-    vector <Point <double> > junctions_positions (junctions.size());
+    vector <Position> junctions_positions (junctions.size());
     
     for (size_t j = 0; j < junctions.size(); ++j)
     {
@@ -638,14 +608,14 @@ vector <pair <MultiJunction, vector <double> > > calculateJunctionAngles(const v
   
   for (size_t i = 0; i < neighbors_list.size(); ++i)
   {
-    Point <double> junction = neighbors_list[i].junction.position;
+    Position junction = neighbors_list[i].junction.position;
     junction_angles[i].first = neighbors_list[i].junction;
     
     for (size_t j = 0; j < neighbors_list[i].neighbors.size() - 1; ++j) // because we can calculate the last angle more cheaply
     {
-      Point <double> line1 = neighbors_list[i].neighbors[j].position - junction;
+      Position line1 = neighbors_list[i].neighbors[j].position - junction;
       unsigned int j1 = (j + 1 >= neighbors_list[i].neighbors.size()) ? 0 : j + 1;
-      Point <double> line2 = neighbors_list[i].neighbors[j1].position - junction;
+      Position line2 = neighbors_list[i].neighbors[j1].position - junction;
       
       junction_angles[i].second.push_back(acos(line1 * line2 / (sqrt(line1 * line1) * sqrt(line2 * line2))) * 180.0 / PI);
     }
@@ -759,7 +729,7 @@ void calculateInfo(const vector <Field>& etas,
               else
               {
                 multi_junctions[num_junctions].active_etas = active_etas;
-                multi_junctions[num_junctions].points.push_back(Point<double>(ii_before, jj_before)); // use the before value so averaging works
+                multi_junctions[num_junctions].points.push_back(Position(ii_before, jj_before)); // use the before value so averaging works
               }
             }
           }
@@ -774,7 +744,7 @@ void calculateInfo(const vector <Field>& etas,
   {
     for (size_t b = 0; b < multi_junctions[a].active_etas.size(); ++b)
     {
-      multi_junctions[a].position = averagePointPositions(multi_junctions[a].points);
+      multi_junctions[a].position = averagePositions(multi_junctions[a].points);
     }
   }
   
@@ -1004,9 +974,10 @@ int main(int argc, char** argv)
       if (!(ic.compare("random")   == 0 ||
             ic.compare("fluid")    == 0 ||
             ic.compare("hex")      == 0 ||
-            ic.compare("centroid") == 0))
+            ic.compare("centroid") == 0 ||
+            ic.compare("input")    == 0))
       {
-        cout << "The initial condition should be specified by 'random', 'fluid', 'hex', or 'centroid'\n";
+        cout << "The initial condition should be specified by 'random,' 'fluid,' 'hex,' 'centroid,' or 'input'\n";
         return INPUT_FORMAT_ERROR;
       }
     }
@@ -1055,12 +1026,24 @@ int main(int argc, char** argv)
   {
     if (argc >= 4)
     {
-      vector <Point <double> > centroids = getCentroidsFromFile(argv[3]);
+      vector <Position> centroids = getCentroidsFromFile(argv[3]);
       generateVoronoiIC(etas_old, centroids);
     }
     else
     {
       cout << "Please specify the list of centroids in a file.\n";
+      return INPUT_FORMAT_ERROR;
+    }
+  }
+  else if (ic.compare("input") == 0)
+  {
+    if (argc >= 4)
+    {
+      etas_old = getFieldFromFile(argv[3]);
+    }
+    else
+    {
+      cout << "Please specify the input file containing the eta fields.\n";
       return INPUT_FORMAT_ERROR;
     }
   }
