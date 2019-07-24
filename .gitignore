@@ -4,3 +4,5 @@ asa-code-1.0.1/*
 *.o
 tests/*
 legacy/*
+.DS_Store
+.tags*
