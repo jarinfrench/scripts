@@ -36,7 +36,7 @@ double anInt(double x)
   return (double)(temp);
 }
 
-bool compareAtomZ(const Atom& a, const Atom& b) {return a.getWrapped().getZ() < b.getWrapped().getZ();}
+bool compareAtomZ(const Atom& a, const Atom& b) {return a.getWrapped()[2] < b.getWrapped()[2];}
 bool compareAtomCharge(const Atom& a, const Atom& b) {return a.getCharge() < b.getCharge();}
 
 template <typename T>
@@ -193,45 +193,45 @@ void createShiftedBoundaries(const string& filename, const pair <double, double>
           exit(ATOM_TYPE_ERROR);
         }
 
-        if (shifted_atoms[i].getWrapped().getZ() >= (box.zhigh - box.zlow) / 2.0)
+        if (shifted_atoms[i].getWrapped()[2] >= (box.zhigh - box.zlow) / 2.0)
         {
           Position p = shifted_atoms[i].getWrapped();
           p += Position(ix * shift.first, iy * shift.second, 0.0);
           shifted_atoms[i].setWrapped(p);
-          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped().getX() + ix * shift.first);
-          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped().getY() + iy * shift.second);
+          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped()[0] + ix * shift.first);
+          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped()[1] + iy * shift.second);
 
           // Apply PBCs
-          p.setX(shifted_atoms[i].getWrapped().getX() - anInt(shifted_atoms[i].getWrapped().getX() / box.Lx) * box.Lx);
-          p.setY(shifted_atoms[i].getWrapped().getY() - anInt(shifted_atoms[i].getWrapped().getY() / box.Ly) * box.Ly);
+          p.setX(shifted_atoms[i].getWrapped()[0] - anInt(shifted_atoms[i].getWrapped()[0] / box.Lx) * box.Lx);
+          p.setY(shifted_atoms[i].getWrapped()[1] - anInt(shifted_atoms[i].getWrapped()[1] / box.Ly) * box.Ly);
           // We're not shifting in the z direction, so we don't need to worry about PBCs in that direction
 
           shifted_atoms[i].setWrapped(p);
-          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped().getX() - anInt(shifted_atoms[i].getWrapped().getX() / box.Lx) * box.Lx);
-          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped().getY() - anInt(shifted_atoms[i].getWrapped().getY() / box.Ly) * box.Ly);
+          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped()[0] - anInt(shifted_atoms[i].getWrapped()[0] / box.Lx) * box.Lx);
+          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped()[1] - anInt(shifted_atoms[i].getWrapped()[1] / box.Ly) * box.Ly);
         }
 
-        if (shifted_atoms[i].getWrapped().getX() < box.xlow || shifted_atoms[i].getWrapped().getX() > box.xhigh)
+        if (shifted_atoms[i].getWrapped()[0] < box.xlow || shifted_atoms[i].getWrapped()[0] > box.xhigh)
         {
           cout << "Error: atom " << ntotal << " is outside the bounds set by xlow ("
                << box.xlow << ") and xhigh (" << box.xhigh << "): "
-               << shifted_atoms[i].getWrapped().getX() << endl;
+               << shifted_atoms[i].getWrapped()[0] << endl;
           exit(BOUNDS_ERROR);
         }
 
-        if (shifted_atoms[i].getWrapped().getY() < box.ylow || shifted_atoms[i].getWrapped().getY() > box.yhigh)
+        if (shifted_atoms[i].getWrapped()[1] < box.ylow || shifted_atoms[i].getWrapped()[1] > box.yhigh)
         {
           cout << "Error: atom " << ntotal << " is outside the bounds set by ylow ("
                << box.ylow << ") and yhigh (" << box.yhigh << "): "
-               << shifted_atoms[i].getWrapped().getY() << endl;
+               << shifted_atoms[i].getWrapped()[1] << endl;
           exit(BOUNDS_ERROR);
         }
 
-        if (shifted_atoms[i].getWrapped().getZ() < box.zlow || shifted_atoms[i].getWrapped().getZ() > box.zhigh)
+        if (shifted_atoms[i].getWrapped()[2] < box.zlow || shifted_atoms[i].getWrapped()[2] > box.zhigh)
         {
           cout << "Error: atom " << ntotal << " is outside the bounds set by zlow ("
                << box.zlow << ") and zhigh (" << box.zhigh << "): "
-               << shifted_atoms[i].getWrapped().getZ() << endl;
+               << shifted_atoms[i].getWrapped()[2] << endl;
           exit(BOUNDS_ERROR);
         }
 
@@ -239,8 +239,8 @@ void createShiftedBoundaries(const string& filename, const pair <double, double>
 
         if (has_charge) {fout << shifted_atoms[i].getCharge() << " ";}
 
-        fout << shifted_atoms[i].getWrapped().getX() << " " << shifted_atoms[i].getWrapped().getY() << " "
-             << shifted_atoms[i].getWrapped().getZ() << endl;
+        fout << shifted_atoms[i].getWrapped()[0] << " " << shifted_atoms[i].getWrapped()[1] << " "
+             << shifted_atoms[i].getWrapped()[2] << endl;
       }
 
       fout.close();

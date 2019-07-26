@@ -150,8 +150,8 @@ void writeData(const string& outfile, const string& chem_formula, const dataValu
       fout << data.atoms[i].getCharge() << " ";
     }
     fout.precision(6);
-    fout << data.atoms[i].getWrapped().getX() << " " << data.atoms[i].getWrapped().getY() << " "
-         << data.atoms[i].getWrapped().getZ() << endl;
+    fout << data.atoms[i].getWrapped()[0] << " " << data.atoms[i].getWrapped()[1] << " "
+         << data.atoms[i].getWrapped()[2] << endl;
   }
 
   fout.close();

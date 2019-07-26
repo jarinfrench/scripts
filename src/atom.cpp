@@ -18,9 +18,9 @@ std::ostream& operator << (std::ostream& os, const Atom& atom)
   os << "Atom " << atom.getId() << ":\n"
      << "  type: " << atom.getType()
      << "\n  charge: " << atom.getCharge()
-     << "\n  x: " << atom.getWrapped().getX() << "(" << atom.getUnwrapped().getX() << ")"
-     << "\n  y: " << atom.getWrapped().getY() << "(" << atom.getUnwrapped().getY() << ")"
-     << "\n  z: " << atom.getWrapped().getZ() << "(" << atom.getUnwrapped().getZ() << ")"
+     << "\n  x: " << atom.getWrapped()[0] << "(" << atom.getUnwrapped()[0] << ")"
+     << "\n  y: " << atom.getWrapped()[1] << "(" << atom.getUnwrapped()[1] << ")"
+     << "\n  z: " << atom.getWrapped()[2] << "(" << atom.getUnwrapped()[2] << ")"
      << "\n  mark: " << atom.getMark() << std::endl;
 
   return os;

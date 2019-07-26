@@ -352,9 +352,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
 
     // Assign this atom to a cell
     // Rounds towards 0 with a type cast
-    idx = (int)(atoms[i].getWrapped().getX() / lcellx); // assign the x cell
-    idy = (int)(atoms[i].getWrapped().getY() / lcelly); // assign the y cell
-    idz = (int)(atoms[i].getWrapped().getZ() / lcellz); // assign the z cell
+    idx = (int)(atoms[i].getWrapped()[0] / lcellx); // assign the x cell
+    idy = (int)(atoms[i].getWrapped()[1] / lcelly); // assign the y cell
+    idz = (int)(atoms[i].getWrapped()[2] / lcellz); // assign the z cell
     // Check if we went out of bounds
     // C++ indexes from 0, so we have to subtract 1 from the maximum value to
     // stay within our memory bounds
@@ -411,9 +411,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
                   }
 
                   // Now the actual calculations!
-                  rxij = atoms[id].getWrapped().getX() - atoms[jd].getWrapped().getX();
-                  ryij = atoms[id].getWrapped().getY() - atoms[jd].getWrapped().getY();
-                  rzij = atoms[id].getWrapped().getZ() - atoms[jd].getWrapped().getZ();
+                  rxij = atoms[id].getWrapped()[0] - atoms[jd].getWrapped()[0];
+                  ryij = atoms[id].getWrapped()[1] - atoms[jd].getWrapped()[1];
+                  rzij = atoms[id].getWrapped()[2] - atoms[jd].getWrapped()[2];
 
                   // Apply PBCs
                   rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
@@ -477,12 +477,12 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const 
     fout << atoms[i].getId() << " "
          << atoms[i].getType() << " ";
     if (has_charge) {fout << atoms[i].getCharge() << " ";}
-    fout << (atoms[i].getWrapped().getX() + box.xlow) * input.a0 << " "
-         << (atoms[i].getWrapped().getY() + box.ylow) * input.a0 << " "
-         << (atoms[i].getWrapped().getZ() + box.zlow) * input.a0 << " "
+    fout << (atoms[i].getWrapped()[0] + box.xlow) * input.a0 << " "
+         << (atoms[i].getWrapped()[1] + box.ylow) * input.a0 << " "
+         << (atoms[i].getWrapped()[2] + box.zlow) * input.a0 << " "
          << atoms[i].getMark() << " "
-         << symm[i] << " " << atoms[i].getUnwrapped().getX() << " " << atoms[i].getUnwrapped().getY()
-         << " " << atoms[i].getUnwrapped().getZ() << endl;
+         << symm[i] << " " << atoms[i].getUnwrapped()[0] << " " << atoms[i].getUnwrapped()[1]
+         << " " << atoms[i].getUnwrapped()[2] << endl;
     ++n_atoms_written;
   }
   fout.close();
@@ -670,9 +670,9 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
 
       if (!allowed_atoms[i]) {continue;}
 
-      x = atoms[i].getWrapped().getX();
-      y = atoms[i].getWrapped().getY();
-      z = atoms[i].getWrapped().getZ();
+      x = atoms[i].getWrapped()[0];
+      y = atoms[i].getWrapped()[1];
+      z = atoms[i].getWrapped()[2];
 
       // We start at l = 1 because if we start at l = 0, we just re-use the same
       // atom over and over.
@@ -681,9 +681,9 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
         unsigned int id = iatom[l][i];
 
         // calculate the position difference vector
-        rxij = atoms[id].getWrapped().getX() - x;
-        ryij = atoms[id].getWrapped().getY() - y;
-        rzij = atoms[id].getWrapped().getZ() - z;
+        rxij = atoms[id].getWrapped()[0] - x;
+        ryij = atoms[id].getWrapped()[1] - y;
+        rzij = atoms[id].getWrapped()[2] - z;
 
         // Apply PBCs.  Note that applying PBCs with the positions projected
         // in the <100> reference frame messes up the calculations!

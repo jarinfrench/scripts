@@ -23,8 +23,9 @@ endif
 
 BIN =../bin
 
-ATOMPROGS := $(shell $(GREP) -lrZ "\#include \"atom.h\"" --exclude="atom.cpp" | sed 's/.cpp//g')
-ATOMDBGPROGS := $(shell $(GREP) -lrZ "\#include \"atom.h\"" --exclude="atom.cpp" | sed 's/.cpp/_dbg/g')
+# This may need some fine tuning between Mac and Linux
+ATOMPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed "s/.cpp//g")
+ATOMDBGPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed 's/.cpp/_dbg /g')
 UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
 UTILSDBG := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
 POSITIONPROGS = phase_field

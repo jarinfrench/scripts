@@ -23,9 +23,9 @@
 using namespace std;
 
 // various comparison functions for the atoms
-bool compareAtomsX(const Atom &a, const Atom &b) {return a.getWrapped().getX() < b.getWrapped().getX();}
-bool compareAtomsY(const Atom &a, const Atom &b) {return a.getWrapped().getY() < b.getWrapped().getY();}
-bool compareAtomsZ(const Atom &a, const Atom &b) {return a.getWrapped().getZ() < b.getWrapped().getZ();}
+bool compareAtomsX(const Atom &a, const Atom &b) {return a.getWrapped()[0] < b.getWrapped()[0];}
+bool compareAtomsY(const Atom &a, const Atom &b) {return a.getWrapped()[1] < b.getWrapped()[1];}
+bool compareAtomsZ(const Atom &a, const Atom &b) {return a.getWrapped()[2] < b.getWrapped()[2];}
 
 vector <double> determineTiltParameters(const double& Lx, const double& Ly,
                                         const double& Lz, const double& alpha,
@@ -229,9 +229,9 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
     exit(ATOM_COUNT_ERROR);
   }
 
-  xlow = (*min_element(atoms.begin(), atoms.end(), compareAtomsX)).getWrapped().getX();
-  ylow = (*min_element(atoms.begin(), atoms.end(), compareAtomsY)).getWrapped().getY();
-  zlow = (*min_element(atoms.begin(), atoms.end(), compareAtomsZ)).getWrapped().getZ();
+  xlow = (*min_element(atoms.begin(), atoms.end(), compareAtomsX)).getWrapped()[0];
+  ylow = (*min_element(atoms.begin(), atoms.end(), compareAtomsY)).getWrapped()[1];
+  zlow = (*min_element(atoms.begin(), atoms.end(), compareAtomsZ)).getWrapped()[2];
   xhigh = xlow + Lx;
   yhigh = ylow + Ly;
   zhigh = zlow + Lz;
@@ -259,7 +259,7 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
       fout << setprecision(1) << atoms[i].getCharge() << " ";
     }
 
-    fout << setprecision(6) << atoms[i].getWrapped().getX() << " " << atoms[i].getWrapped().getY() << " " << atoms[i].getWrapped().getZ() << endl;
+    fout << setprecision(6) << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " " << atoms[i].getWrapped()[2] << endl;
   }
 
   // Close the file streams

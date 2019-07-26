@@ -79,9 +79,9 @@ void printAtomInfo(const vector <Atom>& atoms)
       cout << atoms[i].getId() << " "
            << atoms[i].getType() << " "
            << atoms[i].getCharge() << " "
-           << atoms[i].getWrapped().getX() << " "
-           << atoms[i].getWrapped().getY() << " "
-           << atoms[i].getWrapped().getZ() << endl;
+           << atoms[i].getWrapped()[0] << " "
+           << atoms[i].getWrapped()[1] << " "
+           << atoms[i].getWrapped()[2] << endl;
     }
   }
 }
@@ -300,8 +300,8 @@ void compareTimesteps(vector <Atom>& reference, vector <Atom>& current)
     if (reference[i].getMark() == 1)
     {
       fout << current[i].getId() << " " << current[i].getType() << " "
-           << current[i].getCharge() << " " << current[i].getWrapped().getX() << " "
-           << current[i].getWrapped().getY() << " " << current[i].getWrapped().getZ() << endl;
+           << current[i].getCharge() << " " << current[i].getWrapped()[0] << " "
+           << current[i].getWrapped()[1] << " " << current[i].getWrapped()[2] << endl;
     }
   }
 
