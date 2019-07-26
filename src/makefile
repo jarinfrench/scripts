@@ -9,6 +9,7 @@ ifeq ($(UNAME), Darwin)
 	ADDITIONAL_LDFLAGS =
 	NODBGFLAGS = -O3 $(STDLIB) -o
 	DBGFLAGS = -ggdb -g $(STDLIB) -o
+	GREP = ggrep
 endif
 ifeq ($(UNAME), Linux)
 	CC = g++
@@ -17,14 +18,15 @@ ifeq ($(UNAME), Linux)
 	ADDITIONAL_LDFLAGS =
 	NODBGFLAGS = -O3 $(STDLIB) -o
 	DBGFLAGS = -ggdb -g $(STDLIB) -o
+	GREP = grep
 endif
 
 BIN =../bin
 
-ATOMPROGS := $(shell ggrep -lrZ "\#include \"atom.h\"" --exclude="atom.cpp" | sed 's/.cpp//g')
-ATOMDBGPROGS := $(shell ggrep -lrZ "\#include \"atom.h\"" --exclude="atom.cpp" | sed 's/.cpp/_dbg/g')
-UTILS := $(shell ggrep -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" *.cpp | xargs -0 ggrep -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
-UTILSDBG := $(shell ggrep -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" *.cpp | xargs -0 ggrep -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
+ATOMPROGS := $(shell $(GREP) -lrZ "\#include \"atom.h\"" --exclude="atom.cpp" | sed 's/.cpp//g')
+ATOMDBGPROGS := $(shell $(GREP) -lrZ "\#include \"atom.h\"" --exclude="atom.cpp" | sed 's/.cpp/_dbg/g')
+UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
+UTILSDBG := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
 POSITIONPROGS = phase_field
 POSITIONDBGPROGS = phase_field_dbg
 ALLEXECUTABLES = $(ATOMPROGS) $(ATOMDBGPROGS) $(UTILS) $(UTILSDBG) $(POSITIONPROGS) $(POSITIONDBGPROGS)
@@ -38,7 +40,7 @@ debug: FLAGS = $(CLIB) $(DBGFLAGS)
 debug: atom_builds_dbg utils_dbg
 
 # The extra line for each rule allows a different value to be passed to the pattern-matched rule.
-atom_builds: TARGETS=atom.o
+atom_builds: TARGETS=atom.o position.o
 atom_builds: $(addprefix $(BIN)/, $(ATOMPROGS)) atom.o
 
 utils: TARGETS=
@@ -47,7 +49,7 @@ utils: $(addprefix $(BIN)/, $(UTILS))
 position_builds: TARGETS=position.o
 position_builds: $(addprefix $(BIN)/, $(POSITIONPROGS)) position.o
 
-atom_builds_dbg: TARGETS=atom.o
+atom_builds_dbg: TARGETS=atom.o position.o
 atom_builds_dbg: $(addprefix $(BIN)/, $(ATOMDBGPROGS)) atom.o
 
 utils_dbg: TARGETS=

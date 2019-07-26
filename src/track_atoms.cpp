@@ -5,7 +5,9 @@
 #include <sstream>
 #include <vector>
 #include <cxxopts.hpp>
+
 #include "atom.h"
+#include "position.h"
 #include "error_code_defines.h"
 
 using namespace std;
@@ -77,9 +79,9 @@ void printAtomInfo(const vector <Atom>& atoms)
       cout << atoms[i].getId() << " "
            << atoms[i].getType() << " "
            << atoms[i].getCharge() << " "
-           << atoms[i].getX() << " "
-           << atoms[i].getY() << " "
-           << atoms[i].getZ() << endl;
+           << atoms[i].getWrapped().getX() << " "
+           << atoms[i].getWrapped().getY() << " "
+           << atoms[i].getWrapped().getZ() << endl;
     }
   }
 }
@@ -208,17 +210,18 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
       else {continue;}
     }
 
+    Position p (x,y,z);
     if (!(input.tracked_atoms.empty()))
     {
       if (find(input.tracked_atoms.begin(), input.tracked_atoms.end(), id) != input.tracked_atoms.end())
       {
-        reference[num_tracked] = Atom(id, type, charge, x, y, z);
+        reference[num_tracked] = Atom(id, type, charge, p);
         reference[num_tracked++].setMark(1);
       }
     }
     else
     {
-      reference[id - 1] = Atom(id, type, charge, x, y, z);
+      reference[id - 1] = Atom(id, type, charge, p);
       if (x >= input.x_left * box.Lx && x <= input.x_right * box.Lx &&
           y >= input.y_left * box.Ly && y <= input.y_right * box.Ly &&
           z >= input.z_left * box.Lz && z <= input.z_right * box.Lz)
@@ -273,14 +276,15 @@ void getCurrentData(const string& file, vector <Atom>& current, const vector <st
       else {continue;}
     }
 
+    Position p (x,y,z);
     if (!(input.tracked_atoms.empty()))
     {
       if (find(input.tracked_atoms.begin(), input.tracked_atoms.end(), id) != input.tracked_atoms.end())
       {
-        current[num_tracked++] = Atom(id, type, charge, x, y, z);
+        current[num_tracked++] = Atom(id, type, charge, p);
       }
     }
-    else {current[id - 1] = Atom(id, type, charge, x, y, z);}
+    else {current[id - 1] = Atom(id, type, charge, p);}
   }
 
   fin.close();
@@ -296,8 +300,8 @@ void compareTimesteps(vector <Atom>& reference, vector <Atom>& current)
     if (reference[i].getMark() == 1)
     {
       fout << current[i].getId() << " " << current[i].getType() << " "
-           << current[i].getCharge() << " " << current[i].getX() << " "
-           << current[i].getY() << " " << current[i].getZ() << endl;
+           << current[i].getCharge() << " " << current[i].getWrapped().getX() << " "
+           << current[i].getWrapped().getY() << " " << current[i].getWrapped().getZ() << endl;
     }
   }
 

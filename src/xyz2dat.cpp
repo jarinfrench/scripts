@@ -13,7 +13,9 @@
 #include <algorithm> // for min/max_element
 #include <complex>
 #include <cxxopts.hpp>
+
 #include "atom.h"
+#include "position.h"
 #include "error_code_defines.h"
 
 #define PI 3.14159265358979
@@ -21,9 +23,9 @@
 using namespace std;
 
 // various comparison functions for the atoms
-bool compareAtomsX(const Atom &a, const Atom &b) {return a.getX() < b.getX();}
-bool compareAtomsY(const Atom &a, const Atom &b) {return a.getY() < b.getY();}
-bool compareAtomsZ(const Atom &a, const Atom &b) {return a.getZ() < b.getZ();}
+bool compareAtomsX(const Atom &a, const Atom &b) {return a.getWrapped().getX() < b.getWrapped().getX();}
+bool compareAtomsY(const Atom &a, const Atom &b) {return a.getWrapped().getY() < b.getWrapped().getY();}
+bool compareAtomsZ(const Atom &a, const Atom &b) {return a.getWrapped().getZ() < b.getWrapped().getZ();}
 
 vector <double> determineTiltParameters(const double& Lx, const double& Ly,
                                         const double& Lz, const double& alpha,
@@ -217,7 +219,8 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
       charge = 0.0; // Needs to be manually fixed later if there is a charge
     }
     ++n_atoms;
-    atoms[n_atoms - 1] = Atom(n_atoms, type, charge, x, y, z);
+    Position p(x,y,z);
+    atoms[n_atoms - 1] = Atom(n_atoms, type, charge, p);
   }
 
   if (n_atoms != N)
@@ -226,9 +229,9 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
     exit(ATOM_COUNT_ERROR);
   }
 
-  xlow = (*min_element(atoms.begin(), atoms.end(), compareAtomsX)).getX();
-  ylow = (*min_element(atoms.begin(), atoms.end(), compareAtomsY)).getY();
-  zlow = (*min_element(atoms.begin(), atoms.end(), compareAtomsZ)).getZ();
+  xlow = (*min_element(atoms.begin(), atoms.end(), compareAtomsX)).getWrapped().getX();
+  ylow = (*min_element(atoms.begin(), atoms.end(), compareAtomsY)).getWrapped().getY();
+  zlow = (*min_element(atoms.begin(), atoms.end(), compareAtomsZ)).getWrapped().getZ();
   xhigh = xlow + Lx;
   yhigh = ylow + Ly;
   zhigh = zlow + Lz;
@@ -256,7 +259,7 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
       fout << setprecision(1) << atoms[i].getCharge() << " ";
     }
 
-    fout << setprecision(6) << atoms[i].getX() << " " << atoms[i].getY() << " " << atoms[i].getZ() << endl;
+    fout << setprecision(6) << atoms[i].getWrapped().getX() << " " << atoms[i].getWrapped().getY() << " " << atoms[i].getWrapped().getZ() << endl;
   }
 
   // Close the file streams

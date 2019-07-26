@@ -6,11 +6,12 @@
 #include <vector>
 #include <map>
 #include <cmath>
-#include <random> // 
+#include <random> //
 #include <unistd.h>
 #include <numeric> // iota
 #include <algorithm> // sort
 
+#include "position.h"
 #include "error_code_defines.h"
 #include "position.h"
 
@@ -33,14 +34,53 @@ double DT; // timestep
 int EQUILIBRIUM = 500; // The number of timesteps for the sharp interface to equilibrate
 string mobility_file; // the name of the txt file containing the L matrix
 
+template <typename T>
+struct Point
+{
+private:
+  T x;
+  T y;
+
+public:
+  Point() { x = 0; y = 0;}
+  Point(T x, T y) {setX(x); setY(y);}
+
+  T getX() const {return x;}
+  T getY() const {return y;}
+  void setX(T x) {this->x = x;}
+  void setY(T y) {this->y = y;}
+
+  Point<T> operator - (const Point<T> &p) const {return Point<T>(this->x - p.getX(), this->y - p.getY());}
+  Point<T> operator + (const Point<T> &p) const {return Point<T>(this->x + p.getX(), this->y + p.getY());}
+  T operator * (const Point<T> &p) const {return (this->x * p.getX() + this->y * p.getY());} // dot product
+};
+
+template <typename T>
+bool operator == (const Point<T>& lhs, const Point<T>& rhs)
+{
+  return (abs(lhs.getX() - rhs.getX()) < 1.0e-8 && abs(lhs.getY() - rhs.getY()) < 1.0e-8);
+}
+
+template <typename T>
+bool operator != (const Point<T>& lhs, const Point<T>& rhs)
+{
+  return !(lhs == rhs);
+}
+
+template <typename T>
+ostream& operator << (ostream& stream, const Point <T> p)
+{
+    return stream << "(" << p.getX() << "," << p.getY() << ")";
+}
+
 struct Field
 {
   vector <vector <double> > values;
   Position center; // original center point
   bool is_active; // whether or not the field is active
-  
+
   // constructor
-  Field() 
+  Field()
   {
     values.assign(GRID_X, vector <double> (GRID_Y,0.0));
     is_active = true;
@@ -61,15 +101,15 @@ bool operator == (const MultiJunction& lhs, const MultiJunction& rhs)
   {
     if ((lhs.active_etas)[i] != rhs.active_etas[i]) {return false;}
   }
-  
+
   if (lhs.points.size() != rhs.points.size()) {return false;}
   for (unsigned int i = 0; i < lhs.points.size(); ++i)
   {
     if ((lhs.points)[i] != rhs.points[i]) {return false;}
   }
-  
+
   if (lhs.position != rhs.position) {return false;}
-  
+
   return true;
 }
 
@@ -108,10 +148,10 @@ Position PBCs(Position p)
 {
   double x = p.getX();
   double y = p.getY();
-  
+
   x = x - anInt(x / MAX_X) * MAX_X;
   y = y - anInt(y / MAX_Y) * MAX_Y;
-  
+
   return Position (x,y);
 }
 
@@ -120,7 +160,7 @@ bool clockwiseSort(Position a, Position b /*, Position center*/)
   // see https://stackoverflow.com/questions/6989100/sort-points-in-clockwise-order
   // WARNING: points a and b should have _already_ had the center subtracted from it!
   if (a.getX() /*- center.getX()*/ >= 0)
-  {  
+  {
     if (b.getX() /*- center.getX()*/ < 0) {return true;}
     else {return false;}
   }
@@ -128,11 +168,11 @@ bool clockwiseSort(Position a, Position b /*, Position center*/)
   {
     return a.getY() > b.getY();
   }
-  
+
   double det = (a.getX() /*- center.getX()*/) * (b.getY() /*- center.getY()*/) - (b.getX() /*- center.getX()*/) * (a.getY() /*- center.getY()*/);
   if (det < -1.0e-8) {return true;}
   else if (det > 1.0e-8) {return false;}
-  
+
   // Points are on the same line, so check which is closer to the center
   double d1 = (a.getX() /*- center.getX()*/) * (a.getX() /*- center.getX()*/) + (a.getY() /*- center.getY()*/) * (a.getY() /*- center.getY()*/);
   double d2 = (b.getX() /*- center.getX()*/) * (b.getX() /*- center.getX()*/) + (b.getY() /*- center.getY()*/) * (b.getY() /*- center.getY()*/);
@@ -145,13 +185,13 @@ vector<size_t> sort_indices (vector<Position>& v)
   // Initialize original index locations
   vector <size_t> idx(v.size());
   iota(idx.begin(), idx.end(), 0); // a vector of 0 to v.size() - 1 in increments of 1
-  
+
   // sort indices based on comparing values in v
   sort(idx.begin(), idx.end(),
       [&v](size_t i1, size_t i2) {return clockwiseSort (v[i1], v[i2]);});
-  
+
   sort(v.begin(), v.end(), clockwiseSort);
-  
+
   return idx;
 }
 
@@ -159,25 +199,25 @@ Position averagePositions(const vector <Position>& positions)
 {
   double x_avg = 0.0;
   double y_avg = 0.0;
-  
+
   for (size_t i = 0; i < positions.size(); ++i)
   {
     x_avg += positions[i].getX();
     y_avg += positions[i].getY();
   }
-  
+
   x_avg /= positions.size();
   y_avg /= positions.size();
-  
+
   // This applies PBCs
   x_avg = (x_avg >= GRID_X) ? x_avg - GRID_X : x_avg;
   y_avg = (y_avg >= GRID_Y) ? y_avg - GRID_Y : y_avg;
   x_avg = (x_avg <= -1) ? x_avg + GRID_X : x_avg;
   y_avg = (y_avg <= -1) ? y_avg + GRID_Y : y_avg;
-  
+
   // WARNING: Viewing the field i.e. in python (using meshgrid for the x and y data) _switches_ the x and y axes
   // plotting these points on the same plot will _not_ match up unless you switch the x and y!
-  return Position (x_avg * DX, y_avg * DX); 
+  return Position (x_avg * DX, y_avg * DX);
 }
 
 vector <Field> getFieldFromFile(const string& file)
@@ -186,9 +226,9 @@ vector <Field> getFieldFromFile(const string& file)
   vector <Field> etas (N_ETA, Field());
   ifstream fin(file.c_str());
   checkFileStream(fin, file);
-  
+
   fin.close();
-  
+
   return etas;
 }
 
@@ -199,21 +239,21 @@ vector <Position> getCentroidsFromFile(const string& file)
   vector <Position> centroids (N_ETA, Position());
   ifstream fin(file.c_str());
   checkFileStream(fin, file);
-  
+
   getline(fin, str); // first two lines are comment lines
   getline(fin, str);
-  
+
   while (num_grains < N_ETA)
   {
     double x, y;
     getline(fin, str);
     stringstream ss(str);
     ss >> x >> y; // get the x and y positions of the centroids
-    
+
     Position center(MAX_X * x, MAX_Y * y);
     centroids[num_grains++] = center;
   }
-  
+
   fin.close();
   return centroids;
 }
@@ -226,18 +266,18 @@ void assignGridToEta(vector <Field>& etas)
     {
       int min_id = -1; // invalid id number
       double min = 1e12; // some arbitrarily large number
-      
+
       for (unsigned int k = 0; k < N_ETA; ++k)
       {
         // find the distance to each point
         double x = i * DX - etas[k].center.getX();
         double y = j * DX - etas[k].center.getY();
-        
+
         x = x - anInt(x / MAX_X) * MAX_X;
         y = y - anInt(y / MAX_Y) * MAX_Y;
-        
+
         double distance = (x * x) + (y * y);
-        
+
         if (distance < min)
         {
           min = distance;
@@ -260,8 +300,8 @@ void generateICRandom(vector <Field>& etas)
   mt19937 rng(SEED); // seed the random number generator
   // create the generator itself - uniform integer distribution between 0 and GRID_X - 1
   // We use GRID_X - 1 because we only want GRID_X values
-  uniform_real_distribution<double> dist(0.0, 1.0); 
-  
+  uniform_real_distribution<double> dist(0.0, 1.0);
+
   // Create the voronoi centers
   for (unsigned int i = 0; i < N_ETA; ++i)
   {
@@ -269,7 +309,7 @@ void generateICRandom(vector <Field>& etas)
     int y = dist(rng) * MAX_Y;
     etas[i].center = Position (x,y);
   }
-  
+
   // now assign each grid point to a specific eta.
   assignGridToEta(etas);
 }
@@ -299,7 +339,7 @@ void generateICHex(vector <Field>& etas)
     cout << "Number of centroids must be a perfect square.\n";
     exit(INPUT_FORMAT_ERROR);
   }
-  
+
   mt19937 rng(SEED); // seed the random number generator
   uniform_real_distribution<double> dist(-1.0, 1.0);
   int num_centroids = 0;
@@ -316,7 +356,7 @@ void generateICHex(vector <Field>& etas)
       }
     }
   }
-  
+
   // now assign each grid point to a specific eta.
   assignGridToEta(etas);
 }
@@ -335,7 +375,7 @@ void generateVoronoiIC(vector <Field>& etas, const vector <Position>& centroids)
       etas[i].center = centroids[i];
     }
   }
-  
+
   // now assign each grid point to a specific eta.
   assignGridToEta(etas);
 }
@@ -348,10 +388,10 @@ void printField(const vector <Field> & etas, const string& filename, const bool&
 {
   ofstream fout(filename.c_str());
   checkFileStream(fout, filename);
-  
+
   Field field; // the overall order parameter field
-  
-  
+
+
   for (unsigned int j = 0; j < GRID_X; ++j)
   {
     for (unsigned int k = 0; k < GRID_Y; ++k)
@@ -370,12 +410,12 @@ void printField(const vector <Field> & etas, const string& filename, const bool&
           field.values[j][k] += etas[i].values[j][k] * etas[i].values[j][k];
         }
       }
-      
+
       fout << field.values[j][k] << " ";
     }
     fout << "\n";
   }
-  
+
   fout.close();
 }
 
@@ -409,9 +449,9 @@ Position findCenter(const Field& eta)
   // This is taken from Bai and Breen, Journal of Graphics Tools 13(4) (2008) 53-60
   struct Tube
   {
-    vector <double> xs; 
-    vector <double> ys; 
-    vector <double> zs; 
+    vector <double> xs;
+    vector <double> ys;
+    vector <double> zs;
     vector <double> thetas;
     vector <double> weights;
     double radius = (double)(GRID_X) / (2.0 * PI);
@@ -427,10 +467,10 @@ Position findCenter(const Field& eta)
       com.resize(3,0.0);
     }
   };
-  
+
   Tube x;
   Tube y;
-  
+
   for (int i = 0; i < GRID_X; ++i)
   {
     for (int j = 0; j < GRID_Y; ++j)
@@ -438,20 +478,20 @@ Position findCenter(const Field& eta)
       unsigned int index = GRID_X * i + j;
       x.ys[index] = j; // no change for y in tube x
       y.xs[index] = i; // similarly for x in tube y
-      
+
       x.thetas[index] = (double)(i) * 2.0 * PI / GRID_X;
       y.thetas[index] = (double)(j) * 2.0 * PI / GRID_Y;
       x.xs[index] = x.radius * cos(x.thetas[index]);
       y.ys[index] = y.radius * cos(y.thetas[index]);
-      
+
       x.zs[index] = x.radius * sin(x.thetas[index]);
       y.zs[index] = y.radius * sin(y.thetas[index]);
-      
+
       x.weights[index] = eta.values[i][j];
       y.weights[index] = eta.values[i][j];
     }
   }
-  
+
   for (size_t i = 0; i < x.xs.size(); ++i)
   {
     x.com[0] += x.xs[i] * x.weights[i];
@@ -461,27 +501,27 @@ Position findCenter(const Field& eta)
     x.com[2] += x.zs[i] * x.weights[i];
     y.com[2] += y.zs[i] * y.weights[i];
   }
-  
+
   for (int i = 0; i < 3; ++i)
   {
     x.com[i] /= accumulate(x.weights.begin(), x.weights.end(), 0.0);
     y.com[i] /= accumulate(y.weights.begin(), y.weights.end(), 0.0);
   }
-  
+
   double th_avg = atan2(-x.com[2], -x.com[0]) + PI;
   double x_com = GRID_X * th_avg / (2.0 * PI);
-  
+
   th_avg = atan2(-y.com[2], -y.com[1]) + PI;
   double y_com = GRID_Y * th_avg / (2.0 * PI);
 
-  
+
   // WARNING: Viewing the field e.g. in python (using meshgrid for the x and y data) _switches_ the x and y axes
   // plotting these points on the same plot will _not_ match up unless you switch the x and y!
   return Position (x_com * DX, y_com * DX);
 }
 
 /*
- * multi_junctions is a vector of the MultiJunction struct, containing a list of 
+ * multi_junctions is a vector of the MultiJunction struct, containing a list of
  *   active etas for each junction, as well as the position of the junction (in length units)
  * etas is the order parameter field
  * Both are marked const - we do not want any changes occuring to these as we calculate the neighboring junctions.
@@ -491,7 +531,7 @@ vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunctio
   vector <Position> eta_centers (N_ETA, Position()); // The list of centroids of each order parameter
   map <unsigned int, pair <Position, vector <MultiJunction> > > grain_junctions, unwrapped_grain_junctions; // map of the order parameter (key) to its center and associated multi junctions (value)
   vector <JunctionNeighbors> neighbors_list (multi_junctions.size(), JunctionNeighbors()); // A list of the neighbors for each multi junction
-  
+
   for (size_t i = 0; i < etas.size(); ++i)
   {
     // Find the centers of the order parameters, in length units
@@ -504,12 +544,12 @@ vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunctio
            it != multi_junctions[j].active_etas.end();
            ++it)
       {
-        if (*it == i) 
+        if (*it == i)
         {
           // get the distance between this junction and the center of the order parameter
           Position diff = multi_junctions[j].position - eta_centers[i];
           double distance = diff * diff;
-          
+
           Position pbc_diff = PBCs(diff); // apply pbcs, but keep original result
           double pbc_distance = pbc_diff * pbc_diff;
           if (abs(pbc_distance - distance) < 1.0e-8) // if the periodic distance is the same, do nothing
@@ -523,7 +563,7 @@ vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunctio
             double tmp_x = multi_junctions[j].position.getX();
             double tmp_y = multi_junctions[j].position.getY();
             if (abs(pbc_diff.getX() - diff.getX()) < 1.0e-8)
-            {  
+            {
               if (tmp_y - eta_centers[i].getY() > 0) {tmp_y -= MAX_Y;}
               else /*(tmp_y - eta_centers[i].getY() <= 0)*/ {tmp_y += MAX_Y;}
             }
@@ -545,45 +585,45 @@ vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunctio
     grain_junctions[i] = make_pair(eta_centers[i], junctions);
     unwrapped_grain_junctions[i] = make_pair(eta_centers[i], unwrapped_junctions);
   }
-  
+
   // sort the list of junctions clockwise, starting from 12 o'clock
   for (size_t i = 0; i < grain_junctions.size(); ++i)
   {
     vector <MultiJunction> junctions = grain_junctions[i].second; // grab the vector (grain_junctions[i])
     vector <MultiJunction> unwrapped_junctions = unwrapped_grain_junctions[i].second;
-    
+
     vector <Position> junctions_positions (junctions.size());
-    
+
     for (size_t j = 0; j < junctions.size(); ++j)
     {
       junctions_positions[j] = junctions[j].position;
     }
-    
-    for (size_t j = 0; j < junctions_positions.size(); ++j) {junctions_positions[j] = PBCs(junctions_positions[j] - grain_junctions[i].first);} // subtract the centers off the points 
+
+    for (size_t j = 0; j < junctions_positions.size(); ++j) {junctions_positions[j] = PBCs(junctions_positions[j] - grain_junctions[i].first);} // subtract the centers off the points
     vector <size_t> junction_indices = sort_indices(junctions_positions); // indices will contain the original index for the map.
     for (size_t j = 0; j < junctions_positions.size(); ++j) {junctions_positions[j] = PBCs(junctions_positions[j] + grain_junctions[i].first);} // add the centers back to the positions of the junctions.
-    
+
     vector <MultiJunction> unsorted_junctions = unwrapped_junctions;
     for (size_t j = 0; j < junction_indices.size(); ++j)
     {
       unwrapped_junctions[j] = unsorted_junctions[junction_indices[j]];
     }
-    
+
     grain_junctions[i].second = unwrapped_junctions;
   }
-  
+
   // Now determine the neighboring junctions
   for (size_t i = 0; i < multi_junctions.size(); ++i)
-  {  
+  {
     neighbors_list[i].junction = multi_junctions[i];
-    
+
     // loop through the active etas at this junction
     for (size_t j = 0; j < multi_junctions[i].active_etas.size(); ++j)
     {
       // for this eta, we need to find the next junction (clockwise) from the current one.
       // this is the sorted junction list
       vector <MultiJunction> tmp = grain_junctions[multi_junctions[i].active_etas[j]].second;
-       
+
       auto it = find(tmp.begin(), tmp.end(), multi_junctions[i]);
       if (it != tmp.end())
       {
@@ -598,34 +638,34 @@ vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunctio
       }
     }
   }
-  
+
   return neighbors_list;
 }
 
 vector <pair <MultiJunction, vector <double> > > calculateJunctionAngles(const vector <JunctionNeighbors>& neighbors_list)
 {
   vector <pair <MultiJunction, vector <double> > > junction_angles (neighbors_list.size());
-  
+
   for (size_t i = 0; i < neighbors_list.size(); ++i)
   {
     Position junction = neighbors_list[i].junction.position;
     junction_angles[i].first = neighbors_list[i].junction;
-    
+
     for (size_t j = 0; j < neighbors_list[i].neighbors.size() - 1; ++j) // because we can calculate the last angle more cheaply
     {
       Position line1 = neighbors_list[i].neighbors[j].position - junction;
       unsigned int j1 = (j + 1 >= neighbors_list[i].neighbors.size()) ? 0 : j + 1;
       Position line2 = neighbors_list[i].neighbors[j1].position - junction;
-      
+
       junction_angles[i].second.push_back(acos(line1 * line2 / (sqrt(line1 * line1) * sqrt(line2 * line2))) * 180.0 / PI);
     }
     junction_angles[i].second.push_back(360.0 - accumulate(junction_angles[i].second.begin(), junction_angles[i].second.end(), 0.0));
   }
-  
+
   return junction_angles;
 }
 
-void calculateInfo(const vector <Field>& etas, 
+void calculateInfo(const vector <Field>& etas,
   ostream& fout1, /*for grain size*/
   ostream& fout2, /*for gb lengths*/
   ostream& fout3, /*for multi junctions*/
@@ -700,7 +740,7 @@ void calculateInfo(const vector <Field>& etas,
           }
         }
       }
-      
+
       // get positions of multi-junctions
       if (num_active >= 3 && checked_grid_points.values[i][j] < 1.0) // if the 'checked field' shows that this multijunction grid point has not been examined
       {
@@ -717,7 +757,7 @@ void calculateInfo(const vector <Field>& etas,
             jj_after = (jj >= GRID_Y) ? jj - GRID_Y : jj;
             ii_after = (ii <= -1) ? ii + GRID_X : ii_after; // because we have already checked the right boundary
             jj_after = (jj <= -1) ? jj + GRID_Y : jj_after; // because we have already checked the top boundary
-            
+
             if (checked_grid_points.values[ii_after][jj_after] > 0) {continue;}
             for (size_t a = 0; a < active_etas.size(); ++a)
             {
@@ -734,12 +774,12 @@ void calculateInfo(const vector <Field>& etas,
             }
           }
         }
-        
+
         ++num_junctions;
       }
     } // GRID_Y loop
   } // GRID_X loop
-  
+
   for (size_t a = 0; a < multi_junctions.size(); ++a)
   {
     for (size_t b = 0; b < multi_junctions[a].active_etas.size(); ++b)
@@ -747,9 +787,9 @@ void calculateInfo(const vector <Field>& etas,
       multi_junctions[a].position = averagePositions(multi_junctions[a].points);
     }
   }
-  
+
   vector <JunctionNeighbors> neighbors_list = findMultiJunctionNeighbors(multi_junctions, etas);
-  
+
   // Calculate the angles at the multi junction
   vector <pair <MultiJunction, vector <double> > > junction_angles = calculateJunctionAngles(neighbors_list);
 
@@ -793,12 +833,12 @@ void calculateInfo(const vector <Field>& etas,
     {
       fout3 << " " << multi_junctions[a].active_etas[b];
     }
-    
+
     for (size_t b = 0; b < neighbors_list[a].neighbors.size(); ++b)
     {
       fout3 << " " << neighbors_list[a].neighbors[b].position;
     }
-    
+
     for (size_t b = 0; b < junction_angles[a].second.size(); ++b)
     {
       fout3 << " " << junction_angles[a].second[b];
@@ -839,7 +879,7 @@ void calculateLaplacian(const vector <Field>& etas, vector <Field>& laplacian)
         //                               j,k_neg1
         double first_nn_contribution = 0.5 * (etas[i].values[j1][k] + etas[i].values[j_neg1][k] + \
           etas[i].values[j][k1] + etas[i].values[j][k_neg1] - (4 * etas[i].values[j][k]));
-          
+
         /* This the value for second nearest neighbors
         *                                 j,k2
         *                     j_neg1,k1    ^     j1,k1
@@ -855,7 +895,7 @@ void calculateLaplacian(const vector <Field>& etas, vector <Field>& laplacian)
           etas[i].values[j][k2] + etas[i].values[j_neg1][k1] + etas[i].values[j_neg2][k] + \
           etas[i].values[j_neg1][k_neg1] + etas[i].values[j][k_neg2] + etas[i].values[j1][k_neg1] - \
           (8 * etas[i].values[j][k]));
-        
+
         // Grain growth only seems to occur if I have the factor of 10.0 here (as opposed to the usual factor of 1.0)
         // NOTE: is this where temperature plays a role?
         laplacian[i].values[j][k] = 10.0 / (DX * DX) * (first_nn_contribution + second_nn_contribution);
@@ -869,7 +909,7 @@ double getMatrixValue(const vector <vector <double> >& mat, const vector <Field>
   double top = 0.0;
   double bott = 0.0;
   double etaij_sq = 0.0;
-  
+
   for (unsigned int i = 0; i < N_ETA; ++i)
   {
     for (unsigned int j = i + 1; j < N_ETA; ++j)
@@ -879,7 +919,7 @@ double getMatrixValue(const vector <vector <double> >& mat, const vector <Field>
       bott += etaij_sq;
     }
   }
-  
+
   if (bott == 0)
   {
     return mat[0][0];
@@ -896,10 +936,10 @@ void checkActiveEtas(vector <Field>& etas)
   {
     if (!etas[i].is_active) {continue;}
     zeros = all_of(etas[i].values.begin(), etas[i].values.end(),
-      [](vector <double> v) {return all_of(v.begin(), v.end(), 
+      [](vector <double> v) {return all_of(v.begin(), v.end(),
         [](double d) {return abs(d) < 1e-8;});});
-    
-    if (zeros) 
+
+    if (zeros)
     {
       etas[i].is_active = false;
       //cout << "Setting eta " << i << " to inactive.\n";
@@ -912,7 +952,7 @@ void parseInput(const string& filename)
   int denominator = 1000;
   ifstream fin(filename.c_str());
   checkFileStream(fin, filename);
-  
+
   string str; // junk variable
   // format of file is:
   // var_name = var_value
@@ -926,9 +966,9 @@ void parseInput(const string& filename)
   fin >> str >> str >> NSKIP;
   fin >> str >> str >> DT;
   fin >> str >> str >> mobility_file;
-  
+
   fin.close();
-  
+
   MAX_X = GRID_X * DX;
   MAX_Y = GRID_Y * DX;
   NCHECK = NUMSTEPS / denominator;
@@ -942,12 +982,12 @@ void parseInput(const string& filename)
 string createProgressString(const int& point_progress)
 {
   stringstream ss;
-  
+
   for (unsigned int i = 0; i < point_progress; ++i)
   {
     ss << ".";
   }
-  
+
   for (unsigned int i = 0; i < 70 - point_progress; ++i)
   {
     ss << " ";
@@ -967,7 +1007,7 @@ int main(int argc, char** argv)
   else
   {
     parseInput(argv[1]);
-    
+
     if (argc >= 3)
     {
       ic = argv[2];
@@ -986,21 +1026,21 @@ int main(int argc, char** argv)
       ic = "random";
     }
   }
-  
+
   string next_filename;
   bool warn = false;
   int progress_indicator = 0;
   string progress = "";
-  
+
   vector <Field> etas(N_ETA, Field()), etas_old(N_ETA, Field()); // initialize the etas
   vector <Field> laplacian(N_ETA, Field());
   vector <Field> dEta_dt(N_ETA, Field());
   vector <vector <double> > _L (N_ETA, vector <double> (N_ETA, 0.0)); // mobility coefficients
   vector <vector <double> > _kappa (N_ETA, vector <double> (N_ETA, 2.0)); // energy coefficients
-  
+
   ifstream fin(mobility_file.c_str());
   checkFileStream(fin, mobility_file);
-  
+
   for (unsigned int i = 0; i < N_ETA; ++i)
   {
     for (unsigned int j = 0; j < N_ETA; ++j)
@@ -1008,7 +1048,7 @@ int main(int argc, char** argv)
       fin >> _L[i][j];
     }
   }
-  
+
   if (ic.compare("random") == 0)
   {
     // random centroids
@@ -1047,20 +1087,20 @@ int main(int argc, char** argv)
       return INPUT_FORMAT_ERROR;
     }
   }
-  
+
   ofstream fout_grain_size("grain_size_distribution.txt");
   checkFileStream(fout_grain_size, "grain_size_distribution.txt");
-  
+
   fout_grain_size << "# Step ";
   for (unsigned int i = 0; i < N_ETA; ++i)
   {
     fout_grain_size << "gr" << i << " ";
   }
   fout_grain_size << "\n";
-  
+
   ofstream fout_GB("grain_boundary_lengths.txt");
   checkFileStream(fout_GB, "grain_boundary_lengths.txt");
-  
+
   fout_GB << "# ";
   for (unsigned int i = 0; i < N_ETA - 1; ++i)
   {
@@ -1070,25 +1110,25 @@ int main(int argc, char** argv)
     }
   }
   fout_GB << "total (total2 if different)\n";
-  
+
   ofstream fout_multi_junctions("multi_junctions.txt");
   checkFileStream(fout_multi_junctions, "multi_junctions.txt");
   fout_multi_junctions << "# Step junction_position active_etas junction_neighbors junction_angles\n";
-  
+
   printField(etas_old, "initial_structure.txt", true);
-  
-  cout << "DX = " << DX << endl 
+
+  cout << "DX = " << DX << endl
        << "DT = " << DT << endl;
-  
+
   for (unsigned int a = 1; a < NUMSTEPS + 1; ++a)
   {
-    if (all_of(etas_old.begin(), etas_old.end(), [](Field f) {return f.is_active == false;}) || 
+    if (all_of(etas_old.begin(), etas_old.end(), [](Field f) {return f.is_active == false;}) ||
         accumulate(etas_old.begin(), etas_old.end(), 0, [](int a, Field f) {return a + f.is_active;}) == 1)
     {
       cout << "\nNumber of active order parameters <= 1.  Ending simulation loop.\n";
       break;
     }
-    
+
     int count = 0;
     for (unsigned int i = 0; i < N_ETA; ++i)
     {
@@ -1104,7 +1144,7 @@ int main(int argc, char** argv)
       break;
     }
     calculateLaplacian(etas_old, laplacian);
-    
+
     dEta_dt.assign(N_ETA, Field()); // reset the values to 0
     for (unsigned int i = 0; i < N_ETA; ++i)
     {
@@ -1120,7 +1160,7 @@ int main(int argc, char** argv)
             if (l == i) {continue;}
             boundary_term += etas_old[l].values[j][k] * etas_old[l].values[j][k];
           }
-          
+
           // Note that the 3.0 comes from assuming gamma = 1.5 in eq. (10) from Fan and Chen, Acta Mat 45 (1997) 611-622
           // original equation says 2 * gamma * eta[i]
           double L = getMatrixValue(_L, etas_old, j, k);
@@ -1128,32 +1168,32 @@ int main(int argc, char** argv)
           dEta_dt[i].values[j][k] += -L * \
             (eta3 - etas_old[i].values[j][k] + 3.0 * etas_old[i].values[j][k] * boundary_term \
               - kappa * laplacian[i].values[j][k]);
-          
+
           if (isnan(dEta_dt[i].values[j][k]))
           {
             cout << "\nError: solution unstable.  Try reducing the timestep (or increasing DX).\n";
             return 10;
           }
-          
+
           // move forward one timestep - eq (12) from Fan and Chen
           etas[i].values[j][k] = etas_old[i].values[j][k] + dEta_dt[i].values[j][k] * DT;
         }
       }
     }
-    
+
     if (((int)(a) % NCHECK) == 0)
     {
       string progress = createProgressString((int)(a / (double)(NUMSTEPS) * 70.0));
-      cout << "\r" << progress 
-           << " (" << setprecision(1) << fixed 
-           << (double)(a) / NUMSTEPS * 100.0 << "%)" 
+      cout << "\r" << progress
+           << " (" << setprecision(1) << fixed
+           << (double)(a) / NUMSTEPS * 100.0 << "%)"
            << flush;
-      if (a == NUMSTEPS) 
+      if (a == NUMSTEPS)
       {
         cout << endl;
       }
     }
-      
+
     if ((a % NSKIP) == 0)
     {
       stringstream ss;
@@ -1161,19 +1201,19 @@ int main(int argc, char** argv)
       ss >> next_filename;
       printField(etas, next_filename);
     }
-    
+
     if ((a % 100) == 0 && a >= EQUILIBRIUM)
     {
       calculateInfo(etas_old, fout_grain_size, fout_GB, fout_multi_junctions, a);
       // printIndividualFields(etas, a); // for debugging and individual field analysis
     }
-    
+
     checkActiveEtas(etas);
-    
+
     // update the old timestep to the current one
     etas_old = etas;
   }
-  
+
   fout_grain_size.close();
   fout_GB.close();
   fout_multi_junctions.close();
