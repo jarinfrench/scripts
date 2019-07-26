@@ -27,7 +27,7 @@ bool checkUnwrapped(const vector <Atom> & a)
 {
   for (unsigned int i = 0; i < a.size(); ++i)
   {
-    if (a[i].getUnwrapped().getX() > 1.0E-8 || a[i].getUnwrapped().getY() > 1.0E-8 || a[i].getUnwrapped().getZ() > 1.0E-8)
+    if (a[i].getUnwrapped()[0] > 1.0E-8 || a[i].getUnwrapped()[1] > 1.0E-8 || a[i].getUnwrapped()[2] > 1.0E-8)
     {
       return false;
     }
@@ -235,9 +235,9 @@ void writeData(const vector<Atom>& reference_atoms, const vector<Atom>& compared
     int grain_change = 0;
 
     //if (second_is_wrapped) // something here that will calculated the unwrapped coordinates...?
-    disp_x = compared_atoms[i].getUnwrapped().getX() - reference_atoms[i].getUnwrapped().getX();
-    disp_y = compared_atoms[i].getUnwrapped().getY() - reference_atoms[i].getUnwrapped().getY();
-    disp_z = compared_atoms[i].getUnwrapped().getZ() - reference_atoms[i].getUnwrapped().getZ();
+    disp_x = compared_atoms[i].getUnwrapped()[0] - reference_atoms[i].getUnwrapped()[0];
+    disp_y = compared_atoms[i].getUnwrapped()[1] - reference_atoms[i].getUnwrapped()[1];
+    disp_z = compared_atoms[i].getUnwrapped()[2] - reference_atoms[i].getUnwrapped()[2];
 
     if (include_change_grain)
     {
@@ -246,8 +246,8 @@ void writeData(const vector<Atom>& reference_atoms, const vector<Atom>& compared
 
     disp_mag = sqrt(disp_x * disp_x + disp_y * disp_y + disp_z * disp_z);
     fout << reference_atoms[i].getId() << " " << reference_atoms[i].getType() << " "
-         << reference_atoms[i].getCharge() << " " << reference_atoms[i].getUnwrapped().getX() << " "
-         << reference_atoms[i].getUnwrapped().getY() << " " << reference_atoms[i].getUnwrapped().getZ() << " ";
+         << reference_atoms[i].getCharge() << " " << reference_atoms[i].getUnwrapped()[0] << " "
+         << reference_atoms[i].getUnwrapped()[1] << " " << reference_atoms[i].getUnwrapped()[2] << " ";
     if (include_change_grain) {fout << grain_change << " ";}
     fout << disp_x << " " << disp_y << " " << disp_z << " " << disp_mag << endl;
   }

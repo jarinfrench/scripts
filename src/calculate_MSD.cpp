@@ -22,9 +22,9 @@ vector <double> compareFiles(vector <Atom> & reference_atoms, string current_fil
 
   for (unsigned int i = 0; i < reference_atoms.size(); ++i)
   {
-    ref_CoM[0] += reference_atoms[i].getWrapped().getX();
-    ref_CoM[1] += reference_atoms[i].getWrapped().getY();
-    ref_CoM[2] += reference_atoms[i].getWrapped().getZ();
+    ref_CoM[0] += reference_atoms[i].getWrapped()[0];
+    ref_CoM[1] += reference_atoms[i].getWrapped()[1];
+    ref_CoM[2] += reference_atoms[i].getWrapped()[2];
   }
   ref_CoM[0] /= reference_atoms.size();
   ref_CoM[1] /= reference_atoms.size();
@@ -102,9 +102,9 @@ vector <double> compareFiles(vector <Atom> & reference_atoms, string current_fil
 
   for (unsigned int i = 0; i < current_atoms.size(); ++i)
   {
-    curr_CoM[0] += current_atoms[i].getWrapped().getX();
-    curr_CoM[1] += current_atoms[i].getWrapped().getY();
-    curr_CoM[2] += current_atoms[i].getWrapped().getZ();
+    curr_CoM[0] += current_atoms[i].getWrapped()[0];
+    curr_CoM[1] += current_atoms[i].getWrapped()[1];
+    curr_CoM[2] += current_atoms[i].getWrapped()[2];
   }
   curr_CoM[0] /= current_atoms.size();
   curr_CoM[1] /= current_atoms.size();
@@ -124,9 +124,9 @@ vector <double> compareFiles(vector <Atom> & reference_atoms, string current_fil
   // Now calculate the MSD values
   for (unsigned int i = 0; i < reference_atoms.size(); ++i)
   {
-    msd[0] += ((current_atoms[i].getWrapped().getX() - reference_atoms[i].getWrapped().getX()) - diff_CoM[0]) * ((current_atoms[i].getWrapped().getX() - reference_atoms[i].getWrapped().getX()) - diff_CoM[0]);
-    msd[1] += ((current_atoms[i].getWrapped().getY() - reference_atoms[i].getWrapped().getY()) - diff_CoM[1]) * ((current_atoms[i].getWrapped().getY() - reference_atoms[i].getWrapped().getY()) - diff_CoM[1]);
-    msd[2] += ((current_atoms[i].getWrapped().getZ() - reference_atoms[i].getWrapped().getZ()) - diff_CoM[2]) * ((current_atoms[i].getWrapped().getZ() - reference_atoms[i].getWrapped().getZ()) - diff_CoM[2]);
+    msd[0] += ((current_atoms[i].getWrapped()[0] - reference_atoms[i].getWrapped()[0]) - diff_CoM[0]) * ((current_atoms[i].getWrapped()[0] - reference_atoms[i].getWrapped()[0]) - diff_CoM[0]);
+    msd[1] += ((current_atoms[i].getWrapped()[1] - reference_atoms[i].getWrapped()[1]) - diff_CoM[1]) * ((current_atoms[i].getWrapped()[1] - reference_atoms[i].getWrapped()[1]) - diff_CoM[1]);
+    msd[2] += ((current_atoms[i].getWrapped()[2] - reference_atoms[i].getWrapped()[2]) - diff_CoM[2]) * ((current_atoms[i].getWrapped()[2] - reference_atoms[i].getWrapped()[2]) - diff_CoM[2]);
   }
 
   msd[0] /= reference_atoms.size();

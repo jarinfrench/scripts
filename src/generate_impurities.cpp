@@ -200,8 +200,8 @@ void writeVacancyFile(const string& vac_file, const vector <Atom>& atoms,
     {
       fout << ++atom_id << " " << atoms[i].getType() << " ";
       if (has_charge) {fout << atoms[i].getCharge() << " ";}
-      fout << atoms[i].getWrapped().getX() << " "
-           << atoms[i].getWrapped().getY() << " " << atoms[i].getWrapped().getZ() << endl;
+      fout << atoms[i].getWrapped()[0] << " "
+           << atoms[i].getWrapped()[1] << " " << atoms[i].getWrapped()[2] << endl;
     }
     else {++num_marked;}
   }
@@ -263,15 +263,15 @@ void writeSubstitutionFile(const string& sub_file, const vector <Atom>& atoms,
     {
       fout << ++atom_id << " " << atoms[i].getType() << " ";
       if (has_charge) {fout << atoms[i].getCharge() << " ";}
-      fout << atoms[i].getWrapped().getX() << " "
-           << atoms[i].getWrapped().getY() << " " << atoms[i].getWrapped().getZ() << endl;
+      fout << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " " 
+           << atoms[i].getWrapped()[2] << endl;
     }
     else if (atoms[i].getMark() == 1) // substituted atoms
     {
       fout << ++atom_id << " " << compound_ratio.n_types + 1 << " " ;
       if (has_charge) {fout << 0.0 << " ";}
-      fout << atoms[i].getWrapped().getX() << " " << atoms[i].getWrapped().getY() << " "
-           << atoms[i].getWrapped().getZ() << endl;
+      fout << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " "
+           << atoms[i].getWrapped()[2] << endl;
     }
     // If neither of these conditions are met, we are looking at the neighbors
     // of the molecule, which will not be written.
@@ -297,8 +297,8 @@ void writeMarkedFile(const string& marked_file, const vector <Atom>& atoms)
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
     fout << atoms[i].getId() << " " << atoms[i].getType() << " "
-         << atoms[i].getCharge() << " " << atoms[i].getWrapped().getX() << " "
-         << atoms[i].getWrapped().getY() << " " << atoms[i].getWrapped().getZ() << " "
+         << atoms[i].getCharge() << " " << atoms[i].getWrapped()[0] << " "
+         << atoms[i].getWrapped()[1] << " " << atoms[i].getWrapped()[2] << " "
          << atoms[i].getMark() << endl;
   }
 
@@ -361,9 +361,9 @@ void removeWholeMolecule(vector <Atom>& substituted_atoms, vector <Atom>& atoms,
     ++n_removed[j - 1]; // add the substituted atom to the removed list.
 
     // Store the values for easy comparison
-    x = atoms[n].getWrapped().getX();
-    y = atoms[n].getWrapped().getY();
-    z = atoms[n].getWrapped().getZ();
+    x = atoms[n].getWrapped()[0];
+    y = atoms[n].getWrapped()[1];
+    z = atoms[n].getWrapped()[2];
 
     neighbor_dataset.clear(); // reset the nearest neighbor dataset
 
@@ -376,9 +376,9 @@ void removeWholeMolecule(vector <Atom>& substituted_atoms, vector <Atom>& atoms,
         int k = atoms[id].getType(); // store this atom's type
 
         // calculate the distances
-        rxij = x - atoms[id].getWrapped().getX();
-        ryij = y - atoms[id].getWrapped().getY();
-        rzij = z - atoms[id].getWrapped().getZ();
+        rxij = x - atoms[id].getWrapped()[0];
+        ryij = y - atoms[id].getWrapped()[1];
+        rzij = z - atoms[id].getWrapped()[2];
 
         //Apply PBCs
         rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
@@ -623,9 +623,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
   {
     // Assign this atom to a cell
     // Rounds towards 0 with a type cast
-    idx = (int)(atoms[i].getWrapped().getX() / lcellx) * 1; // assign the x cell
-    idy = (int)(atoms[i].getWrapped().getY() / lcelly) * 1; // assign the y cell
-    idz = (int)(atoms[i].getWrapped().getZ() / lcellz) * 1; // assign the z cell
+    idx = (int)(atoms[i].getWrapped()[0] / lcellx) * 1; // assign the x cell
+    idy = (int)(atoms[i].getWrapped()[1] / lcelly) * 1; // assign the y cell
+    idz = (int)(atoms[i].getWrapped()[2] / lcellz) * 1; // assign the z cell
     // Check if we went out of bounds
     // C++ indexes from 0, so we have to subtract 1 from the maximum value to
     // stay within our memory bounds
@@ -682,9 +682,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
                   }
 
                   // Now the actual calculations!
-                  rxij = atoms[id].getWrapped().getX() - atoms[jd].getWrapped().getX();
-                  ryij = atoms[id].getWrapped().getY() - atoms[jd].getWrapped().getY();
-                  rzij = atoms[id].getWrapped().getZ() - atoms[jd].getWrapped().getZ();
+                  rxij = atoms[id].getWrapped()[0] - atoms[jd].getWrapped()[0];
+                  ryij = atoms[id].getWrapped()[1] - atoms[jd].getWrapped()[1];
+                  rzij = atoms[id].getWrapped()[2] - atoms[jd].getWrapped()[2];
 
                   // Apply PBCs
                   rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
