@@ -17,10 +17,37 @@ Position::Position(double x, double y, double z)
   this->z = z;
 }
 
+Position& Position::operator+=(const Position& rhs)
+{
+  this->x += rhs.getX();
+  this->y += rhs.getY();
+  this->z += rhs.getZ();
+  
+  return *this;
+}
+
+Position& Position::operator-=(const Position& rhs)
+{
+  this->x -= rhs.getX();
+  this->y -= rhs.getY();
+  this->z -= rhs.getZ();
+  
+  return *this;
+}
+
+double& Position::operator[](int index)
+{
+  if (index < 0 || index >= 3) {throw false;}
+  else if (index == 0) {return this->x;}
+  else if (index == 1) {return this->y;}
+  else if (index == 2) {return this->z;}
+  else {throw false;}
+}
+
 std::ostream& operator << (std::ostream& os, const Position& rhs)
 {
   os << "(" << rhs.getX() << ", " << rhs.getY() << ", "
-     << rhs.getZ() << ")" << std::endl;
+     << rhs.getZ() << ")";
   return os;
 }
 

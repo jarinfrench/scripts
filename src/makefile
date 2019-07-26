@@ -34,10 +34,10 @@ ALLEXECUTABLES = $(ATOMPROGS) $(ATOMDBGPROGS) $(UTILS) $(UTILSDBG) $(POSITIONPRO
 ERRORCODES = error_code_defines.h
 
 all: FLAGS = $(CLIB) $(NODBGFLAGS)
-all: atom.o position.o atom_builds utils
+all: atom.o position.o atom_builds utils position_builds
 
 debug: FLAGS = $(CLIB) $(DBGFLAGS)
-debug: atom_builds_dbg utils_dbg
+debug: atom_builds_dbg utils_dbg position_dbg_builds
 
 # The extra line for each rule allows a different value to be passed to the pattern-matched rule.
 atom_builds: TARGETS=atom.o position.o
