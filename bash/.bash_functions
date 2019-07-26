@@ -161,11 +161,4 @@ lf() {
  ls -rt1 | tail -n ${n} | head -n 1
 }
 
-up() {
-  # default parameter to 1 if non provided
-  declare -i d=${@:-1}
-  # ensure given parameter is non-negative. Print error and return if it is
-  (( $d < 0 )) && (>&2 echo "up: Error: negative value provided") && return 1;
-  # remove last d directories from pwd, append "/" in case result is empty
-  cd "$(pwd | sed -E 's;(/[^/]*){0,'$d'}$;;')/";
-}
+source ~/.config/up/up.sh # see README for where to get this file.
