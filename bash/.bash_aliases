@@ -13,3 +13,4 @@ alias alert='terminal-notifier -title "Terminal" -message "Done with task."; bas
 alias python-debug='python -m pdb'
 alias fhere='find . -name'
 alias lln="gls -lhtr  --time-style long-iso | gtac | gcat -n | gtac | gsed -s 's/^\s*\([0-9]*\)\s*\(.*\)/[\1]  \2 [\1]/'g && pwd"
+alias bd=". bd -si" # See README for where to get this program
