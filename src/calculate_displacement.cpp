@@ -7,6 +7,7 @@
 #include <cstdlib>
 
 #include "atom.h"
+#include "position.h"
 #include <cxxopts.hpp>
 #include "error_code_defines.h"
 
@@ -26,7 +27,7 @@ bool checkUnwrapped(const vector <Atom> & a)
 {
   for (unsigned int i = 0; i < a.size(); ++i)
   {
-    if (a[i].getXu() > 1.0E-8 || a[i].getYu() > 1.0E-8 || a[i].getZu() > 1.0E-8)
+    if (a[i].getUnwrapped().getX() > 1.0E-8 || a[i].getUnwrapped().getY() > 1.0E-8 || a[i].getUnwrapped().getZ() > 1.0E-8)
     {
       return false;
     }
@@ -118,10 +119,10 @@ bool processFile(const string& file, vector <Atom>& atoms)
 
       if (atom_id > atoms.size()) {atoms.resize(atom_id, Atom());}
 
-      atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, x, y, z);
-      atoms[atom_id - 1].setXu(xu);
-      atoms[atom_id - 1].setYu(yu);
-      atoms[atom_id - 1].setZu(zu);
+      Position p (x,y,z);
+      atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, p);
+      p = Position(xu,yu,zu);
+      atoms[atom_id - 1].setUnwrapped(p);
       ++n_read;
     }
   }
@@ -153,10 +154,10 @@ bool processFile(const string& file, vector <Atom>& atoms)
 
       if (atom_id > atoms.size()) {atoms.resize(atom_id, Atom());}
 
-      atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, x, y, z);
-      atoms[atom_id - 1].setXu(xu);
-      atoms[atom_id - 1].setYu(yu);
-      atoms[atom_id - 1].setZu(zu);
+      Position p (x,y,z);
+      atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, p);
+      p = Position(xu,yu,zu);
+      atoms[atom_id - 1].setUnwrapped(p);
       atoms[atom_id - 1].setMark(grain_num);
       ++n_read;
     }
@@ -179,9 +180,7 @@ bool processFile(const string& file, vector <Atom>& atoms)
     cout << "WARNING: All unwrapped coordinate values are zero.  Proceeding using wrapped coordinates.\n";
     for (unsigned int i = 0; i < atoms.size(); ++i)
     {
-      atoms[i].setXu(atoms[i].getX());
-      atoms[i].setYu(atoms[i].getY());
-      atoms[i].setZu(atoms[i].getZ());
+      atoms[i].setUnwrapped(atoms[i].getWrapped());
     }
     return false; // Coordinates are NOT unwrapped
   }
@@ -236,9 +235,9 @@ void writeData(const vector<Atom>& reference_atoms, const vector<Atom>& compared
     int grain_change = 0;
 
     //if (second_is_wrapped) // something here that will calculated the unwrapped coordinates...?
-    disp_x = compared_atoms[i].getXu() - reference_atoms[i].getXu();
-    disp_y = compared_atoms[i].getYu() - reference_atoms[i].getYu();
-    disp_z = compared_atoms[i].getZu() - reference_atoms[i].getZu();
+    disp_x = compared_atoms[i].getUnwrapped().getX() - reference_atoms[i].getUnwrapped().getX();
+    disp_y = compared_atoms[i].getUnwrapped().getY() - reference_atoms[i].getUnwrapped().getY();
+    disp_z = compared_atoms[i].getUnwrapped().getZ() - reference_atoms[i].getUnwrapped().getZ();
 
     if (include_change_grain)
     {
@@ -247,8 +246,8 @@ void writeData(const vector<Atom>& reference_atoms, const vector<Atom>& compared
 
     disp_mag = sqrt(disp_x * disp_x + disp_y * disp_y + disp_z * disp_z);
     fout << reference_atoms[i].getId() << " " << reference_atoms[i].getType() << " "
-         << reference_atoms[i].getCharge() << " " << reference_atoms[i].getXu() << " "
-         << reference_atoms[i].getYu() << " " << reference_atoms[i].getZu() << " ";
+         << reference_atoms[i].getCharge() << " " << reference_atoms[i].getUnwrapped().getX() << " "
+         << reference_atoms[i].getUnwrapped().getY() << " " << reference_atoms[i].getUnwrapped().getZ() << " ";
     if (include_change_grain) {fout << grain_change << " ";}
     fout << disp_x << " " << disp_y << " " << disp_z << " " << disp_mag << endl;
   }

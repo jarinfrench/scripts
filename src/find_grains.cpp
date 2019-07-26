@@ -8,7 +8,9 @@
 #include <cstdio>
 #include <algorithm>
 #include <cxxopts.hpp>
+
 #include "atom.h"
+#include "position.h"
 #include "error_code_defines.h"
 
 using namespace std;
@@ -289,12 +291,12 @@ void getAtomData(ifstream& fin, vector <Atom>& atoms)
 
     // We make the atom id (almost) match thre index.  There is a difference of 1
     // because C++ indexes from 0
-    atoms[atom_id - 1] = Atom(atom_id, type, charge, x, y, z);
+    Position p(x,y,z);
+    atoms[atom_id - 1] = Atom(atom_id, type, charge, p);
     // The unwrapped coordinates we do not do anything with here, so we simply
     // transcribe them.
-    atoms[atom_id - 1].setXu(xu);
-    atoms[atom_id - 1].setYu(yu);
-    atoms[atom_id - 1].setZu(zu);
+    p = Position(xu,yu,zu);
+    atoms[atom_id - 1].setUnwrapped(p);
     ++n_atoms_read;
   }
   fin.close();
@@ -350,9 +352,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
 
     // Assign this atom to a cell
     // Rounds towards 0 with a type cast
-    idx = (int)(atoms[i].getX() / lcellx); // assign the x cell
-    idy = (int)(atoms[i].getY() / lcelly); // assign the y cell
-    idz = (int)(atoms[i].getZ() / lcellz); // assign the z cell
+    idx = (int)(atoms[i].getWrapped().getX() / lcellx); // assign the x cell
+    idy = (int)(atoms[i].getWrapped().getY() / lcelly); // assign the y cell
+    idz = (int)(atoms[i].getWrapped().getZ() / lcellz); // assign the z cell
     // Check if we went out of bounds
     // C++ indexes from 0, so we have to subtract 1 from the maximum value to
     // stay within our memory bounds
@@ -409,9 +411,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
                   }
 
                   // Now the actual calculations!
-                  rxij = atoms[id].getX() - atoms[jd].getX();
-                  ryij = atoms[id].getY() - atoms[jd].getY();
-                  rzij = atoms[id].getZ() - atoms[jd].getZ();
+                  rxij = atoms[id].getWrapped().getX() - atoms[jd].getWrapped().getX();
+                  ryij = atoms[id].getWrapped().getY() - atoms[jd].getWrapped().getY();
+                  rzij = atoms[id].getWrapped().getZ() - atoms[jd].getWrapped().getZ();
 
                   // Apply PBCs
                   rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
@@ -475,12 +477,12 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const 
     fout << atoms[i].getId() << " "
          << atoms[i].getType() << " ";
     if (has_charge) {fout << atoms[i].getCharge() << " ";}
-    fout << (atoms[i].getX() + box.xlow) * input.a0 << " "
-         << (atoms[i].getY() + box.ylow) * input.a0 << " "
-         << (atoms[i].getZ() + box.zlow) * input.a0 << " "
+    fout << (atoms[i].getWrapped().getX() + box.xlow) * input.a0 << " "
+         << (atoms[i].getWrapped().getY() + box.ylow) * input.a0 << " "
+         << (atoms[i].getWrapped().getZ() + box.zlow) * input.a0 << " "
          << atoms[i].getMark() << " "
-         << symm[i] << " " << atoms[i].getXu() << " " << atoms[i].getYu()
-         << " " << atoms[i].getZu() << endl;
+         << symm[i] << " " << atoms[i].getUnwrapped().getX() << " " << atoms[i].getUnwrapped().getY()
+         << " " << atoms[i].getUnwrapped().getZ() << endl;
     ++n_atoms_written;
   }
   fout.close();
@@ -668,9 +670,9 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
 
       if (!allowed_atoms[i]) {continue;}
 
-      x = atoms[i].getX();
-      y = atoms[i].getY();
-      z = atoms[i].getZ();
+      x = atoms[i].getWrapped().getX();
+      y = atoms[i].getWrapped().getY();
+      z = atoms[i].getWrapped().getZ();
 
       // We start at l = 1 because if we start at l = 0, we just re-use the same
       // atom over and over.
@@ -679,9 +681,9 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
         unsigned int id = iatom[l][i];
 
         // calculate the position difference vector
-        rxij = atoms[id].getX() - x;
-        ryij = atoms[id].getY() - y;
-        rzij = atoms[id].getZ() - z;
+        rxij = atoms[id].getWrapped().getX() - x;
+        ryij = atoms[id].getWrapped().getY() - y;
+        rzij = atoms[id].getWrapped().getZ() - z;
 
         // Apply PBCs.  Note that applying PBCs with the positions projected
         // in the <100> reference frame messes up the calculations!

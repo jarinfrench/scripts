@@ -20,7 +20,9 @@
 #include <algorithm>
 #include <numeric>
 #include <cxxopts.hpp>
+
 #include "atom.h"
+#include "position.h"
 #include "error_code_defines.h"
 
 using namespace std;
@@ -378,9 +380,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
     // to keep track of _every_ atom type, not just the type 1.
     // Assign this atom to a cell
     // Rounds towards 0 with a type cast
-    idx = (int)(atoms[i].getX() / lcellx); // assign the x cell
-    idy = (int)(atoms[i].getY() / lcelly); // assign the y cell
-    idz = (int)(atoms[i].getZ() / lcellz); // assign the z cell
+    idx = (int)(atoms[i].getWrapped().getX() / lcellx); // assign the x cell
+    idy = (int)(atoms[i].getWrapped().getY() / lcelly); // assign the y cell
+    idz = (int)(atoms[i].getWrapped().getZ() / lcellz); // assign the z cell
     // Check if we went out of bounds
     // C++ indexes from 0, so we have to subtract 1 from the maximum value to
     // stay within our memory bounds
@@ -437,9 +439,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
                   }
 
                   // Now the actual calculations!
-                  rxij = atoms[id].getX() - atoms[jd].getX();
-                  ryij = atoms[id].getY() - atoms[jd].getY();
-                  rzij = atoms[id].getZ() - atoms[jd].getZ();
+                  rxij = atoms[id].getWrapped().getX() - atoms[jd].getWrapped().getX();
+                  ryij = atoms[id].getWrapped().getY() - atoms[jd].getWrapped().getY();
+                  rzij = atoms[id].getWrapped().getZ() - atoms[jd].getWrapped().getZ();
 
                   // Apply PBCs
                   rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
@@ -638,7 +640,8 @@ vector <Atom> readDataFile()
     y1 *= scale_factor_b;
     z1 *= scale_factor_c;
 
-    atoms[atom_id - 1] = Atom(atom_id, type, charge, x1, y1, z1);
+    Position p(x1,y1,z1);
+    atoms[atom_id - 1] = Atom(atom_id, type, charge, p);
   }
   fin.close();
 
@@ -664,9 +667,9 @@ int removeAtoms(vector <Atom>& atoms, vector <vector <int> >& iatom,
     if (atoms[i].getMark() == 0)
     {
       // Store the x, y, and z positions of the atom for easy comparison
-      x1 = atoms[i].getX();
-      y1 = atoms[i].getY();
-      z1 = atoms[i].getZ();
+      x1 = atoms[i].getWrapped().getX();
+      y1 = atoms[i].getWrapped().getY();
+      z1 = atoms[i].getWrapped().getZ();
 
       // Now check it's nearest neighbors
       neighbor_dataset.clear();
@@ -678,9 +681,9 @@ int removeAtoms(vector <Atom>& atoms, vector <vector <int> >& iatom,
         {
           int k = atoms[id].getType();
           // calculate the distance between the two
-          rxij = x1 - atoms[id].getX();
-          ryij = y1 - atoms[id].getY();
-          rzij = z1 - atoms[id].getZ();
+          rxij = x1 - atoms[id].getWrapped().getX();
+          ryij = y1 - atoms[id].getWrapped().getY();
+          rzij = z1 - atoms[id].getWrapped().getZ();
 
           // Apply PBCs
           rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
@@ -765,7 +768,7 @@ void writeMarkedFile(const string& filename, const vector <Atom>& atoms)
   {
     fout << atoms[i].getId() << " " << atoms[i].getType() << " ";
     if (has_charge) {fout << atoms[i].getCharge() << " ";}
-    fout << atoms[i].getX() << " " << atoms[i].getY() << " " << atoms[i].getZ()
+    fout << atoms[i].getWrapped().getX() << " " << atoms[i].getWrapped().getY() << " " << atoms[i].getWrapped().getZ()
          << " " << atoms[i].getMark() << endl;
   }
   fout.close();
@@ -802,7 +805,7 @@ void writeRotatedFile(const string& filename, const vector <Atom>& atoms)
       fout << atoms[i].getCharge() << " ";
     }
     fout.precision(6);
-    fout << atoms[i].getX() << " " << atoms[i].getY() << " " << atoms[i].getZ() << endl;
+    fout << atoms[i].getWrapped().getX() << " " << atoms[i].getWrapped().getY() << " " << atoms[i].getWrapped().getZ() << endl;
   }
   fout.close();
 }
@@ -835,8 +838,8 @@ void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const 
       ++n_total;
       fout << n_total << " " << atoms[i].getType() << " ";
       if (has_charge) {fout << atoms[i].getCharge() << " ";}
-      fout << atoms[i].getX() << " " << atoms[i].getY() << " "
-           << atoms[i].getZ() << endl;
+      fout << atoms[i].getWrapped().getX() << " " << atoms[i].getWrapped().getY() << " "
+           << atoms[i].getWrapped().getZ() << endl;
     }
   }
 

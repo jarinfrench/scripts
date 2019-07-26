@@ -9,7 +9,9 @@
 #include <cstdlib>
 #include <algorithm>
 #include <cxxopts.hpp>
+
 #include "atom.h"
+#include "position.h"
 #include "error_code_defines.h"
 
 using namespace std;
@@ -90,7 +92,8 @@ dataValues readData(const string& infile)
       else {continue;}
     }
 
-    data.atoms[id - 1] = Atom(id, type, charge, x, y, z);
+    Position p(x,y,z);
+    data.atoms[id - 1] = Atom(id, type, charge, p);
     ++n_total;
   }
 
@@ -147,8 +150,8 @@ void writeData(const string& outfile, const string& chem_formula, const dataValu
       fout << data.atoms[i].getCharge() << " ";
     }
     fout.precision(6);
-    fout << data.atoms[i].getX() << " " << data.atoms[i].getY() << " "
-         << data.atoms[i].getZ() << endl;
+    fout << data.atoms[i].getWrapped().getX() << " " << data.atoms[i].getWrapped().getY() << " "
+         << data.atoms[i].getWrapped().getZ() << endl;
   }
 
   fout.close();

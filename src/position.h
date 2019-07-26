@@ -26,7 +26,7 @@ public:
   void setX(double x) {this->x = x;}
   void setY(double y) {this->y = y;}
   void setZ(double z) {this->z = z;}
-  
+
   void print2D() {std::cout << "(" << this->x << "," << this->y << ")";}
 };
 

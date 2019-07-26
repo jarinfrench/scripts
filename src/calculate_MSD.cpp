@@ -4,7 +4,9 @@
 #include <sstream>
 #include <vector>
 #include <cstdlib>
+
 #include "atom.h"
+#include "position.h"
 
 using namespace std;
 
@@ -20,9 +22,9 @@ vector <double> compareFiles(vector <Atom> & reference_atoms, string current_fil
 
   for (unsigned int i = 0; i < reference_atoms.size(); ++i)
   {
-    ref_CoM[0] += reference_atoms[i].getX();
-    ref_CoM[1] += reference_atoms[i].getY();
-    ref_CoM[2] += reference_atoms[i].getZ();
+    ref_CoM[0] += reference_atoms[i].getWrapped().getX();
+    ref_CoM[1] += reference_atoms[i].getWrapped().getY();
+    ref_CoM[2] += reference_atoms[i].getWrapped().getZ();
   }
   ref_CoM[0] /= reference_atoms.size();
   ref_CoM[1] /= reference_atoms.size();
@@ -93,15 +95,16 @@ vector <double> compareFiles(vector <Atom> & reference_atoms, string current_fil
       ss >> atom_id >> atom_type >> x >> y >> z;
       charge = 0.0;
     }
-    current_atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, x, y, z);
+    Position p (x,y,z);
+    current_atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, p);
     ++n_atoms_read2;
   }
 
   for (unsigned int i = 0; i < current_atoms.size(); ++i)
   {
-    curr_CoM[0] += current_atoms[i].getX();
-    curr_CoM[1] += current_atoms[i].getY();
-    curr_CoM[2] += current_atoms[i].getZ();
+    curr_CoM[0] += current_atoms[i].getWrapped().getX();
+    curr_CoM[1] += current_atoms[i].getWrapped().getY();
+    curr_CoM[2] += current_atoms[i].getWrapped().getZ();
   }
   curr_CoM[0] /= current_atoms.size();
   curr_CoM[1] /= current_atoms.size();
@@ -121,9 +124,9 @@ vector <double> compareFiles(vector <Atom> & reference_atoms, string current_fil
   // Now calculate the MSD values
   for (unsigned int i = 0; i < reference_atoms.size(); ++i)
   {
-    msd[0] += ((current_atoms[i].getX() - reference_atoms[i].getX()) - diff_CoM[0]) * ((current_atoms[i].getX() - reference_atoms[i].getX()) - diff_CoM[0]);
-    msd[1] += ((current_atoms[i].getY() - reference_atoms[i].getY()) - diff_CoM[1]) * ((current_atoms[i].getY() - reference_atoms[i].getY()) - diff_CoM[1]);
-    msd[2] += ((current_atoms[i].getZ() - reference_atoms[i].getZ()) - diff_CoM[2]) * ((current_atoms[i].getZ() - reference_atoms[i].getZ()) - diff_CoM[2]);
+    msd[0] += ((current_atoms[i].getWrapped().getX() - reference_atoms[i].getWrapped().getX()) - diff_CoM[0]) * ((current_atoms[i].getWrapped().getX() - reference_atoms[i].getWrapped().getX()) - diff_CoM[0]);
+    msd[1] += ((current_atoms[i].getWrapped().getY() - reference_atoms[i].getWrapped().getY()) - diff_CoM[1]) * ((current_atoms[i].getWrapped().getY() - reference_atoms[i].getWrapped().getY()) - diff_CoM[1]);
+    msd[2] += ((current_atoms[i].getWrapped().getZ() - reference_atoms[i].getWrapped().getZ()) - diff_CoM[2]) * ((current_atoms[i].getWrapped().getZ() - reference_atoms[i].getWrapped().getZ()) - diff_CoM[2]);
   }
 
   msd[0] /= reference_atoms.size();
@@ -252,7 +255,9 @@ int main(int argc, char **argv)
       ss >> atom_id >> atom_type >> x >> y >> z;
       charge = 0.0;
     }
-    reference_atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, x, y, z);
+
+    Position p(x,y,z);
+    reference_atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, p);
     ++n_atoms_read1;
   }
 
