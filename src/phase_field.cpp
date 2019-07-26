@@ -226,7 +226,16 @@ vector <Field> getFieldFromFile(const string& file)
   vector <Field> etas (N_ETA, Field());
   ifstream fin(file.c_str());
   checkFileStream(fin, file);
-
+  
+  for (int x = 0; x < GRID_X; ++x)
+  {
+    for (int y = 0; y < GRID_Y; ++y)
+    {
+      int eta;
+      fin >> eta;
+      etas[eta - 1].values[x][y] = 1.0;
+    }
+  }
   fin.close();
 
   return etas;
@@ -828,7 +837,7 @@ void calculateInfo(const vector <Field>& etas,
   fout3 << step << " ";
   for (size_t a = 0; a < multi_junctions.size(); ++a)
   {
-    fout3 << multi_junctions[a].position;
+    multi_junctions[a].position.print2D(fout3);
     for (size_t b = 0; b < multi_junctions[a].active_etas.size(); ++b)
     {
       fout3 << " " << multi_junctions[a].active_etas[b];
@@ -836,7 +845,8 @@ void calculateInfo(const vector <Field>& etas,
 
     for (size_t b = 0; b < neighbors_list[a].neighbors.size(); ++b)
     {
-      fout3 << " " << neighbors_list[a].neighbors[b].position;
+      fout3 << " ";
+      neighbors_list[a].neighbors[b].position.print2D(fout3);
     }
 
     for (size_t b = 0; b < junction_angles[a].second.size(); ++b)

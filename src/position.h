@@ -26,8 +26,12 @@ public:
   void setX(double x) {this->x = x;}
   void setY(double y) {this->y = y;}
   void setZ(double z) {this->z = z;}
-
-  void print2D() {std::cout << "(" << this->x << "," << this->y << ")";}
+  
+  void print2D(std::ostream& stream) {stream << "(" << this->x << "," << this->y << ")";}
+  
+  Position& operator+=(const Position& rhs);
+  Position& operator-=(const Position& rhs);
+  double& operator[](int index);
 };
 
 // Non member operator overloads
@@ -59,9 +63,18 @@ inline double operator * (const Position& lhs, const Position& rhs)
   return (lhs.getX() * rhs.getX() + lhs.getY() * rhs.getY() + lhs.getZ() * rhs.getZ());
 }
 
-inline Position operator * (const Position& lhs, const double& rhs)
+template <typename T>
+inline Position operator * (const Position& lhs, const T& rhs)
 {
+  static_assert(std::is_arithmetic<T>::value, "Cannot multiply non-numeric values");
   return Position(lhs.getX() * rhs, lhs.getY() * rhs, lhs.getZ() * rhs);
+}
+
+template <typename T>
+inline Position operator * (const T& lhs, const Position& rhs)
+{
+  static_assert(std::is_arithmetic<T>::value, "Cannot multiply non-numeric values");
+  return rhs * lhs;
 }
 
 inline Position operator * (const Position& lhs, const int& rhs)
