@@ -76,7 +76,7 @@ get_abs_filename() {
   parentdir=$(dirname "${filename}")
 
   if [ -d "${filename}" ]; then
-      echo "$(cd "${filename}" && pwd)"
+    echo "$(cd "${filename}" && pwd)"
   elif [ -d "${parentdir}" ]; then
     echo "$(cd "${parentdir}" && pwd)/$(basename "${filename}")"
   fi
