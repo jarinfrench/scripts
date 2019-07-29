@@ -1,15 +1,25 @@
-suggested 'awesome' tools for bash: (from https://github.com/alebcay/awesome-shell#readme)
+install.sh will soft link the alias, function, and variable dotfiles to the ${HOME} directory
+command for overwritting the .bashrc and .bash_profile dotfiles will be provided if the user desires to use them.
+
+Additionally, install.sh will try to install the following packages (from 'awesome' tools for bash - https://github.com/alebcay/awesome-shell#readme)
 bd
-borg (homebrew enabled)
 fd (homebrew enabled)
-has (homebrew enabled - brew install kdapir/tap/has)
+has (homebrew enabled - brew install kdapir/tap/has) -- enabled by alias to the website.
 how2 (installed via npm)
 hr (horizontal rule - homebrew enabled)
 up
-mr (look into this a bit more though)
-htop (look into this as well)
+mr
+htop
 jrnl - https://jrnl.sh/overview/ (homebrew enabled)
 taskwarrior - https://taskwarrior.org/ (homebrew enabled)
 ansi
-bashful (? what does it do?)
+rng
+cloc
 is.sh
+optparse.bash
+
+Not installed (yet)
+borg (homebrew enabled) - not currently maintained, and thus does not work.
+bpkg (a bash package manager - maybe?  seems to check against git repos)
+carbon-now-cli (nice pictures of code snippets)
+bashful (? what does it do?)

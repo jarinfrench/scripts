@@ -162,3 +162,4 @@ lf() {
 }
 
 source ~/.config/up/up.sh # see README for where to get this file.
+source ~/projects/scripts/bash/optparse.bash
