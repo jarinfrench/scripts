@@ -15,8 +15,8 @@ if [ -f ~/.bash_aliases ]; then
   . ~/.bash_aliases
 fi
 
-source ~/git_completion.sh
-source ~/git_prompt.sh
+source ~/projects/scripts/bash/git_completion.sh
+source ~/projects/scripts/bash/git_prompt.sh
 
 # old PS1
 # export PS1="\h:\W \u\$ "
