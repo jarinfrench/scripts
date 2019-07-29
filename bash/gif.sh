@@ -61,6 +61,9 @@ do
   gifsicle -d20 .tmp/*.gif --colors 256 -l > $outname 2>> errors.log
 done
 
+# optimize
+gifsicle -O3 ${outname} -o ${1}_opt.gif
+
 echo ""
 # cleanup
 rm -rf .tmp
