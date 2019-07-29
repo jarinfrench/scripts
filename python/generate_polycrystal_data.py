@@ -23,7 +23,7 @@ parser.add_argument('-f','--fraction', metavar = '0<=f<=1', default = 0, type = 
 parser.add_argument('-a','--aniso1', metavar = ('[\'e\',\'m\',\'q\']','value'), nargs = 2, help = "The (1) property that will be made anisotropic")
 parser.add_argument('--aniso2', metavar = ('[\'em\',\'eq\',\'mq\']','value','value'), nargs = 3, help = "The (2) properties that will be made anisotropic")
 parser.add_argument('--aniso3', metavar = 'value', nargs = 3, help = "All three properties will be made anisotropic")
-parser.add_argument('-o','--output', default = '<num_grains>_grain.txt', help = "The name of the output file")
+parser.add_argument('-o','--output', default = '<num_grains>_grains.txt', help = "The name of the output file")
 parser.add_argument('--only-energy', action = 'store_true', help = 'Flag to write only the energies to the file \'energies.txt\' (incompatible with --only-mobility and --only-q)')
 parser.add_argument('--only-mobility', action = 'store_true', help = 'Flag to write only the mobilities to the file \'mobilities.txt\' (incompatible with --only-energy and --only-q)')
 parser.add_argument('--only-q', action = 'store_true', help = 'Flag to write only the activatio energies to the file \'activation_energies.txt\' (incompatible with --only-energy and --only-mobility)')
@@ -83,7 +83,7 @@ if args.fraction > 0:
         indices_to_change = random.sample(index_tuples, num_changed)
 
         flog = open(args.logfile, 'a')
-        flog.write('Outfile: {output}\nDate: {date}'.format(output = args.output, date = date))
+        flog.write('Outfile: {output}\nDate: {date}\n'.format(output = args.output, date = date))
         flog.write('Anisotropic boundary properties between the following grains:\n')
         for i,j in indices_to_change:
             flog.write('gr{} gr{}\n'.format(i,j))
