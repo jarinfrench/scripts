@@ -6,3 +6,5 @@ tests/*
 legacy/*
 .DS_Store
 .tags*
+optparse.bash
+rng

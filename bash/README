@@ -23,3 +23,7 @@ borg (homebrew enabled) - not currently maintained, and thus does not work.
 bpkg (a bash package manager - maybe?  seems to check against git repos)
 carbon-now-cli (nice pictures of code snippets)
 bashful (? what does it do?)
+
+
+Packages for Atom to look into:
+kite (python programming assistant)
