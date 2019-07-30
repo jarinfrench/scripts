@@ -20,6 +20,7 @@ if [[ "$(uname -s)" = "Darwin" ]]; then
   alias moose-dbg='sudo lldb -- ~/projects/moose/modules/phase_field/phase_field-dbg -i'
   alias moose-make='cd ~/projects/moose/modules/phase-field && make -j24 && METHOD=dbg make -j24; cd ${OLDPWD}'
   alias lln="gls -lhtr  --time-style long-iso | gtac | gcat -n | gtac | gsed -s 's/^\s*\([0-9]*\)\s*\(.*\)/[\1]  \2 [\1]/'g && pwd"
+  alias sed="gsed"
 elif [[ "$(uname -s)" = "Linux" ]]; then
   # Linux specific aliases
   alias moose-dbg='gdb -- ~/projects/moose/modules/phase_field/phase_field-dbg -i'

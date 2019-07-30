@@ -1,0 +1,3 @@
+# Configuration file for taskwarrior
+# See https://taskwarrior.org/docs/configuration.html for more info
+data.location=~/.task

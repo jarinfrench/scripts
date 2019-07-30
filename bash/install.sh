@@ -1,9 +1,14 @@
 #! /bin/bash
 
+cd ~/projects/scripts/bash
+
 ln -s .bash_aliases ~/.bash_aliases
 ln -s .bash_functions ~/.bash_functions
 ln -s .bash_variables ~/.bash_variables
 ln -s .pdbrc ~/.pdbrc
+ln -s .jrnl_config ~/.jrnl_config
+ln -s .mrconfig ~/.mrconfig
+ln -s .taskrc ~/.taskrc
 
 local UNAME=$(uname -s)
 if [[ "${UNAME}" == "Darwin" ]]; then
@@ -17,40 +22,36 @@ echo "ln -s .bashrc ~/.bashrc"
 echo ""
 
 if [[ "${UNAME}" == "Darwin" ]]; then
-  # install using Darwin methods... homebrew?
+  # install using Darwin methods
+  # Note that these methods have been tested on Sierra, and found to work!
+  echo "Installing the following packages from Homebrew: fd hr mr jrnl task taskd tasksh rng cloc"
+  brew tap nickolasburr/pfa
+  brew install fd hr mr jrnl task taskd tasksh rng cloc htop
 
-  # wget --no-check-certificate -O /usr/local/bin/bd https://raw.github.com/vigneshwaranr/bd/master/bd
-  # chmod +rx /usr/local/bin/bd
-  # echo 'alias bd=". bd -si"' >> ~/.bashrc
-  # source ~/.bashrc
-  # brew install fd
-  # brew install hr
-  # brew install mr
-  # brew install jrnl
-  # brew install task taskd tasksh
-  # brew tap nickolasburr/pfa
-  # brew install rng
-  # brew install cloc
-  # npm install -g how-2
-  # npm install -g is.sh
-  # wget https://raw.githubusercontent.com/nk412/optparse/master/optparse.bash
-  # curl --create-dirs -o ~/.config/up/up.sh https://raw.githubusercontent.com/shannonmoeller/up/master/up.sh
-  #
-  # wget https://hisham.hm/htop/releases/2.2.0/htop-2.2.0.tar.gz
-  # tar -xzvf htop-2.2.0.tar.gz
-  # mv htop-2.2.0.tar.gz htop-2.2.0
-  # cd htop-2.2.0
-  # ./configure && make && sudo make install
-  # cd ../
-  # mv htop-2.2.0 ~/
-  #
-  # curl -OL git.io/ansi
-  # chmod 755 ansi
-  # sudo mv ansi /usr/local/bin/
+  echo "Installing the following packages from NPM: how2 is"
+  npm install -g how-2 is.sh
+
+  echo "Installing the following packages from source: bd optparse.bash up ansi"
+  echo -e "\tInstalling bd"
+  wget --no-check-certificate -O /usr/local/bin/bd https://raw.github.com/vigneshwaranr/bd/master/bd
+  chmod +rx /usr/local/bin/bd
+  alias bd 2>/dev/null >/dev/null || (echo 'alias bd=". bd -si"' >> .bash_aliases && source .bash_aliases) # checks if the alias bd exists, and if not, adds the alias to the alias list.
+
+  echo -e "\tInstalling optparse.bash"
+  echo -e "\tNote that optparse requires the GNU version of sed (install by brew install gnu-sed (--with-default-names, if you don't want to alias sed))"
+  wget https://raw.githubusercontent.com/nk412/optparse/master/optparse.bash
+
+  echo -e "\tInstalling up"
+  curl --create-dirs -o ~/.config/up/up.sh https://raw.githubusercontent.com/shannonmoeller/up/master/up.sh
+
+  echo -e "\tInstalling ansi"
+  curl -OL git.io/ansi
+  chmod 755 ansi
+  sudo mv ansi /usr/local/bin/
 elif [[ "${UNAME}" == "Linux" ]]; then
   # install using UBUNTU methods (may need to change this later, but it should work for now)
-  echo "Attempting to install the following packages from repositories: bd myrepos taskwarrior cloc"
-  sudo apt-get install bd myrepos taskwarrior cloc
+  echo "Installing the following packages from repositories: bd myrepos taskwarrior cloc htop"
+  sudo apt-get install bd myrepos taskwarrior cloc htop
 
   echo "Installing the following packages from source: fd hr up htop ansi optparse.bash"
   echo -e "\tInstalling fd"
@@ -64,15 +65,6 @@ elif [[ "${UNAME}" == "Linux" ]]; then
 
   echo -e "\tInstalling up"
   curl --create-dirs -o ~/.config/up/up.sh https://raw.githubusercontent.com/shannonmoeller/up/master/up.sh
-
-  echo -e "\tInstalling htop"
-  wget https://hisham.hm/htop/releases/2.2.0/htop-2.2.0.tar.gz
-  tar -xzvf htop-2.2.0.tar.gz
-  mv htop-2.2.0.tar.gz htop-2.2.0
-  cd htop-2.2.0
-  ./configure && make && sudo make install
-  cd ../
-  mv htop-2.2.0 ~/
 
   echo -e "\tInstalling ansi"
   curl -OL git.io/ansi
