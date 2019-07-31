@@ -3,7 +3,6 @@ alias go="git checkout"
 alias gs="git status"
 alias gc="git commit"
 alias ga="git add"
-alias has="curl -sL https://git.io/_has | bash -s" # has command (see https://github.com/kdabir/has)
 alias a="atom"
 alias moose-update='cd ~/projects/moose/ && git fetch upstream && git checkout devel &&  git rebase upstream/devel; cd $OLDPWD'
 alias start-moose='. ~/.moose_setup'
