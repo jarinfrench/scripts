@@ -22,6 +22,7 @@ echo "ln -s .bashrc ~/.bashrc"
 echo ""
 
 if [[ "${UNAME}" == "Darwin" ]]; then
+  echo "Mac system detected, installing packages using Homebrew."
   # install using Darwin methods
   # Note that these methods have been tested on Sierra, and found to work!
   echo "Installing the following packages from Homebrew: fd hr mr jrnl task taskd tasksh rng cloc"
@@ -52,9 +53,10 @@ if [[ "${UNAME}" == "Darwin" ]]; then
   chmod 755 ansi
   sudo mv ansi /usr/local/bin/
 elif [[ "${UNAME}" == "Linux" ]]; then
+  echo "Linux system detected, installing packages via apt."
   # install using UBUNTU methods (may need to change this later, but it should work for now)
   echo "Installing the following packages from repositories: bd myrepos taskwarrior cloc htop"
-  sudo apt-get install bd myrepos taskwarrior cloc htop
+  sudo apt install bd myrepos taskwarrior cloc htop
 
   echo "Installing the following packages from source: fd has hr up htop ansi optparse.bash"
   echo -e "\tInstalling fd"
