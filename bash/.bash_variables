@@ -6,5 +6,6 @@ export PYTHONPATH=${HOME}/projects/moose/python:${PYTHONPATH}:${HOME}
 export PYTHON3PATH=${HOME}/Library/Python/3.7/bin
 export CLICOLOR=1 # for colorizing ls output on mac
 export LSCOLORS=ExGxBxDxCxEgEdxbxgxcxd # same as above
+export HAS_ALLOW_UNSAFE=y
 
 export PATH=${PEACOCK}:${PYTHON3PATH}:${PATH}

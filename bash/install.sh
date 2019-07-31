@@ -31,11 +31,14 @@ if [[ "${UNAME}" == "Darwin" ]]; then
   echo "Installing the following packages from NPM: how2 is"
   npm install -g how-2 is.sh
 
-  echo "Installing the following packages from source: bd optparse.bash up ansi"
+  echo "Installing the following packages from source: bd has optparse.bash up ansi"
   echo -e "\tInstalling bd"
   wget --no-check-certificate -O /usr/local/bin/bd https://raw.github.com/vigneshwaranr/bd/master/bd
   chmod +rx /usr/local/bin/bd
   alias bd 2>/dev/null >/dev/null || (echo 'alias bd=". bd -si"' >> .bash_aliases && source .bash_aliases) # checks if the alias bd exists, and if not, adds the alias to the alias list.
+
+  echo -e "\tInstalling has"
+  cd ~/projects && git clone https://github.com/kdabir/has.git && cd has && sudo make install; cd ~/projects/scripts/bash
 
   echo -e "\tInstalling optparse.bash"
   echo -e "\tNote that optparse requires the GNU version of sed (install by brew install gnu-sed (--with-default-names, if you don't want to alias sed))"
@@ -53,10 +56,13 @@ elif [[ "${UNAME}" == "Linux" ]]; then
   echo "Installing the following packages from repositories: bd myrepos taskwarrior cloc htop"
   sudo apt-get install bd myrepos taskwarrior cloc htop
 
-  echo "Installing the following packages from source: fd hr up htop ansi optparse.bash"
+  echo "Installing the following packages from source: fd has hr up htop ansi optparse.bash"
   echo -e "\tInstalling fd"
   wget https://github.com/sharkdp/fd/releases/download/v7.3.0/fd-musl_7.3.0_amd64.deb
   sudo dpkg -i fd-musl_7.3.0_amd64.deb
+
+  echo -e "\tInstalling has"
+  cd ~/projects && git clone https://github.com/kdabir/has.git && cd has && sudo make install; cd ~/projects/scripts/bash
 
   echo -e "\tInstalling hr"
   curl https://raw.githubusercontent.com/LuRsT/hr/master/hr > ~/bin/hr
