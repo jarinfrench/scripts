@@ -35,7 +35,7 @@ fi
 }
 
 hist-check() {
-  if [ -z $1 ]; then
+  if [ -z "$1" ]; then
     num_lines=10
   else
     num_lines=$1
@@ -159,6 +159,17 @@ lf() {
    n="${1}"
  fi
  ls -rt1 | tail -n ${n} | head -n 1
+}
+
+runtime() {
+  if [ -z "$1" ]; then
+    echo "Usage: runtime <program_name(s)>"
+    echo ""
+    return 1
+  fi
+
+  processes=${*:1}
+  ps -acxo etime,command | grep -- "${processes// /\|}"
 }
 
 source ~/.config/up/up.sh # see README for where to get this file.
