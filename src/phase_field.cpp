@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <numeric> // iota
 #include <algorithm> // sort
+#include <omp.h> // for omp_get_cancellation
 
 #include "error_code_defines.h"
 #include "position.h"
@@ -635,20 +636,21 @@ void calculateInfo(const vector <Field>& etas,
   double total_gb_length = 0.0;
   double activity_threshold = 0.12; // if an eta value is greater than or equal to this cutoff, the order parameter is active at this point.
   // the value of 0.12 was calculated based on Moelans et al.'s paper - see page 172 of lab notebook Vol. 3
-  map <pair <unsigned int, unsigned int>, double> gb_lengths; // length of the grain boundary between etas i and j
+  //map <pair <unsigned int, unsigned int>, double> gb_lengths; // length of the grain boundary between etas i and j
   unsigned int num_junctions = 0;
   vector <MultiJunction> multi_junctions; // the list of all multi junctions
   Field checked_grid_points; // field for multi junction checking - we only need to check each grid point once // FIXME: This may break with triple junctions within the search radius of each other.
 
   // initialize the individual gb lengths
-  for (unsigned int i = 0; i < N_ETA - 1; ++i)
+  /*for (unsigned int i = 0; i < N_ETA - 1; ++i)
   {
     for (unsigned int j = i + 1; j < N_ETA; ++j)
     {
       gb_lengths[make_pair(i,j)] = 0.0;
     }
-  }
-
+  }*/
+  
+  #pragma omp parallel for collapse(2) num_threads(12)
   for (unsigned int i = 0; i < GRID_X; ++i)
   {
     for (unsigned int j = 0; j < GRID_Y; ++j)
@@ -679,7 +681,7 @@ void calculateInfo(const vector <Field>& etas,
       if (!bulk_value_added) {total_gb_length += DX;} // add to total GB length if no bulk value added.
 
       // calculate individual gb lengths
-      if (num_active >= 2)
+      /*if (num_active >= 2)
       {
         for (size_t k = 0; k < active_etas.size() - 1; ++k)
         {
@@ -699,7 +701,7 @@ void calculateInfo(const vector <Field>& etas,
             gb_lengths[make_pair(first,second)] += DX;
           }
         }
-      }
+      }*/
       
       // get positions of multi-junctions
       if (num_active >= 3 && checked_grid_points.values[i][j] < 1.0) // if the 'checked field' shows that this multijunction grid point has not been examined
@@ -762,7 +764,7 @@ void calculateInfo(const vector <Field>& etas,
   fout1 << endl;
 
   // output the gb data to fout2
-  double total2 = 0.0;
+/*  double total2 = 0.0;
   pair <unsigned int, unsigned int> index;
   for (unsigned int i = 0; i < N_ETA - 1; ++i)
   {
@@ -780,7 +782,7 @@ void calculateInfo(const vector <Field>& etas,
   else
   {
     fout2 << total_gb_length << " " << total2 << endl;
-  }
+  }*/
 
   // output the multi junction data to fout3
   // step junction_position active_etas junction_neighbors(positions) junction_angles
@@ -815,6 +817,7 @@ void calculateLaplacian(const vector <Field>& etas, vector <Field>& laplacian)
   for (unsigned int i = 0; i < N_ETA; ++i)
   {
     if (!etas[i].is_active) {continue;} // if the current eta is all zeros, move to the next one
+    #pragma omp parallel for collapse(2)
     for (unsigned int j = 0; j < GRID_X; ++j)
     {
       for (unsigned int k = 0; k < GRID_Y; ++k)
@@ -958,6 +961,12 @@ string createProgressString(const int& point_progress)
 
 int main(int argc, char** argv)
 {
+  if (!omp_get_cancellation()) // quietly handle setting up parallelism if not specified
+  {
+    char str [] = "OMP_CANCELLATION=true";
+    putenv(str);
+    execv(argv[0], argv);
+  }
   string ic;
   if (argc < 2)
   {
@@ -1109,8 +1118,8 @@ int main(int argc, char** argv)
     for (unsigned int i = 0; i < N_ETA; ++i)
     {
       if (!etas[i].is_active) {continue;}
-      for (unsigned int j = 0; j < GRID_X; ++j)
-      {
+      #pragma omp parallel for collapse(2) num_threads(12)
+      for (unsigned int j = 0; j < GRID_X; ++j) 
         for (unsigned int k = 0; k < GRID_Y; ++k)
         {
           double eta3 = etas_old[i].values[j][k] * etas_old[i].values[j][k] * etas_old[i].values[j][k];
@@ -1129,16 +1138,20 @@ int main(int argc, char** argv)
             (eta3 - etas_old[i].values[j][k] + 3.0 * etas_old[i].values[j][k] * boundary_term \
               - kappa * laplacian[i].values[j][k]);
           
-          if (isnan(dEta_dt[i].values[j][k]))
-          {
-            cout << "\nError: solution unstable.  Try reducing the timestep (or increasing DX).\n";
-            return 10;
-          }
+          // if (isnan(dEta_dt[i].values[j][k]))
+          // {
+          //   #pragma omp cancel for
+          // }
           
           // move forward one timestep - eq (12) from Fan and Chen
           etas[i].values[j][k] = etas_old[i].values[j][k] + dEta_dt[i].values[j][k] * DT;
         }
-      }
+        // #pragma omp cancellation point for
+        // {
+        //   cout << "\nError: solution unstable.  Try reducing the timestep (or increasing DX).\n";
+        //   return 10;
+        // }
+      
     }
     
     if (((int)(a) % NCHECK) == 0)
@@ -1160,11 +1173,12 @@ int main(int argc, char** argv)
       ss << "out_" << a << ".txt";
       ss >> next_filename;
       printField(etas, next_filename);
+      printIndividualFields(etas, 0);
     }
     
     if ((a % 100) == 0 && a >= EQUILIBRIUM)
     {
-      calculateInfo(etas_old, fout_grain_size, fout_GB, fout_multi_junctions, a);
+      // calculateInfo(etas_old, fout_grain_size, fout_GB, fout_multi_junctions, a);
       // printIndividualFields(etas, a); // for debugging and individual field analysis
     }
     

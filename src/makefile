@@ -7,8 +7,8 @@ ifeq ($(UNAME), Darwin)
 	CLIB = -stdlib=libc++
 	STDLIB = -std=gnu++11
 	ADDITIONAL_LDFLAGS =
-	NODBGFLAGS = -O3 $(STDLIB) -o
-	DBGFLAGS = -ggdb -g $(STDLIB) -o
+	NODBGFLAGS = -O3 $(STDLIB) -fopenmp -o
+	DBGFLAGS = -ggdb -g $(STDLIB) -fopenmp -o
 	GREP = ggrep
 endif
 ifeq ($(UNAME), Linux)
@@ -16,8 +16,8 @@ ifeq ($(UNAME), Linux)
 	CLIB =
 	STDLIB = -std=c++11
 	ADDITIONAL_LDFLAGS =
-	NODBGFLAGS = -O3 $(STDLIB) -o
-	DBGFLAGS = -ggdb -g $(STDLIB) -o
+	NODBGFLAGS = -O3 $(STDLIB) -fopenmp -o
+	DBGFLAGS = -ggdb -g $(STDLIB) -fopenmp -o
 	GREP = grep
 endif
 
