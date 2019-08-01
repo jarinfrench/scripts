@@ -10,6 +10,23 @@ ln -s .jrnl_config ~/.jrnl_config
 ln -s .mrconfig ~/.mrconfig
 ln -s .taskrc ~/.taskrc
 
+# Store symlinks to python programs in bin
+# Note that there is probably a better way to do this involving searching for the shebang in the python directory
+ln -s ~/projects/scripts/python/average_data.py ~/projects/scripts/bin/average_data.py
+ln -s ~/projects/scripts/python/calculate_force_and_velocity.py ~/projects/scripts/bin/calculate_force_and_velocity.py
+ln -s ~/projects/scripts/python/calculate_lattice_param.py ~/projects/scripts/bin/calculate_lattice_param.py
+ln -s ~/projects/scripts/python/calculate_statistics.py ~/projects/scripts/bin/calculate_statistics.py
+ln -s ~/projects/scripts/python/convertOmatToEuler.py ~/projects/scripts/bin/convertOmatToEuler.py
+ln -s ~/projects/scripts/python/Euler_angle_generator.py ~/projects/scripts/bin/Euler_angle_generator.py
+ln -s ~/projects/scripts/python/generate_polycrystal_data.py ~/projects/scripts/bin/generate_polycrystal_data.py
+ln -s ~/projects/scripts/python/orientation_matrix.py ~/projects/scripts/bin/orientation_matrix.py
+ln -s ~/projects/scripts/python/parse_grain_growth_output.py ~/projects/scripts/bin/parse_grain_growth_output.py
+ln -s ~/projects/scripts/python/plot_data.py ~/projects/scripts/bin/plot_data.py
+ln -s ~/projects/scripts/python/plot_grain_sizes.py ~/projects/scripts/bin/plot_grain_sizes.py
+ln -s ~/projects/scripts/python/plot_LAMMPS_data.py ~/projects/scripts/bin/plot_LAMMPS_data.py
+ln -s ~/projects/scripts/python/rotation_matrix.py ~/projects/scripts/bin/rotation_matrix.py
+ln -s ~/projects/scripts/python/uo2_lattice_param.py ~/projects/scripts/bin/uo2_lattice_param.py
+
 local UNAME=$(uname -s)
 if [[ "${UNAME}" == "Darwin" ]]; then
   echo "If you would like your current .bash_profile overwritten, execute the following command:"
