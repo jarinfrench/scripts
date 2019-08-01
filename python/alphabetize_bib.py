@@ -1,4 +1,4 @@
-#! /opt/moose/miniconda/bin/python
+#! /usr/bin/env python
 # This script accepts one .bib file as its argument, and alphabetizes the list
 # by author.  The list proceeds in order as follows: articles, books, and other.
 # Future versions of this script may be more specific.

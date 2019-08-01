@@ -1,4 +1,4 @@
-#! /opt/moose/miniconda/bin/python
+#! /usr/bin/env python
 
 # This script will generate the rotation matrix for the given misorientation axis
 # Input:
