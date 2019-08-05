@@ -1,6 +1,7 @@
 #! /bin/bash
 
-cd ~/projects/scripts/bash
+INSTALL_DIR="~/projects/scripts/bash"
+cd "${INSTALL_DIR}"
 
 ln -s .bash_aliases ~/.bash_aliases
 ln -s .bash_functions ~/.bash_functions
@@ -55,9 +56,6 @@ if [[ "${UNAME}" == "Darwin" ]]; then
   chmod +rx /usr/local/bin/bd
   alias bd 2>/dev/null >/dev/null || (echo 'alias bd=". bd -si"' >> .bash_aliases && source .bash_aliases) # checks if the alias bd exists, and if not, adds the alias to the alias list.
 
-  echo -e "\tInstalling has"
-  cd ~/projects && git clone https://github.com/kdabir/has.git && cd has && sudo make install; cd ~/projects/scripts/bash
-
   echo -e "\tInstalling optparse.bash"
   echo -e "\tNote that optparse requires the GNU version of sed (install by brew install gnu-sed (--with-default-names, if you don't want to alias sed))"
   wget https://raw.githubusercontent.com/nk412/optparse/master/optparse.bash
@@ -79,9 +77,6 @@ elif [[ "${UNAME}" == "Linux" ]]; then
   echo -e "\tInstalling fd"
   wget https://github.com/sharkdp/fd/releases/download/v7.3.0/fd-musl_7.3.0_amd64.deb
   sudo dpkg -i fd-musl_7.3.0_amd64.deb
-
-  echo -e "\tInstalling has"
-  cd ~/projects && git clone https://github.com/kdabir/has.git && cd has && sudo make install; cd ~/projects/scripts/bash
 
   echo -e "\tInstalling hr"
   curl https://raw.githubusercontent.com/LuRsT/hr/master/hr > ~/bin/hr
@@ -114,3 +109,73 @@ elif [[ "${UNAME}" == "Linux" ]]; then
   pip3 install --user jrnl
 
 fi
+
+# Add in the project directories from github
+# Atomsk
+cd ~/projects
+git clone git@github.com:pierrehirel/atomsk.git
+cd atomsk
+git remote add upstream git@github.com:pierrehirel/atomsk.git
+mr register
+cd src
+make atomsk
+sudo make install
+
+# CXXOPTS
+cd ~/projects
+git clone git@github.com:jarro2783/cxxopts.git
+cd cxxopts
+git remote add upstream git@github.com:jarro2783/cxxopts.git
+mr register
+sudo cp include/cxxopts.hpp /usr/local/include/
+
+# has
+cd ~/projects
+git clone git@github.com:kdabir/has.git
+cd has
+git remote add upstream git@github.com:kdabir/has.git
+mr register
+sudo make install
+
+# LAMMPS
+cd ~/projects
+git clone git@github.com:lammps/lammps.git
+cd lammps
+git remote add upstream git@github.com:lammps/lammps.git
+mr register
+echo "LAMMPS requires specific build directives that I cannot guess at - see the LAMMPS manual for more info."
+
+# MOOSE
+cd ~/projects
+git clone git@github.com:jarinfrench/moose.git
+cd moose
+git remote add upstream git@github.com:idaholab/moose.git
+mr register
+git fetch upstream
+git checkout devel
+git rebase upstream/devel
+./scripts/update_and_rebuild_libmesh.
+cd modules/phase_field
+make -j24
+METHOD=dbg make -j24
+
+# Rtags
+cd ~/projects
+git clone --recursive git@github.com:Andersbakken/rtags.git
+cd rtags
+git remote add upstream git@github.com:Andersbakken/rtags.git
+mr register
+mkdir build && cd build
+cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 ..
+make
+
+# Uncrustify (for atom-beautify c++)
+cd ~/projects
+git clone git@github.com:uncrustify/uncrustify.git
+cd uncrustify
+git remote add upstream git@github.com:uncrustify/uncrustify.git
+mr register
+mkdir build && cd build
+cmake ..
+make
+sudo make install

@@ -16,9 +16,6 @@ checkout = git clone 'https://github.com/pierrehirel/atomsk.git' 'atomsk'
 [projects/cxxopts]
 checkout = git clone 'https://github.com/jarro2783/cxxopts.git' 'cxxopts'
 
-[projects/python]
-checkout = git clone 'git@github.com:jarinfrench/python.git' 'python'
-
 [projects/rtags]
 checkout = git clone 'https://github.com/Andersbakken/rtags.git' 'rtags'
 
