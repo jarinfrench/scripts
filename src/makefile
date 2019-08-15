@@ -73,7 +73,7 @@ position.o : position.h position.cpp
 # the replacement string, and the third argument ($(@F) in this case) is the string
 # to perform the replacement on.
 $(BIN)/% : $$(addsuffix .cpp, $$(subst _dbg,,$$(@F))) $$(TARGETS) $$(ERRORCODES)
-	$(CC) $(FLAGS) $(addprefix $(BIN)/, $(@F)) $(addsuffix .cpp, $(subst _dbg,,$(@F))) $(TARGETS) $(ADDITIONAL_LDFLAGS)
+	$(CC) $(strip $(FLAGS)) $(addprefix $(BIN)/, $(@F)) $(addsuffix .cpp, $(subst _dbg,,$(@F))) $(TARGETS) $(ADDITIONAL_LDFLAGS)
 
 # ls -I '*.*' lists all files that do NOT match the pattern '*.*' - all of the
 # executables created from this makefile.  BEWARE CHANGING FORMATS FOR OTHER FILE TYPES

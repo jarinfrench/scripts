@@ -239,64 +239,65 @@ void createShiftedBoundaries(const string& filename, const vector <double>& shif
         sort(shifted_atoms.begin(), shifted_atoms.end(), compareAtomZ);
 
         for (unsigned int i = 0; i < shifted_atoms.size(); ++i)
+      {
+        ++ntotal;
+
+        if (shifted_atoms[i].getType() > ntypes)
         {
-          ++ntotal;
-
-          if (shifted_atoms[i].getType() > ntypes)
-          {
-            cout << "Error: atom type is greater than expected. atom_type = "
-            << shifted_atoms[i].getType() << " > ntypes = " << ntypes << endl;
-            exit(ATOM_TYPE_ERROR);
-          }
-
-          if (shifted_atoms[i].getZ() > (box.zhigh /*- box.zlow*/) / 2.0) // Safest to assume that the box height (zhigh) is the box length...
-          {
-            //cout << "Atom " << shifted_atoms[i].getId() << " is being shifted: z = " << setprecision(10) << shifted_atoms[i].getZ() << " (cutoff is " << setprecision(10) << (box.zhigh - box.zlow) / 2.0 << ")\n";
-            shifted_atoms[i].setX(shifted_atoms[i].getX() + ix * shifts[0]);
-            shifted_atoms[i].setY(shifted_atoms[i].getY() + iy * shifts[1]);
-            shifted_atoms[i].setZ(shifted_atoms[i].getZ() + iz * shifts[2]);
-
-            // Apply PBCs
-            shifted_atoms[i].setX(shifted_atoms[i].getX() - anInt(shifted_atoms[i].getX() / box.Lx) * box.Lx);
-            shifted_atoms[i].setY(shifted_atoms[i].getY() - anInt(shifted_atoms[i].getY() / box.Ly) * box.Ly);
-            // We don't want to wrap atoms in a direction normal to the GB.
-          }
-          // else
-          // {
-          //   cout << "Atom " << shifted_atoms[i].getId() << " is NOT being shifted: z = " << setprecision(10) << shifted_atoms[i].getZ() << " (cutoff is " << setprecision(10) << (box.zhigh - box.zlow) / 2.0 << ")\n";
-          // }
-
-          if (shifted_atoms[i].getX() < box.xlow || shifted_atoms[i].getX() > box.xhigh)
-          {
-            cout << "Error: atom " << ntotal << " is outside the bounds set by xlow ("
-            << box.xlow << ") and xhigh (" << box.xhigh << "): "
-            << shifted_atoms[i].getX() << endl;
-            exit(BOUNDS_ERROR);
-          }
-
-          if (shifted_atoms[i].getY() < box.ylow || shifted_atoms[i].getY() > box.yhigh)
-          {
-            cout << "Error: atom " << ntotal << " is outside the bounds set by ylow ("
-            << box.ylow << ") and yhigh (" << box.yhigh << "): "
-            << shifted_atoms[i].getY() << endl;
-            exit(BOUNDS_ERROR);
-          }
-
-          if (shifted_atoms[i].getZ() < box.zlow || shifted_atoms[i].getZ() > box.zhigh + (iz * shifts[2]))
-          {
-            cout << "Error: atom " << ntotal << " is outside the bounds set by zlow ("
-            << box.zlow << ") and zhigh (" << box.zhigh  + (iz * shifts[2]) << "): "
-            << shifted_atoms[i].getZ() << endl;
-            exit(BOUNDS_ERROR);
-          }
-
-          fout << shifted_atoms[i].getId() << " " << shifted_atoms[i].getType() << " ";
-
-          if (has_charge) {fout << shifted_atoms[i].getCharge() << " ";}
-
-          fout << shifted_atoms[i].getX() << " " << shifted_atoms[i].getY() << " "
-          << shifted_atoms[i].getZ() << endl;
+          cout << "Error: atom type is greater than expected. atom_type = "
+               << shifted_atoms[i].getType() << " > ntypes = " << ntypes << endl;
+          exit(ATOM_TYPE_ERROR);
         }
+
+        if (shifted_atoms[i].getWrapped()[2] >= (box.zhigh - box.zlow) / 2.0)
+        {
+          Position p = shifted_atoms[i].getWrapped();
+          p += Position(ix * shifts[0], iy * shifts[1], 0.0);
+          shifted_atoms[i].setWrapped(p);
+          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped()[0] + ix * shift.first);
+          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped()[1] + iy * shift.second);
+
+          // Apply PBCs
+          p.setX(shifted_atoms[i].getWrapped()[0] - anInt(shifted_atoms[i].getWrapped()[0] / box.Lx) * box.Lx);
+          p.setY(shifted_atoms[i].getWrapped()[1] - anInt(shifted_atoms[i].getWrapped()[1] / box.Ly) * box.Ly);
+          // We're not shifting in the z direction, so we don't need to worry about PBCs in that direction
+
+          shifted_atoms[i].setWrapped(p);
+          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped()[0] - anInt(shifted_atoms[i].getWrapped()[0] / box.Lx) * box.Lx);
+          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped()[1] - anInt(shifted_atoms[i].getWrapped()[1] / box.Ly) * box.Ly);
+        }
+
+        if (shifted_atoms[i].getWrapped()[0] < box.xlow || shifted_atoms[i].getWrapped()[0] > box.xhigh)
+        {
+          cout << "Error: atom " << ntotal << " is outside the bounds set by xlow ("
+               << box.xlow << ") and xhigh (" << box.xhigh << "): "
+               << shifted_atoms[i].getWrapped()[0] << endl;
+          exit(BOUNDS_ERROR);
+        }
+
+        if (shifted_atoms[i].getWrapped()[1] < box.ylow || shifted_atoms[i].getWrapped()[1] > box.yhigh)
+        {
+          cout << "Error: atom " << ntotal << " is outside the bounds set by ylow ("
+               << box.ylow << ") and yhigh (" << box.yhigh << "): "
+               << shifted_atoms[i].getWrapped()[1] << endl;
+          exit(BOUNDS_ERROR);
+        }
+
+        if (shifted_atoms[i].getWrapped()[2] < box.zlow || shifted_atoms[i].getWrapped()[2] > box.zhigh + (iz * shifts[2]))
+        {
+          cout << "Error: atom " << ntotal << " is outside the bounds set by zlow ("
+               << box.zlow << ") and zhigh (" << box.zhigh << "): "
+               << shifted_atoms[i].getWrapped()[2] << endl;
+          exit(BOUNDS_ERROR);
+        }
+
+        fout << shifted_atoms[i].getId() << " " << shifted_atoms[i].getType() << " ";
+
+        if (has_charge) {fout << shifted_atoms[i].getCharge() << " ";}
+
+        fout << shifted_atoms[i].getWrapped()[0] << " " << shifted_atoms[i].getWrapped()[1] << " "
+             << shifted_atoms[i].getWrapped()[2] << endl;
+      }
 
         fout.close();
 
