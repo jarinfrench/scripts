@@ -1,3 +1,31 @@
+# compresses the specified file(s) into individual 7zip archives
+compress() {
+  if [ "$#" -eq 0 ]; then
+    echo "Please enter the file(s) to compress"
+    return 1
+  else
+    for i in "$@"; do
+      if 7z a "${i}".7z ${i}; then
+        echo "Removing file ${i}"
+        rm ${i}
+      else
+        echo "Error compressing file ${i}"
+        return 2
+      fi
+    done
+  fi
+}
+
+copy() {
+  if [ -z "$1" ]; then
+    echo "Copies a file directly to the clipboard from the terminal"
+    echo "Usage: copy <filename>"
+    return 1
+  else
+    cat "$1" | xclip -selection clipboard
+  fi
+}
+
 extract() {
  if [ -z "$1" ]; then
     # display usage if no parameters given
@@ -56,16 +84,20 @@ mcd() {
 dp() {
   if [[ $1 -eq "1" || $# -eq "0" ]]; then
     # My prompt
-    PS1="\[\033[36m\]\u\[\033[m\]@\[\033[32m\]\h:\[\033[33;1m\]\w\[\033[m\]\$(__git_ps1 '(%s)')$ "
+    echo "Using prompt: <user>:<dirpath> (git branch) [time]$"
+    PS1="\[\033[01;32m\]\u\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;33m\]$(__git_ps1)\[\033[00m\] \[\033[01;31m\][$(date +%l:%M:%S)]\[\033[00m\]$"
   elif [[ $1 -eq "2" ]]; then
     # A prompt with only the $ symbol
+    echo "Using prompt: $"
     PS1="\033[01;32m$\033[00m "
   elif [[ $1 -eq "3" ]]; then
     # A prompt with the current directory
-    PS1="${debian_chroot:+($debian_chroot)}\w\033[01;32m$\033[00m "
+    echo "Using prompt: <current directory>S"
+    PS1="\w\033[01;32m$\033[00m "
   elif [[ $1 -eq "4" ]]; then
     # A full prompt with user@host:<path>
-    PS1="\033[01;32m\u@\H:${debian_chroot:+($debian_chroot)}\w\033[01;32m$\033[00m "
+    echo "Using prompt: <user>@<host>:<current directory>$"
+    PS1="\033[01;32m\u@\H:\w\033[01;32m$\033[00m "
   fi
   return;
 }
@@ -170,6 +202,27 @@ runtime() {
 
   processes=${*:1}
   ps -acxo etime,command | grep -- "${processes// /\|}"
+}
+
+torange() {
+  while read num; do
+    if [[ -z ${first} ]]; then
+      first=${num}
+      last=${num}
+      continue
+    fi
+    if [[ num -ne $((last + 1)) ]]; then
+      if [[ first -eq last ]]; then
+        echo ${first}
+      else
+        echo ${first}-${last}
+      fi
+      first=${num}
+      last=${num}
+    else
+      : $((last++))
+    fi
+  done < $1
 }
 
 source ~/.config/up/up.sh # see README for where to get this file.
