@@ -31,10 +31,10 @@ if (!exists("basename")) {
     print "basename = ".basename
     axis = system('echo "'.basename.'" | egrep -o "_[0-9][0-9][0-9]_" | cut -c 2-4')
     print "axis = ".axis
-    if (axis == 100 || axis == 111) {
-        plot_index = 3
+    if (axis == 100 || axis == 110) {
+        plot_index = 2
     } else {
-        if (axis == 110) {
+        if (axis == 111) {
             plot_index = 3
         } else {
             print "Unknown axis choice.  Assuming plot_index = 3"
@@ -77,10 +77,10 @@ basename."_average.txt" u 1:plot_index title "Average"
 call "export.plt" basename."_full_data.png"
 replot
 
-satisfied = 0
+confirm = 0
 set fit logfile "/dev/null"
 set fit quiet
-while (!satisfied) {
+while (!confirm) {
     print "Please click where the growth starts becoming linear."
     pause mouse
 
@@ -115,14 +115,8 @@ while (!satisfied) {
     fit ftemp(x) basename."_average.txt" u 1:plot_index every ::rmin::rmax via m, y0
     replot [rmin * 0.002 * 10000:rmax * 0.002 * 10000] ftemp(x) lt rgb "red" lw 2 notitle
     print "Does this match the average data well? (Y|N) "
-    pause mouse keypress
 
-    #print MOUSE_KEY # y is 121, Y is 89
-    if (MOUSE_KEY == 121 || MOUSE_KEY == 89) {
-        satisfied = 1
-    } else {
-        satisfied = 0
-    }
+    call "confirm.plt"
 }
 
 
@@ -141,8 +135,8 @@ plot for [i in num_list] basename."_".i.".txt" u 1:plot_index every ::rmin::rmax
 basename."_average.txt" u 1:plot_index every ::rmin::rmax title "Average" lc rgb '#90EE90', \
 f(x) lt rgb 'red' lw 2 title 'Fit'
 
-satisfied = 0
-while (!satisfied) {
+confirm = 0
+while (!confirm) {
     print "Pick a point to show the slope"
     pause mouse
     set arrow 1 from MOUSE_X,MOUSE_Y to MOUSE_X,f(MOUSE_X) nohead front lc rgb 'black'
@@ -155,17 +149,8 @@ while (!satisfied) {
     replot
 
     print "Is this a good spot? (Y|N)"
-    pause mouse keypress
+    call "confirm.plt"
 
-    #print MOUSE_KEY # y is 121, Y is 89
-    if (MOUSE_KEY == 121 || MOUSE_KEY == 89) {
-        satisfied = 1
-    } else {
-        satisfied = 0
-        #plot for [i=1:num_files] basename."_".i.".txt" u 1:plot_index every ::rmin::rmax title "Run ".i, \
-        #basename."_average.txt" u 1:plot_index every ::rmin::rmax title "Average" lc rgb '#90EE90', \
-        #f(x) lt rgb 'red' lw 2 title 'Fit'
-    }
 }
 
 call "export.plt" basename."_fitted_data.png"
