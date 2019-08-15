@@ -263,7 +263,7 @@ void writeSubstitutionFile(const string& sub_file, const vector <Atom>& atoms,
     {
       fout << ++atom_id << " " << atoms[i].getType() << " ";
       if (has_charge) {fout << atoms[i].getCharge() << " ";}
-      fout << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " " 
+      fout << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " "
            << atoms[i].getWrapped()[2] << endl;
     }
     else if (atoms[i].getMark() == 1) // substituted atoms
