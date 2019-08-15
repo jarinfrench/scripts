@@ -215,10 +215,13 @@ vector <Atom> getAtomData(ifstream& fin, Header& header)
 
     data.clear();
 
-    atoms[atom_id - 1] = Atom(atom_id, type, charge, x, y, z);
-    if (header.xu_index != -1) {atoms[atom_id - 1].setXu(xu);}
-    if (header.yu_index != -1) {atoms[atom_id - 1].setYu(yu);}
-    if (header.zu_index != -1) {atoms[atom_id - 1].setZu(zu);}
+    Position p(x,y,z);
+    atoms[atom_id - 1] = Atom(atom_id, type, charge, p);
+
+    if (header.xu_index != -1) {p.setX(xu);}
+    if (header.yu_index != -1) {p.setY(yu);}
+    if (header.zu_index != -1) {p.setZ(zu);}
+    atoms[atom_id - 1].setUnwrapped(p);
     atoms[atom_id - 1].setExtraInfo(additional_data);
   }
 
@@ -486,12 +489,12 @@ void printSelectedAtomInfo(const vector <Atom>& selected_atoms, Header& header)
         if (j == header.id_index) {fout << selected_atoms[i].getId() << " ";}
         else if (j == header.type_index) {fout << selected_atoms[i].getType() << " ";}
         else if (j == header.charge_index) {fout << selected_atoms[i].getCharge() << " ";}
-        else if (j == header.x_index) {fout << selected_atoms[i].getX() << " ";}
-        else if (j == header.y_index) {fout << selected_atoms[i].getY() << " ";}
-        else if (j == header.z_index) {fout << selected_atoms[i].getZ() << " ";}
-        else if (j == header.xu_index) {fout << selected_atoms[i].getXu() << " ";}
-        else if (j == header.yu_index) {fout << selected_atoms[i].getYu() << " ";}
-        else if (j == header.zu_index) {fout << selected_atoms[i].getZu() << " ";}
+        else if (j == header.x_index) {fout << selected_atoms[i].getWrapped().getX() << " ";}
+        else if (j == header.y_index) {fout << selected_atoms[i].getWrapped().getY() << " ";}
+        else if (j == header.z_index) {fout << selected_atoms[i].getWrapped().getZ() << " ";}
+        else if (j == header.xu_index) {fout << selected_atoms[i].getUnwrapped().getX() << " ";}
+        else if (j == header.yu_index) {fout << selected_atoms[i].getUnwrapped().getY() << " ";}
+        else if (j == header.zu_index) {fout << selected_atoms[i].getUnwrapped().getZ() << " ";}
         else
         {
           fout << selected_atoms[i].getExtraInfo()[header.indexConverter[header.data_types[j]].second] << " ";

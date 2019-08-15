@@ -26,9 +26,11 @@ public:
   void setX(double x) {this->x = x;}
   void setY(double y) {this->y = y;}
   void setZ(double z) {this->z = z;}
-  
+
   void print2D(std::ostream& stream) {stream << "(" << this->x << "," << this->y << ")";}
-  
+  void print2DSpace(std::ostream& stream) {stream << this->x << " " << this->y;}
+  void print3DSpace(std::ostream& stream) {stream << this->x << " " << this->y << " " << this->z;}
+
   Position& operator+=(const Position& rhs);
   Position& operator-=(const Position& rhs);
   double& operator[](int index);
