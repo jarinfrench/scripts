@@ -8,3 +8,5 @@ legacy/*
 .tags*
 optparse.bash
 rng
+__pycache__/*
+*.pyc
