@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 #
 # This script accepts as an argument a list of 9 numbers. These 9 numbers are
 # assumed to represent, *in order*, the values in the tensor:
@@ -18,52 +18,29 @@
 #  The output is an Euler angle set in the form phi_1, Phi, phi_2, representing
 #  the Bunge convention of crystallographic angles (ZXZ).
 
-from __future__ import print_function, division
 from math import sin, cos, acos, atan2, pi
-from numpy import array, linalg
-from sys import argv
+from numpy import array, linalg, resize
+from sys import argv, exit
 from myModules import *
+import argparse
 
-# Helper functions
-def displayHelp():
-    print('''
-    This script accepts as an argument a list of 9 numbers. These 9 numbers are
-    assumed to represent, *in order*, the values in the tensor:
-    _o_matrix =
-        arg1   arg2   arg3
-        arg4   arg5   arg6
-        arg7   arg8   arg9
+parser = argparse.ArgumentParser(usage = '%(prog)s [-h] a11 a12 a13 ... a31 a32 a33',
+        description = "This script calculates the Euler angles based on the orientation matrix given\nas input.",
+        formatter_class = argparse.RawDescriptionHelpFormatter,
+        epilog = "This script accepts as an argument a list of nine numbers. These nine numbers\nare "
+        "assumed to represent, *in order*, the values in the tensor:"
+        "\n a11  a12  a13\n a21  a22  a23\n a31  a32  a33\n\n"
+        "These values make up the orientation matrix of a grain.  This script will\n"
+        "then calculate the Euler angles.\n\nOutput:\n The output is an Euler angle set "
+        "in the form phi_1, Phi, phi_2,\n representing the Bunge convention of crystallographic "
+        "angles (ZXZ).")
+parser.add_argument('a', type = float, nargs = 9, help = "The orientation matrix - contains 9 values")
 
-    These values make up the orientation matrix of a grain.  This script will
-    then calculate the Euler angles.
-
-    Options:
-       -q --quiet                    Suppresses the output of this script
-       --help                        Displays this information
-
-    Output:
-      The output is an Euler angle set in the form phi_1, Phi, phi_2, representing
-      the Bunge convention of crystallographic angles (ZXZ).
-    ''')
-    return
-
-quiet, argv = check4Quiet(argv) # Checks for suppressing output
-
-if "--help" in argv: # Help info
-    displayHelp()
-    exit()
-
-if len(argv) < 10:
-    print("ERROR: Not enough arguments.")
-    displayHelp()
-    exit()
-else:
-    script, a11, a12, a13, a21, a22, a23, a31, a32, a33 = argv
+args = parser.parse_args()
 
 # make sure 0 is positive, otherwise we get problems with atan2
-a = array([[float(a11), float(a12), float(a13)],
-           [float(a21), float(a22), float(a23)],
-           [float(a31), float(a32), float(a33)]])
+a = resize([abs(i) if i == 0 else i for i in args.a], (3,3))
+
 # NOTE: normalizing produces INCORRECT results
 if a[2][2] == 0:
     a[2][2] = abs(a[2][2])
@@ -88,7 +65,8 @@ if a[2][1] == 0: # Just another check to make sure the 0 is a positive value
 else:
     phi_1 = atan2(a[2][0], -a[2][1])
 
-print("Euler angles are %2.4f, %2.4f, and %2.4f"%(rad2deg(phi_1), rad2deg(Phi), rad2deg(phi_2)))
+print("Euler angles are {:.4f}, {:.4f}, and {:.4f}".format(rad2deg(phi_1), rad2deg(Phi), rad2deg(phi_2)))
+
 # Double check that this creates the same matrix.
 c1 = cos(phi_1)
 c2 = cos(Phi)

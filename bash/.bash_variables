@@ -3,6 +3,7 @@ export GNUPLOT_LIB=${HOME}/projects/scripts/gnuplot
 export LAMMPS_POTENTIALS="${HOME}/projects/lammps/potentials"
 #export TEC_360_2018=/usr/local/tecplot/360ex_2018r1
 #export TEC_CHORUS_2018=/usr/local/tecplot/chorus_2018r1
+export ELECTRON_TRASH=gvfs-trash # required for Atom to be able to delete files from tree view
 
 # Path variables
 export JAVA_HOME=/usr/java/jrel.8.0_121

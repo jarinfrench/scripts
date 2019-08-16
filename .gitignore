@@ -10,3 +10,4 @@ optparse.bash
 rng
 __pycache__/*
 *.pyc
+*/WIP/*

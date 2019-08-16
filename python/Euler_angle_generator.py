@@ -1,64 +1,24 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 #
 # This script will generate a series of Euler Angle files for any arbitrary set
 # inputs:
-# _max_angle - the maximum angle (starting from 0) that the file will generate
-# _axis - the axis of interest.  Generally, this will be 100, 110, or 111
-# _type - Twist or tilt boundary
+# angle - the maximum angle (starting from 0) that the file will generate
+# axis - the axis of interest.  Generally, this will be 100, 110, or 111
+# type - Twist or tilt boundary
 #      - NOTE: This could possibly be made to handle ANY arbitrary axis
 # Author: Jarin French
 # This script is based off of work done by John-Michael Bradley
 
-from sys import argv
+from sys import argv, exit
 from math import atan
 from numbers import Number
+import argparse
 
 # Helper functions
-def getMaxAngle():
-    try:
-        max_angle = int(input("Please enter the max angle: "))
-    except:
-        print("Please make sure to enter only numbers")
-        max_angle = -1 # we return -1 as an error code to run the while loop again
-    return max_angle
-
-def getMisorientationType():
-    try:
-        _type = input("Please enter the type of misorientation (\"twist\" or \"tilt\"): ")
-    except:
-        printQuoteError()
-        _type = -1 # error code to run the while loop again
-    return _type
-
-def getAxis():
-    try:
-        _axis = int(input("Please enter the axis of rotation: "))
-    except:
-        print("Please make sure to enter only numbers")
-        _axis = -1 # error code to run the while loop again
-    return _axis
-
-def printQuoteError():
-    print("ERROR: You probably forgot to put your response in quotes")
-    return
-
-def largeAngleWarning():
-    print("WARNING: Maximum angle is over the symmetry limit.")
-    return
-
-def promptChangeAngle():
-    try:
-        change_angle = input("Would you like to lower the angle to the symmetry limit? ")
-    except:
-        printQuoteError()
-        change_angle = -1 # error code to run the while loop again
-    return change_angle
-
 def getTiltType():
     try:
         _tilt_type = input("Is this a symmetric tilt (symm) or an asymmetric tilt (asymm)? ")
     except:
-        printQuoteError()
         _tilt_type = -1 # error code to run the while loop again
     return _tilt_type
 
@@ -73,80 +33,48 @@ def writeHeader(i, _axis, tex_file_base):
     tex_file.write("B 2\n")
     return tex_file
 
-# Input error checking - TODO: Look into using Python's built in methods?
-if len(argv) != 4:
-    print("WARNING: Not enough command line arguments.")
-    _max_angle = 0
-    _axis = 0
-    _type = None
+def check_range(val):
+    try:
+        value = int(val)
+    except ValueError as err:
+        raise argparse.ArgumentTypeError(str(err))
+
     # A max angle of 0 won't print anything helpful.
-    while _max_angle < 1:
-        if _max_angle == -1:
-            print("Please enter an integer between 1 and 360")
-        _max_angle = getMaxAngle()
+    if value < 1 or value >= 360:
+        message = "Expected 1 <= angle < 360, got value = {}".format(value)
+        raise argparse.ArgumentTypeError(message)
 
-    # Required to be a 3 digit number.
-    while _axis < 1:
-        if _axis == -1:
-            print("Please enter an integer of length 3 (i.e. 100 or 111)")
-        _axis = getAxis()
+    return value
 
-    # This may be removed as the code evolves
-    while not _type in {'twist','tilt'}:
-        if _type == -1 or isinstance(_type, Number):
-            print("Please type \"twist\" or \"tilt\"")
-        _type = getMisorientationType()
-else:
-    script, _max_angle, _axis, _type = argv
+def three_digit_int(val):
+    try:
+        value = int(val)
+    except ValueError as err:
+        raise argparse.ArgumentTypeError(str(err))
 
-axis = [None]*3 # This takes the individual components of _axis as part of a vector
+    if len(str(value)) > 3:
+        message = "Expected three digit integer, got {} digit integer".format(len(str(value)))
+        raise argparse.ArgumentTypeError(message)
 
-# These statements just double check the work we did above.
-if len(str(_axis)) > 3: # axis length greater than 3
-    print("ERROR: Argument 2 must by a 3 digit number like \'100\'")
-    exit()
+    return value
 
-if not isinstance(_max_angle, Number): # max angle not a number
-    print("ERROR: Argument 1 must be a number")
-    exit()
 
-if type(_max_angle) != int: # max angle not an integer <-- may remove this... I will probably use floats eventually
-    print("ERROR: Argument 1 must be an integer")
-    exit()
+parser = argparse.ArgumentParser(usage = "%(prog)s [-h] angle axis type",
+    description = "Generates the Euler angles for a GB given the axis, angle, and GB type")
+parser.add_argument("angle", type = check_range, help = "The maximum angle")
+parser.add_argument("axis", type = three_digit_int, help = "The rotation axis")
+parser.add_argument("type", choices = ["twist", "tilt"], help = "The type of grain boundary")
 
-if _max_angle < 0: # max angle is negative
-    print("ERROR: Argument 1 must be positive")
-    exit()
+args = parser.parse_args()
 
-if not _type in ['twist', 'tilt']: # type is not twist or tilt
-    # TODO: Is it possible to figure out a mixed boundary euler angle?
-    print("ERROR: _type must be either \'twist\' or \'tilt\'")
-    exit()
+axis = [] # This takes the individual components of args.axis as part of a vector
 
-# Warnings
-if len(str(_axis)) < 3: # axis length less than 3
-    print("WARNING: Assumed trailing zeros")
-    for i in range(0, len(str(_axis))):
-        axis[i] = int(str(_axis)[i])
-    trailing_zeros = 3 - len(str(_axis))
-    for i in range(0, int(trailing_zeros)):
-        axis[i + 1] = 0
+# Determine what axis we're looking at by reading the string version of args.axis char by char
+for i in range(3 - len(str(args.axis))):
+    axis.append(0.0)
+axis = axis + [float(i) for i in str(args.axis)]
 
-if _max_angle > 360:
-    largeAngleWarning()
-    change_angle = None
-    # Checks if they typed in something that starts with y or n
-    while not change_angle.lower().startswith('y') or change_angle.lower().startswith('n'):
-        if change_angle == -1:
-            print("Please type \'y\' or \'n\'")
-        change_angle = promptChangeAngle()
-    if change_angle.lower().startswith('y'):
-        _max_angle = 360
-
-# Determine what axis we're looking at by reading the string version of _axis char by char
-for i in range(0,len(str(_axis))):
-    axis[i] = float(str(_axis)[i])
-
+# TODO: This can be taken out, but it requires some changes in the non-basic set analysis
 # Sort the axis from greatest to least.  x-axis first, y-axis second, z-axis third
 for i in range(0,len(axis)):
     for j in range(i + 1, len(axis)):
@@ -163,6 +91,8 @@ is_xxx = (3 == len([value for value in axis if value != 0])) # ditto, but xxx
 if is_x00: # No matter what number is in the x position, it can always be normalized to be 100
     axis[0] = 1
     is100 = True
+    is110 = False
+    is111 = False
 else:
     is100 = False
 
@@ -171,6 +101,7 @@ if is_xx0:
     if axis[0] == axis[1]:
         axis[0],axis[1] = 1,1
         is110 = True
+        is111 = False
     else:
         is110 = False
 
@@ -197,12 +128,9 @@ if not True in {is100, is110, is111}: # Not a basic axis set
             axis[0] = axis[0] / axis[1]
             axis[1] = 1
 
-# Change _axis for the filename
-_axis = int(str(int(axis[0])) + str(int(axis[1])) + str(int(axis[2])))
-
 # Determine the base file name.  Extra word if its a tilt boundary
 # NOTE: Asymmetric tilt may not be possible with this code.
-if _type == 'tilt':
+if args.type == 'tilt':
     _tilt_type = None
     while not _tilt_type in {"symm", "asymm"}:
         if _tilt_type == -1:
@@ -213,27 +141,27 @@ if _type == 'tilt':
         while asymm_weight > 1 or asymm_weight < 0:
             print("Please input a number between 0 and 1 inclusive.  Note that an asymmetry of 1 will be treated as a twist boundary.")
             asymm_weight = float(input("How strong is the asymmetry? "))
-        tex_file_base = "%d_%s_%s_weight_%2.2f" %(_axis, _tilt_type, _type, asymm_weight)
+        tex_file_base = "{axis}_{tilt_type}_{type}_weight_{:.2f}".format(str(args.axis).zfill(3), _tilt_type, args.type, asymm_weight)
     else:
-        tex_file_base = "%d_%s_%s_" %(_axis, _tilt_type, _type)
+        tex_file_base = "{}_{}_{}".format(str(args.axis).zfill(3), _tilt_type, args.type)
 else:
-    tex_file_base = "%d_%s_" %(_axis, _type) # Base for the file name
+    tex_file_base = "{}_{}" %(str(args.axis).zfill(3), args.type) # Base for the file name
 
 # The Euler Angles will now be calculated
 
 # First, check to see if twist or tilt
-if _type == 'tilt':
+if args.type == 'tilt':
     # If we're only rotating about the x-axis (only a non-zero value in the first spot),
     # the rotation is really easy.
     # Simple cases first
     # NOTE: The 'asymm' tilt is actually used for the twist rotations! Asymmetric
     # tilt is a 3D plot, and (so far) cannot be represented here
     if is100:
-        for i in range(0, _max_angle + 1):
-            tex_file = writeHeader(i, _axis, tex_file_base)
+        for i in range(0, args.angle + 1):
+            tex_file = writeHeader(i, args.axis, tex_file_base)
             if _tilt_type == 'symm':
-                tex_file.write("00.00 " + str(i/2) + " 00.00 1.00\n")
-                tex_file.write("00.00 " + str(-i/2) + " 00.00 1.00\n")
+                tex_file.write("00.00 " + str(i / 2.0) + " 00.00 1.00\n")
+                tex_file.write("00.00 " + str(-i / 2.0) + " 00.00 1.00\n")
             elif _tilt_type == 'asymm':
                 phi1 = i * asymm_weight
                 phi2 = i - phi1
@@ -242,8 +170,8 @@ if _type == 'tilt':
         tex_file.close()
 
     elif is110:
-        for i in range(0, _max_angle + 1):
-            tex_file = writeHeader(i, _axis, tex_file_base)
+        for i in range(0, args.angle + 1):
+            tex_file = writeHeader(i, args.axis, tex_file_base)
             if _tilt_type == 'symm':
                 tex_file.write("45.00 " + str(i/2.00) + " 00.00 1.00\n")
                 tex_file.write("45.00 " + str(-i/2.00) + " 00.00 1.00\n")
@@ -255,8 +183,8 @@ if _type == 'tilt':
         tex_file.close()
 
     elif is111:
-        for i in range(0, _max_angle + 1):
-            tex_file = writeHeader(i, _axis, tex_file_base)
+        for i in range(0, args.angle + 1):
+            tex_file = writeHeader(i, args.axis, tex_file_base)
             if _tilt_type == 'symm':
                 phi_plus = 37.9381 + i / 2.00
                 phi_minus = 37.9381 - i / 2.00
@@ -289,8 +217,8 @@ if _type == 'tilt':
     elif is_xx0:
         # Calculate how much around the Z axis we need to rotate
         z_rotation = atan(axis[1]/axis[0]);
-        for i in range(0, _max_angle + 1):
-            tex_file = writeHeader(i, _axis, tex_file_base)
+        for i in range(0, args.angle + 1):
+            tex_file = writeHeader(i, args.axis, tex_file_base)
             if _tilt_type == 'symm':
                 tex_file.write(str(z_rotation) + " " + str(i/2.00) + " 00.00 1.00\n")
                 tex_file.write(str(z_rotation) + " " + str(-i/2.00) + " 00.00 1.00\n")
@@ -307,28 +235,28 @@ if _type == 'tilt':
         print("ERROR: Unrecognized axis")
         exit()
 
-elif _type == 'twist':
+elif args.type == 'twist':
     if is100:
-        for i in range(0, _max_angle + 1):
-            tex_file = writeHeader(i, _axis, tex_file_base)
+        for i in range(0, args.angle + 1):
+            tex_file = writeHeader(i, args.axis, tex_file_base)
             tex_file.write("00.00 " + str(i) + " 00.00 1.00\n")
             tex_file.write("00.00 00.00 00.00 1.00\n")
         tex_file.close()
 
     elif is110:
-        for i in range(0, _max_angle + 1):
-            tex_file = writeHeader(i, _axis, tex_file_base)
+        for i in range(0, args.angle + 1):
+            tex_file = writeHeader(i, args.axis, tex_file_base)
             tex_file.write("45.00 " + str(i) + " 00.00 1.00\n")
             tex_file.write("45.00 00.00 00.00 1.00\n")
         tex_file.close()
 
     elif is111:
-        for i in range(0, _max_angle + 1):
-            tex_file = writeHeader(i, _axis, tex_file_base)
+        for i in range(0, args.angle + 1):
+            tex_file = writeHeader(i, args.axis, tex_file_base)
 
     elif is_xx0:
-        for i in range(0, _max_angle + 1):
-            tex_file = writeHeader(i, _axis, tex_file_base)
+        for i in range(0, args.angle + 1):
+            tex_file = writeHeader(i, args.axis, tex_file_base)
 
     elif is_xxx:
         print("Sorry, this case has not yet been implemented")
