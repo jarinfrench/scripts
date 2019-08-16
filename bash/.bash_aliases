@@ -15,6 +15,7 @@ alias plot='plot_data.py'
 alias python-debug='python -m pdb'
 alias python3-debug='python3 -m pdb'
 alias start-moose='. ~/.moose_setup'
+alias 7za='7z a -m0=lzma -mx=9' # arguments needed are archive name, and files to compress
 
 if [[ "$(uname -s)" = "Darwin" ]]; then
   # Mac specific aliases
@@ -34,6 +35,7 @@ elif [[ "$(uname -s)" = "Linux" ]]; then
   alias moose-run="mpiexec -n 8 ~/projects/moose/modules/phase_field/phase_field-opt -i"
   alias open='xdg-open'
   alias rm_junk='find . -name '\''*.[eo][1-9]*'\'' | xargs rm'
+  alias update='sudo apt-get update && sudo apt-get upgrade && sudo apt-get autoremove'
 else
   echo "Unrecognized system: $(uname -s)"
   echo "No known $(uname -s)-specific aliases have been created."

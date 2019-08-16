@@ -17,13 +17,79 @@ rng
 cloc
 is.sh
 optparse.bash
+loop
+parallel
 
-Not installed (yet)
+Not installed, but considered
 borg (homebrew enabled) - not currently maintained, and thus does not work.
-bpkg (a bash package manager - maybe?  seems to check against git repos)
 carbon-now-cli (nice pictures of code snippets)
 bashful (? what does it do?)
+fzf - a fuzzy finder - see https://github.com/junegunn/fzf
+bashhub - stores bash history in the cloud - see https://github.com/rcaloras/bashhub-client
+pathpicker - see https://github.com/facebook/PathPicker
 
 
 Packages for Atom to look into:
 kite (python programming assistant)
+
+Quick tutorial on the installed packages
+
+bd: A quick way to go back to a parent directory - see https://github.com/vigneshwaranr/bd
+  Usage: (assuming an alias of bd='. bd -si') bd <matching letters in parent directory>
+  so, assuming a dir path of /home/user/project/src/org/main/site/utils/file/reader/whatever
+  and wanting to go to site: `bd site` or `bd s` or `bd si`
+  Takes you to the closest matching directory
+  Within backticks, the bd command displays the directory
+
+fd: A sensible (opinionated) and fast version of find - see https://github.com/sharkdp/fd
+  Usage: fd <pattern>
+
+has: checks for presence of command line tools and displays their version
+  Usage: has <command>
+
+how2: natural language querying for how to do something - see https://github.com/santinic/how2
+  Usage: how2 <what you would search in google>
+  NOTE: Currently broken (16/08/2019)
+
+hr: a horizontal rule in the terminal - see https://github.com/LuRsT/hr
+  Usage: hr <optional - Pattern> <pattern2> <pattern3> ...
+
+up: Ascend directories by name or number - see https://github.com/shannonmoeller/up
+  Usage: up <name or number>
+  NOTE: similar to bd, but also accepts a number
+
+mr: management system for version controlled projects - see https://myrepos.branchable.com
+  Usage: mr register in each repo, then run any valid git command bia mr - mr update, mr commit, etc.
+  NOTE: You will need to edit the .mrconfig file to fit your specific needs
+
+htop: A better version of top - see https://github.com/hishamhm/htop
+  Usage: htop
+
+jrnl: A command-line journal - see https://github.com/jrnl-org/jrnl
+  Usage; jrnl <date>: entry in natural language.  First sentence is assumed to be title, rest is the entry
+
+taskwarrior: A command line todo list manager - see https://taskwarrior.org/
+  Usage: task <command>
+  NOTE: This is a very comprehensive program, so I highly recommend reading the documentation.
+
+ansi: Generates the ansi escape sequences for pretty much everything - see https://github.com/fidian/ansi
+  Usage: Same as echo.  To apply a color format, see the usage guide
+
+rng: Prints the specified range of lines in the specified file - see https://github.com/nickolasburr/rng
+  Usage: rng <range: start1,end1:start2,end2...> <file>
+  Example: rng 5,17:30,66 <file>
+
+cloc: Count Lines Of Code - https://github.com/AlDanial/cloc
+  Usage: cloc <file(s) or directory>
+
+is.sh: Alternative to test command - see https://github.com/qzb/is.sh
+  Usage: if is equal $var1 $var2; then <do something>; fi
+
+optparse.bash: Bash wrapper for getopts, command line parsing - see https://github.com/nk412/optparse
+  Usage: see https://github.com/nk412/optparse
+
+loop: A loop command in bash - see https://github.com/Miserlou/Loop
+  Usage: loop --every 10s -- ls
+
+parallel: Execute parallel jobs in bash - see http://www.gnu.org/software/parallel/
+  Usage: see http://www.gnu.org/software/parallel/parallel_cheat.pdf

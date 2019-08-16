@@ -68,10 +68,23 @@ if [[ "${UNAME}" == "Darwin" ]]; then
   echo -e "${GREEN}If you would like your current .bashrc overwritten, execute the following command:"
   echo -e "ln -sbS .bak ${INSTALL_DIR}/.bashrc_mac ~/.bashrc"
   echo -e "${NC}"
+
+  # required programs:
+  curl -sL https://git.io/_has | bash -s snap curl brew wget npm git
+  if [ $? -gt 0 ]; then
+    echo -e "${RED}Make sure you have the above software installed!${NC}"
+    exit 2
+  fi
 elif [[ "${UNAME}" == "Linux" ]]; then
   echo -e "${GREEN}If you would like your current .bashrc overwritten, execute the following command:"
   echo -e "ln -sbS .bak ${INSTALL_DIR}/.bashrc_linux ~/.bashrc"
   echo -e "${NC}"
+
+  curl -sL https://git.io/_has | bash -s snap curl wget npm git pip3
+  if [ $? -gt 0 ]; then
+    echo -e "${RED}Make sure you have the above software installed!${NC}"
+    exit 2
+  fi
 fi
 
 if [[ "${UNAME}" == "Darwin" ]]; then
@@ -87,8 +100,8 @@ if [[ "${UNAME}" == "Darwin" ]]; then
 elif [[ "${UNAME}" == "Linux" ]]; then
   echo -e "${GREEN}Linux system detected, installing packages via apt."
   # install using UBUNTU methods (may need to change this later, but it should work for now)
-  echo -e "Installing the following packages from repositories: myrepos taskwarrior cloc htop${NC}"
-  sudo apt install myrepos taskwarrior cloc htop
+  echo -e "Installing the following packages from repositories: myrepos taskwarrior cloc htop parallel${NC}"
+  sudo apt install myrepos taskwarrior cloc htop parallel
 
   echo -e "${GREEN}Installing the following package using pip: jrnl${NC}"
   pip3 install --user jrnl
@@ -132,6 +145,9 @@ echo -e "${GREEN}\tInstalling ansi${NC}"
 curl -OL git.io/ansi
 chmod 755 ansi
 sudo mv ansi /usr/local/bin/
+
+echo -e "${GREEN}Installing loop${NC}"
+snap install loop-rs --beta
 
 echo -e "${GREEN}Installing the following packages using NPM: how2 is${NC}"
 sudo npm install -g how-2 is.sh
