@@ -11,3 +11,6 @@ rng
 __pycache__/*
 *.pyc
 */WIP/*
+pending.data
+backlog.data
+completed.data

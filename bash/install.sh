@@ -103,6 +103,14 @@ elif [[ "${UNAME}" == "Linux" ]]; then
   echo -e "Installing the following packages from repositories: myrepos taskwarrior cloc htop parallel${NC}"
   sudo apt install myrepos taskwarrior cloc htop parallel
 
+  echo -e "  ${GREEN}Configuring taskwarrior... please type yes when prompted${NC}"
+  ln -sf ${INSTALL_DIR}/.task ${HOME}/.task
+  task config taskd.server freecinc.com:53589
+  task config taskd.key ~/.task/freecinc_b77224d4.key.pem
+  task config taskd.certificate ~/.task/freecinc_b77224d4.cert.pem
+  task config taskd.ca ~/.task/freecinc_b77224d4.ca.pem
+  task config taskd.credentials -- 'FreeCinc/freecinc_b77224d4/cfdcc1e7-359c-4291-b7cc-34f91ad4d8b6'
+
   echo -e "${GREEN}Installing the following package using pip: jrnl${NC}"
   pip3 install --user jrnl
 
