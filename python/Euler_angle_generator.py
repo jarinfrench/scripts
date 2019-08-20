@@ -33,6 +33,7 @@ def writeHeader(i, _axis, tex_file_base):
     tex_file.write("B 2\n")
     return tex_file
 
+# See the argparse docs for a better way to do this.
 def check_range(val):
     try:
         value = int(val)

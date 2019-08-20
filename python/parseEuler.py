@@ -1,14 +1,18 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 # Simple script to parse the orientation matrices database and grab the Euler
 # angles.
 
 from sys import argv
 from myModules import *
+import argparse
 
-script, filename1 = argv
+parser = argparse.ArgumentParser(usage = '%(prog)s file', description = "Parses the orientation matrix database to extract the Euler angles")
+parser.add_argument('file', help = "The database file")
 
-f1 = open(filename1,'r')
+args = parser.parse_args()
+
+f1 = open(args.file,'r')
 
 count = 0
 
@@ -42,8 +46,6 @@ while True:
         z1 = str(rad2deg(float(data[3][1:])))
         x = str(rad2deg(float(data[4])))
         z2 = str(rad2deg(float(data[5])))
-
-
 
         f2.write(z1 + ' ' + x + ' ' + z2 + ' 01.00\n')
         f2.close()
