@@ -1,0 +1,38 @@
+# General Purpose HPC Machines
+Host falcon1 falcon2 quark bechler flogin1 flogin2
+  User frenjari
+  ProxyCommand ssh frenjari@hpclogin.inl.gov netcat %h %p
+  ServerAliveInterval 180
+  ServerAliveCountMax 2
+
+# General Purpose ARC Machines
+Host cascades1 cascades2 blueridge1 blueridge2 newriver1 newriver2 dragonstooth1
+  User jarinf
+  HostName %h.arc.vt.edu
+  IdentityFile ~/.ssh/id_rsa.pub
+  ServerAliveInterval 180
+  ServerAliveCountMax 2
+
+# Forward webpages
+Host hpclogin hpclogin.inl.gov
+  User frenjari
+  HostName hpclogin.inl.gov
+  LocalForward 8080 hpcweb:80
+
+Host hpcgitlab.inl.gov
+  User frenjari
+  ProxyCommand nc -x localhost:5555 %h %p
+
+Host moosebuild.inl.gov
+  User frenjari
+  ProxyCommand nc -x localhost:5555 %h %p
+
+# Private GitLab server
+Host gitlab.company.com
+  RSAAuthentication yes
+  IdentityFile ~/.ssh/gitlab.pub
+
+# Multiplex connections for less RSA typing
+Host *
+  ControlMaster auto
+  ControlPath ~/.ssh/master-%r@%h:%p
