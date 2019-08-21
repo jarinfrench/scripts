@@ -1,35 +1,14 @@
 #! /bin/bash
 
+dotfiles="bash_aliases bash_functions bash_variables gdbinit gitconfig gnuplot inputrc jrnl_config mrconfig pdbrc taskrc vimrc"
+
 function ctrl_c() {
   echo -e "Cleaning up..."
-  if [[ -f ${HOME}/.bash_aliases.bak ]]; then
-    mv ~/.bash_aliases.bak ~/.bash_aliases
-  fi
-  if [[ -f ${HOME}/.bash_functions.bak ]]; then
-    mv ~/.bash_functions.bak ~/.bash_functions
-  fi
-  if [[ -f ${HOME}/.bash_variables.bak ]]; then
-    mv ~/.bash_variables.bak ~/.bash_variables
-  fi
-  if [[ -f ${HOME}/.bashrc.bak ]]; then
-    mv ~/.bashrc.bak ~/.bashrc
-  fi
-  if [[ -f ${HOME}/.bash_profile.bak ]]; then
-    mv ~/.bash_profile.bak ~/.bash_profile
-  fi
-  if [[ -f ${HOME}/.pdbrc.bak ]]; then
-    mv ~/.pdbrc.bak ~/.pdbrc
-  fi
-  if [[ -f ${HOME}/.jrnl_config.bak ]]; then
-    mv ~/.jrnl_config.bak ~/.jrnl_config
-  fi
-  if [[ -f ${HOME}/.mrconfig.bak ]]; then
-    mv ~/.mrconfig.bak ~/.mrconfig
-  fi
-  if [[ -f ${HOME}/.taskrc.bak ]]; then
-    mv ~/.taskrc.bak ~/.taskrc
-  fi
-
+  for i in ${dotfiles} bashrc bash_profile; do
+    if [[ -f ${HOME}/.${i}.bak ]]; then
+      mv ${HOME}/.${i}.bak ${HOME}/.${i}
+    fi
+  done
   exit 1
 }
 
@@ -48,7 +27,7 @@ BIN_DIR="${HOME}/projects/scripts/bin"
 cd ${INSTALL_DIR}
 
 # -b uses a simple backup for the destination file (if it exists), and -S changes the suffix from ~ to .bak (in this case)
-for i in bash_aliases bash_functions bash_variables pdbrc jrnl_config mrconfig taskrc vimrc; do
+for i in ${dotfiles}; do
   if [ -f ${LINK_DIR}/.${i}.bak ]; then
     echo "${HOME}/.${i} already has a backup file (${HOME}/.${i}.bak) - unable to link file."
   else
@@ -56,13 +35,35 @@ for i in bash_aliases bash_functions bash_variables pdbrc jrnl_config mrconfig t
   fi
 done
 
+# ssh config
+if [ -f ${LINK_DIR}/.ssh/config.bak ]; then
+  echo "${RED}ssh config file already has a backup (${LINK_DIR}/.ssh/config.bak) - unable to link config file${NC}"
+else
+  ln -sbS .bak ${INSTALL_DIR}/ssh_config ${LINK_DIR}/.ssh/config
+fi
+
+# atom configuration file
+if [ -f ${LINK_DIR}/.atom/config.cson.bak ]; then
+  echo "${RED}Atom configuration file (config.cson) already has a backup (${LINK_DIR}/.atom/config.cson.bak)- unable to link config file${NC}"
+else
+  ln -sbS .bak ${INSTALL_DIR}/atom_config ${LINK_DIR}/.atom/config.cson
+fi
+
 ln -sf ${INSTALL_DIR}/.alias_completion.sh ${LINK_DIR}/.alias_completion.sh
 
 # Store symlinks to python programs in bin
 for i in $(find ~/projects/scripts/python/ -type f -executable); do
-  file=$(basename ${i}
+  file=$(basename ${i})
   ln -sf ${i} ${BIN_DIR}/${file}
 done
+
+# soft link the executables in the bash directory (excluding install.sh) to the bin directory
+for i in $(find ~/projects/scripts/bash/ -maxdepth 1 -type f ! -iname "install.sh" -executable); do
+  file=$(basename ${i})
+  ln -sf ${i} ${BIN_DIR}/${file%.*} # links the executable bash file to the bin dir with the same name, minus the extension.
+done
+
+ln -sbS .bak ${INSTALL_DIR}/.vim ${LINK_DIR}/.vim
 
 UNAME=$(uname -s)
 if [[ "${UNAME}" == "Darwin" ]]; then
@@ -143,6 +144,7 @@ elif [[ "${UNAME}" == "Linux" ]]; then
   echo -e "Installing the following packages from repositories: ${apt_packages}${NC}"
   sudo apt install ${apt_packages}
 
+  # set up task files
   if [ "${TASK_SETUP}" == "y" ]; then
     echo -e "  ${GREEN}Configuring taskwarrior... please type yes when prompted${NC}"
     ln -sf ${INSTALL_DIR}/.task ${HOME}/.task

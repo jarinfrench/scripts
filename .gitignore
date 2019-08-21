@@ -14,3 +14,6 @@ __pycache__/*
 pending.data
 backlog.data
 completed.data
+undo.data
+sync_hook.log
+.netrwhist
