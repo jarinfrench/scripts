@@ -225,5 +225,10 @@ torange() {
   done < $1
 }
 
+# An efficient way of searching the bashhub history - uses fzf (fuzzy finder)
+hs() {
+  eval $(bh | fzf)
+}
+
 source ~/.config/up/up.sh # see README for where to get this file.
 source ~/projects/scripts/bash/optparse.bash

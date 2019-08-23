@@ -19,13 +19,13 @@ is.sh
 optparse.bash
 loop
 parallel
+bashhub - https://github.com/rcaloras/bashhub-client
+fzf - a fuzzy finder - see https://github.com/junegunn/fzf
 
 Not installed, but considered
 borg (homebrew enabled) - not currently maintained, and thus does not work.
 carbon-now-cli (nice pictures of code snippets)
 bashful (? what does it do?)
-fzf - a fuzzy finder - see https://github.com/junegunn/fzf
-bashhub - stores bash history in the cloud - see https://github.com/rcaloras/bashhub-client
 pathpicker - see https://github.com/facebook/PathPicker
 
 

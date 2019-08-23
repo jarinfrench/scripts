@@ -6,10 +6,11 @@ export HISTFILESIZE=1000000
 shopt -s checkwinsize
 
 # Whenever displaying the prompt, write the previous line to disk
-export PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND ;} history -a"
+export PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND ;} history -a; history -c; history -r"
 
 # When changing directories, small typos can be ignored by bash
 shopt -s cdspell
+shopt -s cmdhist # multi-line commands are stored as one history entry.
 
 # source any user-defined bash aliases in .bash_aliases
 if [ -f ~/.bash_aliases ]; then

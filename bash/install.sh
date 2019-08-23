@@ -98,7 +98,7 @@ if [[ "${UNAME}" == "Darwin" ]]; then
   # install using Darwin methods
   # Note that these methods have been tested on Sierra, and found to work!
   brew_packages=""
-  for i in fd hr mr jrnl task taskd tasksh rng cloc; do
+  for i in fd hr mr jrnl task taskd tasksh rng cloc fzf; do
     has ${i} > /dev/null
     if [ $? -gt 0 ]; then
       if [ "${i}" == "rng" ]; then
@@ -116,7 +116,7 @@ if [[ "${UNAME}" == "Darwin" ]]; then
   brew install ${brew_packages}
 
   source_packages="optparse.bash up"
-  for i in bd has ansi; do
+  for i in bd has ansi bashhub; do
     has ${i} > /dev/null
     if [ $? -gt 0 ]; then
       source_packages="${source_packages} ${i}"
@@ -162,7 +162,7 @@ elif [[ "${UNAME}" == "Linux" ]]; then
   fi
 
   source_packages="optparse.bash up"
-  for i in bd fd has hr htop ansi; do
+  for i in bd fd has hr htop ansi bashhub fzf; do
     has ${i} > /dev/null
     if [ $? -gt 0 ]; then
       source_packages="${source_packages} ${i}"
@@ -172,7 +172,7 @@ elif [[ "${UNAME}" == "Linux" ]]; then
 
   has fd > /dev/null
   if [ $? -gt 0 ]; then
-    echo -e "\tInstalling fd${NC}"
+    echo -e "  Installing fd${NC}"
     curl https://github.com/sharkdp/fd/releases/download/v7.3.0/fd-musl_7.3.0_amd64.deb > fd-musl_7.3.0_amd64.deb
     sudo dpkg -i fd-musl_7.3.0_amd64.deb
     rm fd-musl_7.3.0_amd64.deb
@@ -180,7 +180,7 @@ elif [[ "${UNAME}" == "Linux" ]]; then
 
   has hr > /dev/null
   if [ $? -gt 0 ]; then
-    echo -e "${GREEN}\tInstalling hr${NC}"
+    echo -e "${GREEN}  Installing hr${NC}"
     sudo curl https://raw.githubusercontent.com/LuRsT/hr/master/hr > hr
     sudo chmod +x hr
     sudo mv hr /usr/local/bin/
@@ -189,7 +189,7 @@ elif [[ "${UNAME}" == "Linux" ]]; then
   has rng > /dev/null
   if [ $? -gt 0 ]; then
     if [ ! -d ${HOME}/projects/scripts/bash/rng ]; then
-      echo -e "${GREEN}\tInstalling rng${NC}"
+      echo -e "${GREEN}  Installing rng${NC}"
       git clone https://github.com/nickolasburr/rng.git
       cd rng
       make
@@ -197,33 +197,49 @@ elif [[ "${UNAME}" == "Linux" ]]; then
       cd ../
     fi
   fi
+
+  has fzf > /dev/null
+  if [ $? -gt 0 ]; then
+    if [ ! -d ${HOME}/.fzf ]; then
+      echo -e "${GREEN}  Installing fzf${NC}"
+      git clone --depth 1 https://github.com/junegunn/fzf.git ${HOME}/.fzf
+      ${HOME}/.fzf/install
+    fi
+  fi
+fi
+
+has bashhub > /dev/null
+if [ $? -gt 0 ]; then
+  echo -e "${GREEN}  Installing bashhub${NC}"
+  curl -OL https://bashhub.com/setup && bash setup # This requires user interaction
+  rm setup
 fi
 
 . .bash_aliases # required to check if bd is aliased
 has bd > /dev/null
 if [ $? -gt 0 ]; then
-  echo -e "${GREEN}\tInstalling bd${NC}"
+  echo -e "${GREEN}  Installing bd${NC}"
   sudo wget --no-check-certificate -O /usr/local/bin/bd https://raw.github.com/vigneshwaranr/bd/master/bd
   sudo chmod +rx /usr/local/bin/bd
   alias bd 2>/dev/null >/dev/null || (echo -e 'alias bd=". bd -si"' >> .bash_aliases && source .bash_aliases) # checks if the alias bd exists, and if not, adds the alias to the alias list.
 fi
 
-echo -e "${GREEN}\tInstalling optparse.bash"
-echo -e "\tNote that optparse requires the GNU version of sed (for Mac - install by brew install gnu-sed (--with-default-names, if you don't want to alias sed))${NC}"
+echo -e "${GREEN}  Installing optparse.bash"
+echo -e "    Note that optparse requires the GNU version of sed (for Mac - install by brew install gnu-sed (--with-default-names, if you don't want to alias sed))${NC}"
 curl https://raw.githubusercontent.com/nk412/optparse/master/optparse.bash > optparse.bash
 
-echo -e "${GREEN}\tInstalling up${NC}"
+echo -e "${GREEN}  Installing up${NC}"
 curl --create-dirs -o ~/.config/up/up.sh https://raw.githubusercontent.com/shannonmoeller/up/master/up.sh
 
 has ansi > /dev/null
 if [ $? -gt 0 ]; then
-  echo -e "${GREEN}\tInstalling ansi${NC}"
+  echo -e "${GREEN}  Installing ansi${NC}"
   curl -OL git.io/ansi
   chmod 755 ansi
   sudo mv ansi /usr/local/bin/
 fi
 
-echo -e "${GREEN}Installing loop${NC}"
+echo -e "${GREEN}  Installing loop${NC}"
 snap install loop-rs --beta
 
 npm_packages=""

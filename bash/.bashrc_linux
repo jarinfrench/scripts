@@ -35,13 +35,15 @@ case $input in
     ;;
 esac
 
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND ;} history -a; history -n"
 HISTCONTROL=ignoreboth:erasedups # don't put duplicate lines or lines starting with space in the history.
 HISTSIZE=1000000
 HISTFILESIZE=1000000
 shopt -s histappend # append to the history file, don't overwrite it
 shopt -s checkwinsize # check window size after each command, update LINES and COLUMNS values as needed
 shopt -s cdspell # When changing directories, small typos can be ignored by bash
-#shopt -s globstar # patter "**" in a pathname expansion context matches all files and 0+ (sub)directories
+shopt -s cmdhist # multi-line commands are stored as one history entry.
+#shopt -s globstar # pattern "**" in a pathname expansion context matches all files and 0+ (sub)directories
 
 # make less more friendly for non-text input files, see lesspipe(1)
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
@@ -141,6 +143,14 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
+
+### Bashhub.com Installation.
+### This Should be at the EOF. https://bashhub.com/docs
+if [ -f ~/.bashhub/bashhub.sh ]; then
+    source ~/.bashhub/bashhub.sh
+fi
+
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
 # Allows for tab-completion of aliases
 source ~/.alias_completion.sh
