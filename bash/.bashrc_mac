@@ -1,8 +1,8 @@
 # make bash append rather than overwrite the history on disk:
 shopt -s histappend
 export HISTCONTROL=ignoredups:erasedups
-export HISTSIZE=100000
-export HISTFILESIZE=100000
+export HISTSIZE=1000000
+export HISTFILESIZE=1000000
 shopt -s checkwinsize
 
 # Whenever displaying the prompt, write the previous line to disk
