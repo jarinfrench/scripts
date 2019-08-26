@@ -12,6 +12,8 @@
 ******************************************************************************/
 
 #include <iostream>
+#include <string>
+#include <vector>
 #include "position.h"
 
 class Atom
@@ -29,6 +31,8 @@ private:
   // double zu; // unwrapped z position
   Position unwrapped;
   int mark; // the mark on the atom.
+  std::vector <double> extra_info; // Additional info for the atom
+  std::vector <std::string> extra_info_names; // names of the extra info
 
 public:
   Atom(); // Default constructor
@@ -47,6 +51,8 @@ public:
   // double getZu() const {return zu;}
   Position getUnwrapped() const {return unwrapped;}
   int getMark() const {return mark;}
+  std::vector <double> getExtraInfo() const {return extra_info;}
+  std::vector <std::string> getExtraInfoNames() const {return extra_info_names;}
 
   // All the setters
   void setId(int id) {this->id = id;}
@@ -61,6 +67,11 @@ public:
   // void setZu(double z) {this->zu = z;}
   void setUnwrapped(Position pos) {this->unwrapped = pos;}
   void setMark(int mark) {this->mark = mark;}
+  void setExtraInfo(unsigned int, double);
+  void setExtraInfo(std::vector <double>);
+  void setExtraInfoSize(unsigned int);
+  void setExtraInfoNames(unsigned int, std::string);
+  void setExtraInfoNames(std::vector <std::string>);
 
 };
 bool operator==(const Atom& lhs, const Atom& rhs);

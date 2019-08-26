@@ -22,6 +22,31 @@ void Atom::setExtraInfo(unsigned int index, double val)
   this->extra_info[index] = val;
 }
 
+void Atom::setExtraInfo(std::vector <double> v)
+{
+  this->extra_info = v;
+}
+
+void Atom::setExtraInfoSize(unsigned int index)
+{
+  this->extra_info.resize(index, 0.0);
+  this->extra_info_names.resize(index, "none");
+}
+
+void Atom::setExtraInfoNames(unsigned int index, std::string str)
+{
+  if (index > this->extra_info.size())
+  {
+    setExtraInfoSize(index);
+  }
+  this->extra_info_names[index] = str;
+}
+
+void Atom::setExtraInfoNames(std::vector<std::string> v)
+{
+  this->extra_info_names = v;
+}
+
 std::ostream& operator << (std::ostream& os, const Atom& atom)
 {
   os << "Atom " << atom.getId() << ":\n"
