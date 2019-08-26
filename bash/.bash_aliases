@@ -34,7 +34,7 @@ elif [[ "$(uname -s)" = "Linux" ]]; then
   alias moose-make='cd ~/projects/moose/modules/phase_field && make -j8 && METHOD=dbg make -j8; cd ${OLDPWD}'
   alias moose-run="mpiexec -n 8 ~/projects/moose/modules/phase_field/phase_field-opt -i"
   alias open='xdg-open'
-  alias rm_junk='find . -name '\''*.[eo][1-9]*'\'' | xargs rm'
+  alias rm_junk='find . \( -name "*.[eo][1-9]*" -or -name "slurm-[1-9]*.out" \) | xargs rm'
   alias update='sudo apt-get update && sudo apt-get upgrade && sudo apt-get autoremove'
 else
   echo "Unrecognized system: $(uname -s)"

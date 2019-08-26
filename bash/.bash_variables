@@ -22,7 +22,7 @@ export FCEDIT=atom # editor to use when fc is run
 export HAS_ALLOW_UNSAFE=y # for allowing 'unsafe' program versions for has
 export HISTTIMEFORMAT="%h %d %H:%M:%S "
 export HISTIGNORE="&:[ ]*:exit:ls:history" # ignore the exit, ls, and history commands in the history
-export OMP_NUM_THREADS=2 # for threads per MPI task
+export OMP_NUM_THREADS=4 # for threads per MPI task
 
 # Mac-specific variables
 if [[ $(uname -s) == "Darwin" ]]; then

@@ -9,12 +9,12 @@ read -p "Please enter the radius of the rotated grain: " radius
 
 read -p "Is this type cylinder (1) or sphere (2)? " boundary_type
 
-FLAGS=''
+FLAGS='-e'
 if [[ "${boundary_type}" -eq 1 ]]; then
   b_type="cylinder"
 elif [[ "${boundary_type}" -eq 2 ]]; then
   b_type="sphere"
-  FLAGS='-s'
+  FLAGS="${FLAGS} -s"
 else
   echo "$boundary_type is not equal to 1 or 2.  Please enter 1 or 2 next time."
   exit 4
@@ -48,7 +48,7 @@ if [ ${axis} -eq 111 ]; then
 elif [ ${axis} -eq 110 ]; then
   let range=180/5
 elif [ ${axis} -eq 100 ]; then
-  let range=360/5
+  let range=180/5
 else
   echo "Not using a high-symmetry axis: setting range = 360 degrees"
   let range=360/5 # This may be too high, but generally not.
@@ -82,14 +82,8 @@ case ${angles} in
 esac
 
 # Now move all of the files with the removed atoms to the Removed directory,
-# and the atoms with just the rotated atoms to the rotated directory
-# Also move the file with marked atoms to the Marked directory (useful for
-# visualization in TecPlot)
+# Make the directory
+mkdir -p Removed/${axis}
 
-# Make the directories
-mkdir -p Removed/${axis} Marked/${axis} Rotated/${axis}
-
-# Assumes that these directories already exist.
+# Assumes that the directory already exists.
 mv *_removed*.dat Removed/${axis}
-mv *_marked*.dat Marked/${axis}
-mv *_rotated*.dat Rotated/${axis}
