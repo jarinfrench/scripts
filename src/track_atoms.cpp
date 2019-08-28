@@ -20,6 +20,11 @@ struct inputVars
   double z_left, z_right;
   vector <int> ignored_atoms;
   vector <int> tracked_atoms;
+  Position r_center = Position(0.5,0.5,0.5);
+  double r_lower_bound;
+  double r_upper_bound;
+  string radial_system = "none";
+  bool using_radial = false;
 
   void boundsSanityCheck()
   {
@@ -32,6 +37,17 @@ struct inputVars
     if (x_right > 1.0) {exit(INPUT_FORMAT_ERROR);}
     if (y_right > 1.0) {exit(INPUT_FORMAT_ERROR);}
     if (z_right > 1.0) {exit(INPUT_FORMAT_ERROR);}
+  }
+
+  void radialSanityCheck()
+  {
+    if (r_lower_bound < 0.0) {exit(INPUT_FORMAT_ERROR);}
+    if (r_upper_bound < r_lower_bound) {exit(INPUT_FORMAT_ERROR);}
+    for (unsigned int i = 0; i < 3; ++i)
+    {
+      if (r_center[i] < 0.0) {exit(INPUT_FORMAT_ERROR);}
+      if (r_center[i] > 1.0) {exit(INPUT_FORMAT_ERROR);}
+    }
   }
 } input;
 
@@ -222,14 +238,43 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
     else
     {
       reference[id - 1] = Atom(id, type, charge, p);
-      if (x >= input.x_left * box.Lx && x <= input.x_right * box.Lx &&
+      if (input.using_radial)
+      {
+        double rlo_sq = input.r_lower_bound * input.r_lower_bound;
+        double rhi_sq = input.r_upper_bound * input.r_upper_bound;
+        double x_new = x - (input.r_center[0] * box.Lx);
+        double y_new = y - (input.r_center[1] * box.Ly);
+        double x_sq = x_new * x_new;
+        double y_sq = y_new * y_new;
+        double r_sq = x_sq + y_sq;
+
+        if (input.radial_system.compare("s") == 0)
+        {
+          double z_new = z - (input.r_center[2] * box.Lz);
+          r_sq += z_new * z_new;
+        }
+
+        if (r_sq >= rlo_sq && r_sq <= rhi_sq)
+        {
+          if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(),
+              reference[id - 1].getType()) == input.ignored_atoms.end())
+          {
+            reference[id - 1].setMark(1);
+          }
+        }
+
+      }
+      else
+      {
+        if (x >= input.x_left * box.Lx && x <= input.x_right * box.Lx &&
           y >= input.y_left * box.Ly && y <= input.y_right * box.Ly &&
           z >= input.z_left * box.Lz && z <= input.z_right * box.Lz)
-      {
-        if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(),
-                 reference[id - 1].getType()) == input.ignored_atoms.end())
         {
-          reference[id - 1].setMark(1);
+          if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(),
+              reference[id - 1].getType()) == input.ignored_atoms.end())
+          {
+            reference[id - 1].setMark(1);
+          }
         }
       }
     }
@@ -313,6 +358,7 @@ int main(int argc, char **argv)
   string reference_file;
   vector <string> current_file, vars;
   vector <Atom> reference_atoms, current_atoms;
+  double center_x, center_y, center_z;
 
   try
   {
@@ -327,12 +373,18 @@ int main(int argc, char **argv)
         ("r,reference-file", "Reference file to compare against", cxxopts::value<string>(reference_file), "file")
         ("c,current-file", "Current file", cxxopts::value<vector<string> >(current_file), "file [file file file...]")
         ("o,output", "Output file name", cxxopts::value<string>(input.outfile)->default_value("*_tracked.dat"), "file")
-        ("xlo", "low x boundary of the tracked atoms", cxxopts::value<double>(input.x_left)->default_value("0.45"), "value")
-        ("xhi", "high x boundary of the tracked atoms", cxxopts::value<double>(input.x_right)->default_value("0.55"), "value")
-        ("ylo", "low y boundary of the tracked atoms", cxxopts::value<double>(input.y_left)->default_value("0.0"), "value")
-        ("yhi", "high y boundary of the tracked atoms", cxxopts::value<double>(input.y_right)->default_value("1.0"), "value")
-        ("zlo", "low z boundary of the tracked atoms", cxxopts::value<double>(input.z_left)->default_value("0.0"), "value")
-        ("zhi", "high z boundary of the tracked atoms", cxxopts::value<double>(input.z_right)->default_value("1.0"), "value")
+        ("xlo", "low x boundary of the tracked atoms in fractional coorinates", cxxopts::value<double>(input.x_left)->default_value("0.45"), "value")
+        ("xhi", "high x boundary of the tracked atoms in fractional coorinates", cxxopts::value<double>(input.x_right)->default_value("0.55"), "value")
+        ("ylo", "low y boundary of the tracked atoms in fractional coorinates", cxxopts::value<double>(input.y_left)->default_value("0.0"), "value")
+        ("yhi", "high y boundary of the tracked atoms in fractional coorinates", cxxopts::value<double>(input.y_right)->default_value("1.0"), "value")
+        ("zlo", "low z boundary of the tracked atoms in fractional coorinates", cxxopts::value<double>(input.z_left)->default_value("0.0"), "value")
+        ("zhi", "high z boundary of the tracked atoms in fractional coorinates", cxxopts::value<double>(input.z_right)->default_value("1.0"), "value")
+        ("rlo", "low radius value (in Angstroms)", cxxopts::value<double>(input.r_lower_bound)->default_value("0.0"), "value")
+        ("rhi", "high radius value (in Angstroms)", cxxopts::value<double>(input.r_upper_bound)->default_value("10,0"), "value")
+        ("r-center-x", "x value of the origin (in fractional coordinates) for defining the radius", cxxopts::value<double>(center_x)->default_value("0.5"), "value")
+        ("r-center-y", "y value of the origin (in fractional coordinates) for defining the radius", cxxopts::value<double>(center_y)->default_value("0.5"), "value")
+        ("r-center-z", "z value of the origin (in fractional coordinates) for defining the radius", cxxopts::value<double>(center_z)->default_value("0.5"), "value")
+        ("r-type", "using a (c)ylindrical or (s)pherical radial system", cxxopts::value<string>(input.radial_system), "c|s")
         ("i,ignore", "Atom type to ignore", cxxopts::value<vector <int> >(input.ignored_atoms), "atom_type")
         ("a,atom", "Atom to specifically track.  Tracks atoms even if the atom type is specified using --ignore", cxxopts::value<vector <int> >(input.tracked_atoms), "atom_id")
         ("print-atom-ids", "Prints a list of the atom ids found within the specified boundary. Only needs a reference structure.")
@@ -349,13 +401,38 @@ int main(int argc, char **argv)
     }
 
     if (result.count("xlo") || result.count("xhi") ||
-        result.count("ylo") || result.count("yhi") ||
-        result.count("zlo") || result.count("zhi"))
+    result.count("ylo") || result.count("yhi") ||
+    result.count("zlo") || result.count("zhi"))
     {
       input.boundsSanityCheck();
     }
 
+    if (result.count("r-type"))
+    {
+      input.using_radial = true;
+      if (!(input.radial_system.compare("c") == 0 ||
+          input.radial_system.compare("s") == 0))
+      {
+        cout << "radius-type must be either \'c\' or \'s\'\n";
+        return INPUT_FORMAT_ERROR;
+      }
+    }
+
+    if ((result.count("rlo") || result.count("rhi")) && !result.count("r-type"))
+    {
+      cout << "Radius type (c|s) must be specified for radial tracking.\n";
+      return INPUT_FORMAT_ERROR;
+    }
+
+    if (result.count("r-center-x") || result.count("r-center-y") || result.count("r-center-z"))
+    {
+      input.r_center = Position(center_x, center_y, center_z);
+    }
+
+    input.radialSanityCheck(); // Make sure radius inputs are valid
+
     vars = getReferenceData(reference_file, reference_atoms); // sets up the variable list, and gets the reference atom data.
+
     if (result.count("print-atom-ids"))
     {
       printAtomIds(reference_atoms);
