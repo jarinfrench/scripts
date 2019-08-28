@@ -7,8 +7,8 @@ ifeq ($(UNAME), Darwin)
 	CLIB = -stdlib=libc++
 	STDLIB = -std=gnu++11
 	ADDITIONAL_LDFLAGS =
-	NODBGFLAGS = -O3 $(STDLIB) -fopenmp -o
-	DBGFLAGS = -ggdb -g $(STDLIB) -fopenmp -o
+	NODBGFLAGS = -O3 $(STDLIB) -o
+	DBGFLAGS = -ggdb -g $(STDLIB) -o
 	GREP = ggrep
 endif
 ifeq ($(UNAME), Linux)
@@ -16,8 +16,8 @@ ifeq ($(UNAME), Linux)
 	CLIB =
 	STDLIB = -std=c++11
 	ADDITIONAL_LDFLAGS =
-	NODBGFLAGS = -O3 $(STDLIB) -fopenmp -o
-	DBGFLAGS = -ggdb -g $(STDLIB) -fopenmp -o
+	NODBGFLAGS = -O3 $(STDLIB) -o
+	DBGFLAGS = -ggdb -g $(STDLIB) -o
 	GREP = grep
 endif
 
@@ -26,8 +26,8 @@ BIN =../bin
 # This may need some fine tuning between Mac and Linux
 ATOMPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed "s/.cpp//g")
 ATOMDBGPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed 's/.cpp/_dbg /g')
-UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
-UTILSDBG := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
+UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="phase_field.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
+UTILSDBG := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="phase_field.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
 POSITIONPROGS = phase_field
 POSITIONDBGPROGS = phase_field_dbg
 ALLEXECUTABLES = $(ATOMPROGS) $(ATOMDBGPROGS) $(UTILS) $(UTILSDBG) $(POSITIONPROGS) $(POSITIONDBGPROGS)
@@ -35,10 +35,17 @@ ALLEXECUTABLES = $(ATOMPROGS) $(ATOMDBGPROGS) $(UTILS) $(UTILSDBG) $(POSITIONPRO
 ERRORCODES = error_code_defines.h
 
 all: FLAGS = $(CLIB) $(NODBGFLAGS)
-all: atom.o position.o atom_builds utils position_builds
+all: atom.o position.o atom_builds utils
 
 debug: FLAGS = $(CLIB) $(DBGFLAGS)
-debug: atom_builds_dbg utils_dbg position_dbg_builds
+debug: atom_builds_dbg utils_dbg
+
+# FIXME! This tries to build position_builds, but phase_field_dbg does not! why?!?
+phase_field: FLAGS = $(CLIB) -fopenmp $(NODBGFLAGS)
+phase_field: position_builds
+
+phase_field_dbg: FLAGS = $(CLIB) -fopenmp $(DBGFLAGS)
+phase_field_dbg: position_dbg_builds
 
 # The extra line for each rule allows a different value to be passed to the pattern-matched rule.
 atom_builds: TARGETS=atom.o position.o
@@ -51,7 +58,7 @@ position_builds: TARGETS=position.o
 position_builds: $(addprefix $(BIN)/, $(POSITIONPROGS)) position.o
 
 atom_builds_dbg: TARGETS=atom.o position.o
-atom_builds_dbg: $(addprefix $(BIN)/, $(ATOMDBGPROGS)) atom.o
+atom_builds_dbg: $(addprefix $(BIN)/, $(ATOMDBGPROGS)) atom.o position.o
 
 utils_dbg: TARGETS=
 utils_dbg: $(addprefix $(BIN)/, $(UTILSDBG))
@@ -83,4 +90,5 @@ clean :
 # This allows variables to be printed: e.g. make print-FLAGS will show the value of FLAGS.
 print-%  : ; @echo $* = $($*)
 
-.PHONY : all debug clean list
+.PHONY : all debug phase_field phase_field_dbg atom_builds utils position_builds \
+atom_builds_dbg utils_dbg position_dbg_builds clean list
