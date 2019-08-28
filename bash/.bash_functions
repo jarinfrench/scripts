@@ -232,3 +232,180 @@ hs() {
 
 source ~/.config/up/up.sh # see README for where to get this file.
 source ~/projects/scripts/bash/optparse.bash
+
+if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
+  # The following are from Cascades .bash_functions
+  # Various bash functions defined by the user
+  cdls(){
+    cd $1 && ls
+  }
+
+  #qalter_range() {
+  #  if [ "$#" -ne 2 ]; then
+  #    echo "Please enter the beginning and end range for the jobs to alter"
+  #    return 1
+  #  else
+  #    local beg=$1
+  #    local end=$2
+  #  fi
+  #
+  #  read -p "Please enter the options you want to change: " options
+  #  job_list=`qstat | awk -F " " 'NR>=6 {print $1}' | awk -F "." -v start=${beg} -v finish=${end} '{if ($1 >= start && $1 <= finish) print $1}'`
+  #
+  #  for i in ${job_list}; do
+  #    qalter $i ${options}
+  #  done
+  #}
+
+  scancel_range() {
+    if [ "$#" -ne 2 ]; then
+      echo "Please enter the beginning and end range for the jobs to delete"
+      return 1
+    else
+      local beg=$1
+      local end=$2
+    fi
+
+    job_list=`sq | awk -F " " 'NR>=2 {print $1}' | awk -F "." -v start=${beg} -v finish=${end} '{if ($1 >= start && $1 <= finish) print $1}'`
+    n_jobs=`sq | awk -F " " 'NR>=2 {print $1}' | awk -F "." -v start=${beg} -v finish=${end} '{if ($1 >= start && $1 <= finish) print $1}' | wc -l`
+    read -p "Are you sure you want to delete $n_jobs jobs? " verify
+    case "$verify" in
+      Y|y|[Yy][Ee][Ss] )  for i in ${job_list}; do scancel ${i}; done ;;
+      N|n|[Nn][Oo] ) echo "Not deleting jobs."; return 0 ;;
+      * ) echo "Invalid option" ;;
+    esac
+  }
+
+  cdjob() {
+    if [ "$#" -ne 1 ]; then
+      echo "Please enter the number of the job you wish to change to the directory of"
+      return 1
+    else
+      local job_num=$1
+    fi
+
+    local dir_value=$(\squeue --user=jarinf -O workdir:200 -j ${job_num} 2>/dev/null | awk 'NR==2 {print $0}')
+    if [ -z ${dir_value} ]; then
+      local dir_value=$(sacct -j ${job_num} --format="WorkDir%200" | head -n 3 | tail -n 1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]] *$//')
+    fi
+
+    local RED='\033[0;31m'
+    local NC='\033[0m'
+    echo -e "${RED}${dir_value}${NC}"
+
+    cd ${dir_value}
+  }
+
+  torange() {
+    while read num; do
+      if [[ -z ${first} ]]; then
+        first=${num}
+        last=${num}
+        continue
+      fi
+      if [[ num -ne $((last + 1)) ]]; then
+        if [[ first -eq last ]]; then
+          echo ${first}
+        else
+          echo ${first}-${last}
+        fi
+        first=${num}
+        last=${num}
+      else
+        : $((last++))
+      fi
+    done < $1
+  }
+
+################################################################################
+# And the following are from Falcon
+################################################################################
+  # change to a directory and list the contents
+  cdls() {
+  cd "$1" && ls
+  }
+
+  # Find the working directory and cd to it of a job
+  cdjob() {
+  if [ "$#" -ne 1 ]; then
+    echo "Please enter the job number you want to find."
+    return 1
+  fi
+  # Handles the multi-line directories.
+  new_dir=`\qstat -fx $1 | sed -n '/PBS_O_WORKDIR=/{:a;N;/,PBS_O_LANG/!ba;s/[[:space:]]//g;s/.*PBS_O_WORKDIR=\|,PBS_O_LANG.*//g;p}'`
+  if [[ -z "$new_dir" ]]; then # handles the one-line directories
+    new_dir=`\qstat -fx $1 | awk -F '=|,' '/PBS_O_WORKDIR=/{print $2}/PBS_O_LANG/{next}'`
+  fi
+
+  cd ${new_dir}
+  pwd
+  }
+
+  up() {
+    cd $(eval "printf '../'%.0s {1..$1}") && pwd
+  }
+
+  qalter_range() {
+  if [ "$#" -ne 2 ]; then
+    echo "Please enter the beginning and end range for the jobs to alter"
+    return 1
+  else
+    local beg=$1
+    local end=$2
+  fi
+
+  read -p "Please enter the options you want to change: " options
+  job_list=`qstat | awk -F " " 'NR>=6 {print $1}' | awk -F "." -v start=${beg} -v finish=${end} '{if ($1 >= start && $1 <= finish) print $1}'`
+
+  for i in ${job_list}; do
+    qalter $i ${options}
+  done
+  }
+
+  qdel_range() {
+  if [ "$#" -ne 2 ]; then
+    echo "Please enter the beginning and end range for the jobs to delete"
+    return 1
+  else
+    local beg=$1
+    local end=$2
+  fi
+
+  job_list=`qstat | awk -F " " 'NR>=6 {print $1}' | awk -F "." -v start=${beg} -v finish=${end} '{if ($1 >= start && $1 <= finish) print $1}'`
+  n_jobs=`qstat | awk -F " " 'NR>=6 {print $1}' | awk -F "." -v start=${beg} -v finish=${end} '{if ($1 >= start && $1 <= finish) print $1}' | wc -l`
+  read -p "Are you sure you want to delete $n_jobs jobs? " verify
+  case "$verify" in
+    Y|y|[Yy][Ee][Ss] )  for i in ${job_list}; do qdel ${i}; done ;;
+    N|n|[Nn][Oo] ) echo "Not deleting jobs."; return 0 ;;
+    * ) echo "Invalid option" ;;
+  esac
+  }
+
+  compress() {
+  if [ "$#" -eq 0 ]; then
+    echo "Please enter the file(s) to compress"
+    return 1
+  else
+    for i in "$@"; do
+      if 7z a "${i}".7z ${i}; then
+        echo "Removing file ${i}"
+        rm ${i}
+      else
+        echo "Error compressing file ${i}"
+        return 2
+      fi
+    done
+  fi
+  }
+
+  decompress() {
+  if [ "$#" -eq 0 ]; then
+    echo "Please enter the file(s) to decompress"
+    return 1
+  else
+    for i in "$@"; do
+      7z x "${i}"
+    done
+  fi
+  }
+fi
