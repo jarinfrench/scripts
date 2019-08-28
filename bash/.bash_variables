@@ -18,7 +18,7 @@ export USER_SCRIPTS="${HOME}/projects/scripts/bin"
 
 # System variables
 export EDITOR=atom # default editor when commands require use of an editor
-export FCEDIT=atom # editor to use when fc is run
+export FCEDIT=vi # editor to use when fc is run
 export HAS_ALLOW_UNSAFE=y # for allowing 'unsafe' program versions for has
 export HISTTIMEFORMAT="%h %d %H:%M:%S "
 export HISTIGNORE="&:[ ]*:exit:ls:history" # ignore the exit, ls, and history commands in the history

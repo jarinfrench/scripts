@@ -5,7 +5,7 @@ compress() {
     return 1
   else
     for i in "$@"; do
-      if 7z a "${i}".7z ${i}; then
+      if 7z a -m0=lzma -mx=9 "${i}".7z ${i}; then
         echo "Removing file ${i}"
         rm ${i}
       else

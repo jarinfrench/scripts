@@ -144,13 +144,13 @@ if ! shopt -oq posix; then
   fi
 fi
 
-### Bashhub.com Installation.
-### This Should be at the EOF. https://bashhub.com/docs
-if [ -f ~/.bashhub/bashhub.sh ]; then
-    source ~/.bashhub/bashhub.sh
-fi
-
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
 # Allows for tab-completion of aliases
 source ~/.alias_completion.sh
+
+### Bashhub.com Installation.
+### This Should be at the EOF. https://bashhub.com/docs
+if [ -f ~/.bashhub/bashhub.sh ]; then
+source ~/.bashhub/bashhub.sh
+fi
