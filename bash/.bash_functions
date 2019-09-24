@@ -225,6 +225,22 @@ torange() {
   done < $1
 }
 
+ml() {
+  if [ -z "$2" ]; then
+    echo "Makes a hard link of the file to the original"
+    echo "Usage: ml <source_file> <destination_file>"
+    echo ""
+    return 1
+  fi
+
+  abs_path_src=$(get_abs_filename $1)
+  abs_path_dest=$(get_abs_filename $2)
+
+  ln ${abs_path_src} ${abs_path_dest}
+  
+  return 0
+}
+
 # An efficient way of searching the bashhub history - uses fzf (fuzzy finder)
 hs() {
   eval $(bh | fzf)
