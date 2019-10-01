@@ -55,7 +55,7 @@ void showCommandList()
 
 void welcome()
 {
-  cout << "Welcome to atom playground!  This software allows for in-depth \n"
+  cout << "Welcome to atom playground!  This software allows for in-depth\n"
        << "analysis of a single snapshot of an atomic structure.\n"
        << "Here is the list of accepted commands: \n";
 
@@ -514,6 +514,13 @@ void playground(string filename = "None")
   string command;
   vector <Atom> atoms, selected_atoms;
   Header header;
+
+  if (filename.compare("None") != 0)
+  {
+    pair<vector <Atom>, Header> tmp = readFile(filename);
+    atoms = tmp.first;
+    header = tmp.second;
+  }
 
   while (!leave_playground)
   {
