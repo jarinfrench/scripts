@@ -156,7 +156,8 @@ pair <int, int> getAtomData(const string& filename, vector <Atom>& atoms)
 
 void createShiftedBoundaries(const string& filename, const vector <double>& shifts,
                              const vector <int>& maxes, vector <Atom>& atoms,
-                             const pair <int, int>& num_atoms_num_types)
+                             const pair <int, int>& num_atoms_num_types,
+                             const bool& is_specific)
 {
   string newFileName;
   int ntotal;
@@ -177,7 +178,8 @@ void createShiftedBoundaries(const string& filename, const vector <double>& shif
   if ((*max_element(atoms.begin(), atoms.end(), compareAtomCharge)).getCharge() != 0.0) {has_charge = true;}
 
   int iter = 0;
-  int max_iters = (maxes[0] + 1) * maxes[1] * (maxes[2] + 1); // the x and z iterations start from 0, so we add 1
+  int max_iters;
+  (is_specific) ? max_iters = 1 : max_iters = (maxes[0] + 1) * maxes[1] * (maxes[2] + 1); // the x and z iterations start from 0, so we add 1
 
   // for each grid unit, create a separate structure
   for (int iz = 0; iz <= maxes[2]; ++iz) // This should always run through the outer loop at least once
@@ -186,6 +188,12 @@ void createShiftedBoundaries(const string& filename, const vector <double>& shif
     {
       for (int iy = 1; iy <= maxes[1]; ++iy)
       {
+        if (is_specific)
+        {
+          ix = maxes[0];
+          iy = maxes[1];
+          iz = maxes[2];
+        }
         ntotal = 0;
 
         // create the new filename
@@ -254,8 +262,6 @@ void createShiftedBoundaries(const string& filename, const vector <double>& shif
           Position p = shifted_atoms[i].getWrapped();
           p += Position(ix * shifts[0], iy * shifts[1], 0.0);
           shifted_atoms[i].setWrapped(p);
-          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped()[0] + ix * shift.first);
-          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped()[1] + iy * shift.second);
 
           // Apply PBCs
           p.setX(shifted_atoms[i].getWrapped()[0] - anInt(shifted_atoms[i].getWrapped()[0] / box.Lx) * box.Lx);
@@ -263,8 +269,6 @@ void createShiftedBoundaries(const string& filename, const vector <double>& shif
           // We're not shifting in the z direction, so we don't need to worry about PBCs in that direction
 
           shifted_atoms[i].setWrapped(p);
-          // shifted_atoms[i].setX(shifted_atoms[i].getWrapped()[0] - anInt(shifted_atoms[i].getWrapped()[0] / box.Lx) * box.Lx);
-          // shifted_atoms[i].setY(shifted_atoms[i].getWrapped()[1] - anInt(shifted_atoms[i].getWrapped()[1] / box.Ly) * box.Ly);
         }
 
         if (shifted_atoms[i].getWrapped()[0] < box.xlow || shifted_atoms[i].getWrapped()[0] > box.xhigh)
@@ -316,6 +320,7 @@ int main(int argc, char** argv)
   double shift_x, shift_y, shift_z;
   int max_x, max_y, max_z;
   vector <Atom> atoms;
+  bool is_specific = false;
 
   try
   {
@@ -334,10 +339,7 @@ int main(int argc, char** argv)
         ("x-max", "Maximum number of displacements in x direction", cxxopts::value<int>(max_x), "n")
         ("y-max", "Maximum number of displacements in y direction", cxxopts::value<int>(max_y), "n")
         ("z-max", "Maximum number of displacements in z direction", cxxopts::value<int>(max_z)->default_value("0"), "n")
-        // ("ncell_x", "Number of cells in the x direction", cxxopts::value<int>(ncell.first), "n") // these two parameters determine the shift size in each direction
-        // ("ncell_y", "Number of cells in the y direction", cxxopts::value<int>(ncell.second), "n")
-        // ("ngrid_x", "Number of grid lines in the x direction", cxxopts::value<int>(ngrid.first), "n") // these two determine the number of shifts that occur.
-        // ("ngrid_y", "Number of grid lines in the y direction", cxxopts::value<int>(ngrid.second), "n")
+        ("specific", "Only create the specified shift", cxxopts::value<bool>(is_specific)->default_value("false")->implicit_value("true"))
         ("h,help", "Show the help");
 
     options.parse_positional({"file", "x-shift", "y-shift", "x-max", "y-max"});
@@ -357,8 +359,6 @@ int main(int argc, char** argv)
       maxes.push_back(max_z);
     }
 
-    auto exists1 = result.count("z-shift");
-    auto exists2 = result.count("z-max");
     if (result.count("z-shift") && !result.count("z-max"))
     {
       cout << "Error: both the z shift and the max number of shifts in z must be specified.\n";
@@ -381,7 +381,7 @@ int main(int argc, char** argv)
     {
       pair <int, int> num_atoms_num_types;
       num_atoms_num_types = getAtomData(filename, atoms);
-      createShiftedBoundaries(filename, shifts, maxes, atoms, num_atoms_num_types);
+      createShiftedBoundaries(filename, shifts, maxes, atoms, num_atoms_num_types, is_specific);
     }
 
   }
