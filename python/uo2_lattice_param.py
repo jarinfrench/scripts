@@ -29,4 +29,4 @@ elif args.T > 1000.0 and args.T <= 3300.0:
     B = 6.18966E-5;
     C = 5.27784E-9;
 
-print("The lattice parameter at {:.1f} K is {:.5f} Angstroms"%(args.T, A + B * args.T + C * args.T * args.T))
+print("The lattice parameter at {:.1f} K is {:.5f} Angstroms".format(args.T, A + B * args.T + C * args.T * args.T))
