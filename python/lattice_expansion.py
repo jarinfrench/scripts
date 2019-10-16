@@ -75,9 +75,9 @@ for file in args.file:
         # read the header data
         lower_bounds = {"x":0.0, "y":0.0, "z":0.0, "xu":0.0, "yu":0.0, "zu":0.0}
         comment = f.readline()
-        data_format = comment.split(":")[1] # we end up with a string that looks like: " [ID type x y z]"
+        data_format = comment.split(":")[1] # we end up with a string that looks like: " [ID type x y z]\n"
         fout.write("This {el} structure has been expanded at T = {temp} K:{data_str}\n".format(el = element, temp = args.T, data_str = data_format))
-        data_format = data_format.strip("[] ").split()
+        data_format = data_format.strip(" []\n").split()
         tmp = f.readline() # blank line
         n_atoms = f.readline() # number of atoms
         fout.write("{}\n".format(n_atoms))
