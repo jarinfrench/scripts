@@ -533,7 +533,7 @@ calculateImpurityDetails(const vector <Atom>& atoms, const vector <string>& comm
 
   cout << "There will be " << impurity_details.num_substituted
        << " substitutions ("
-       << impurity_value << "at%) made." << endl; // FIXME
+       << impurity_value * 100.0 << "at%) made." << endl; // FIXME
 
   return impurity_details;
 }

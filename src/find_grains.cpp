@@ -372,6 +372,7 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
     pcell[idx][idy][idz][icell[idx][idy][idz] - 1] = i;
   }
 
+  //#pragma omp parallel for collapse(3) num_threads(4)
   for (int i = 0; i < ncellx; ++i) // For each x cell
   {
     for (int j = 0; j < ncelly; ++j) // For each y cell
@@ -464,7 +465,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const 
   if (has_charge) {fout << "\"Atom Charge\", ";}
   fout << "\"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
 
-  // This writes things in a Tecplot-readable FILE_FORMAT_ERROR
+  // This writes things in a Tecplot-readable file format
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
     if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end())
@@ -638,6 +639,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
       string neighbor_filename = input.generateNNFilename(aa);
       ofstream fout_neighbors(neighbor_filename.c_str());
       checkFileStream(fout_neighbors, neighbor_filename);
+      //#pragma omp parallel for num_threads(4)
       for (unsigned int i = 0; i < atoms.size(); ++i)
       {
         if (!allowed_atoms[i]) {continue;}
@@ -661,6 +663,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
     // Now that we have the atoms safely stored, we can process them.
     symm.clear();
     symm.resize(atoms.size(), 0); // Assign each atom a symmetry parameter
+    //#pragma omp parallel for num_threads(4)
     for (unsigned int i = 0; i < atoms.size(); ++i)
     {
       if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(),atoms[i].getType()) != input.ignored_atoms.end())
@@ -718,6 +721,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
         symm[i] += val;
       }
     }
+    //#pragma omp parallel for num_threads(4)
     for (unsigned int i = 0; i < symm.size(); ++i)
     {
       if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end())

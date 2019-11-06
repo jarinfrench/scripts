@@ -798,7 +798,7 @@ void writeRotatedFile(const string& filename, const vector <Atom>& atoms)
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
     fout.precision(0);
-    fout << atoms[i].getId() << " " << atoms[i].getType();
+    fout << atoms[i].getId() << " " << atoms[i].getType() << " ";
     if (has_charge)
     {
       fout.precision(1);

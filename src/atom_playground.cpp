@@ -372,7 +372,7 @@ vector <int> getAtomIdsByRange(unsigned int num_atoms)
         s3 >> last_index;
       }
 
-      for (unsigned int j = first_index - 1; j < last_index; ++j)
+      for (unsigned int j = first_index; j <= last_index; ++j)
       {
         atom_ids.push_back(j);
       }
@@ -404,16 +404,28 @@ vector <Atom> getSelectedAtoms(const vector <Atom>& atoms)
 
   while (atom_specification != 't' && atom_specification != 'f' && atom_specification != 'r')
   {
+    // If we have a cin error, clear the error state, wipe the input, and try again
+    cin.clear();
+    cin.ignore(numeric_limits<streamsize>::max(),'\n');
     cout << "Please enter either \'t\', \'f\', or \'r\': ";
     cin  >> atom_specification;
   }
 
-  if (atom_specification == 't') {selected_atoms = getAtomsByType(atoms);}
+  if (atom_specification == 't')
+  {
+    selected_atoms = getAtomsByType(atoms);
+  }
   else
   {
     vector <int> atom_ids;
-    if (atom_specification == 'f') {atom_ids = getAtomIdsFromFile();}
-    else {atom_ids = getAtomIdsByRange(atoms.size());}
+    if (atom_specification == 'f')
+    {
+      atom_ids = getAtomIdsFromFile();
+    }
+    else
+    {
+      atom_ids = getAtomIdsByRange(atoms.size());
+    }
 
     selected_atoms = getAtomsById(atoms, atom_ids);
   }
