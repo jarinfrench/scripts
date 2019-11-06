@@ -9,7 +9,7 @@ read -p "Please enter the radius of the rotated grain: " radius
 
 read -p "Is this type cylinder (1) or sphere (2)? " boundary_type
 
-FLAGS='-e'
+FLAGS='-o e'
 if [[ "${boundary_type}" -eq 1 ]]; then
   b_type="cylinder"
 elif [[ "${boundary_type}" -eq 2 ]]; then
@@ -43,11 +43,11 @@ echo $FN $radius $ntypes $cutoff > rotate_input.txt
 axis=`echo $FN | grep -o "[0-9][0-9][0-9]\." | cut -d. -f1`
 
 # Utilize the symmetry of the axis.
-if [ ${axis} -eq 111 ]; then
+if [ ${axis:-0} -eq 111 ]; then
   let range=120/5
-elif [ ${axis} -eq 110 ]; then
+elif [ ${axis:-0} -eq 110 ]; then
   let range=180/5
-elif [ ${axis} -eq 100 ]; then
+elif [ ${axis:-0} -eq 100 ]; then
   let range=180/5
 else
   echo "Not using a high-symmetry axis: setting range = 360 degrees"

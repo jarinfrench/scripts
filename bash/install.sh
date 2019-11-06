@@ -244,15 +244,29 @@ snap install loop-rs --beta
 
 npm_packages=""
 npm_names=""
+
 has how2 > /dev/null
 if [ $? -gt 0 ]; then
   npm_packages="${npm_packages} how-2"
   npm_names="${npm_names} how2"
 fi
+
 has is > /dev/null
 if [ $? -gt 0 ]; then
   npm_packages="${npm_packages} is.sh"
   npm_names="${npm_names} is"
+fi
+
+has mdlt > /dev/null
+if [ $? -gt 0 ]; then
+  npm_packages="${npm_packages} mdlt"
+  npm_names="${npm_names} mdlt"
+fi
+
+has rename > /dev/null
+if [ $? -gt 0 ]; then
+  npm_packages="${npm_packages} rename-cli"
+  npm_names="${npm_names} rename"
 fi
 echo -e "${GREEN}Installing the following packages using NPM: ${npm_names}${NC}"
 sudo npm install -g ${npm_packages}

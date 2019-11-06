@@ -21,6 +21,9 @@ loop
 parallel
 bashhub - https://github.com/rcaloras/bashhub-client
 fzf - a fuzzy finder - see https://github.com/junegunn/fzf
+rename  - https://github.com/jhotmann/node-rename-cli - rename many files at once
+mdlt - https://github.com/metadelta/mdlt - command line scientific calculator
+qalculate - https://github.com/Qalculate/libqalculate
 
 Not installed, but considered
 borg (homebrew enabled) - not currently maintained, and thus does not work.

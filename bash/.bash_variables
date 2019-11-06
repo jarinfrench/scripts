@@ -7,7 +7,7 @@ export ELECTRON_TRASH=gvfs-trash # required for Atom to be able to delete files 
 
 # Path variables
 export JAVA_HOME=/usr/java/jrel.8.0_121
-export LAMMPS=${HOME}/projects/lammps/src
+export LAMMPS=${HOME}/projects/lammps/executables
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/tecplot/360ex_2018r1/bin:/usr/local/tecplot/360ex_2018r1/bin/sys:/home/${USER}/.openmpi/lib/"
 export OPENMPI_PATH=${HOME}/.openmpi/bin
 export OVITO=/usr/local/ovito-2.8.2-x86_64
