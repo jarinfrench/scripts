@@ -132,7 +132,7 @@ double latticeParam(const double T, const fit& lattice_fit)
   }
   else
   {
-    cout << "Temperature out of fitted range (" << lattice_fit.T1 << " K - " << lattice_fit.T2 << " K).\n";
+    cout << "Temperature out of fitted range (" << lattice_fit.T0 << " K - " << lattice_fit.T2 << " K).\n";
     exit(10); // We don't want to continue with execution if we're out of range.
   }
 
