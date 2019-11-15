@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <algorithm>
+#include <numeric> // for std::iota
 #include <cxxopts.hpp>
 
 #include "atom.h"
@@ -175,7 +176,16 @@ vector <string> parseInputFile(const string& input_file)
   input.sinin = sin(input.theta * PI / 180.0);
   input.cosin = cos(input.theta * PI / 180.0);
 
-  if (input.n_types  <= input.ignored_atoms.size())
+  vector <int> n(input.n_types);
+  iota(n.begin(),n.end(),1); // make a list of numbers from 1 to n_types
+  // Check to see if all the atom types in the simulation have been specified as ignored
+  if (
+    all_of(n.begin(), n.end(),
+    [&](const int & i)
+    {
+      return find(input.ignored_atoms.begin(), input.ignored_atoms.end(), i) != input.ignored_atoms.end();
+    }
+    ))
   {
     cout << "All atoms ignored.  Exiting...\n";
     exit(EXIT_SUCCESS);
