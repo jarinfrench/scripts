@@ -783,8 +783,8 @@ void writeRotatedFile(const string& filename, const vector <Atom>& atoms)
   fout << "These " << compound_ratio.chem_formula << " coordinates are rotated [ID type ";
   if (has_charge) {fout << "charge ";}
   fout << "x y z]\n\n"
-       << atoms.size() << "  atoms\n"
-       << compound_ratio.n_types << "  atom_types\n";
+       << atoms.size() << " atoms\n"
+       << compound_ratio.n_types << " atom types\n";
   fout.precision(6);
   fout << box.xlow << " " << box.xhigh << " xlo xhi\n"
        << box.ylow << " " << box.yhigh << " ylo yhi\n"
