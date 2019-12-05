@@ -13,10 +13,7 @@ args = parser.parse_args()
 
 for file in args.file:
     output_filename = "{base}.dat".format(base = args.output)
-    n = 1
-    while os.path.isfile(output_filename):
-        output_filename = "{base}_{num}.dat".format(base = args.output, num = n)
-        n += 1
+    output_filename = verify_new_file(output_filename)
 
     if not os.path.splitext(file)[1] == ".dat":
         print("Incorrect file type {}".format(os.path.splitext(file)[1]))

@@ -4,7 +4,7 @@ from __future__ import division,print_function # makes division and printing eas
 from math import sin, cos, pi, sqrt, atan2
 from itertools import takewhile,repeat
 from numpy import array, linalg
-import sys
+import sys, os
 
 class bcolors:
     HEADER = '\033[95m'
@@ -205,3 +205,11 @@ def nonblank_lines(f):
         line = l.rstrip()
         if line:
             yield line
+
+def verify_new_file(file):
+    n = 1
+    while os.path.isfile(file):
+        file = "{base}_{num}{ext}".format(base = os.path.splitext(file)[0], num = n, ext = os.path.splitext(file)[1])
+        n += 1
+
+    return file
