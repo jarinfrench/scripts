@@ -12,6 +12,8 @@
 
 using namespace std;
 
+bool extrapolate = false;
+
 struct fit
 {
   string name;
@@ -124,8 +126,9 @@ double latticeParam(const double T, const fit& lattice_fit)
     B = lattice_fit.lin_slope;
     C = 0.0;
   }
-  else if (T > lattice_fit.T1 && T <= lattice_fit.T2)
+  else if ((T > lattice_fit.T1 && T <= lattice_fit.T2) || (T > lattice_fit.T1 && extrapolate))
   {
+    if (extrapolate) {cout << "Warning: extrapolating beyond fitted temperatures.\n";}
     A = lattice_fit.parabolic_int;
     B = lattice_fit.parabolic_lin;
     C = lattice_fit.parabolic_term;
@@ -237,6 +240,7 @@ int main(int argc, char **argv)
         ("estimate-fluctuations", "Estimates the percentage of misassigned atoms based on the temperature given using the Boltzmann probability", cxxopts::value<double>(), "temperature")
         ("list-fits", "List the names of the fits given in the database file")
         ("potential-file", "Full path of the fitted lattice parameter database to use", cxxopts::value<string>(database_file)->default_value((string)(getenv("HOME")) + "/projects/scripts/lattice_params.db"), "db_file")
+        ("e,extrapolate", "Proceed with calculations even if temperature is above fitted range.")
         ("h,help", "Show the help");
 
     options.parse_positional({"file"});
@@ -248,6 +252,8 @@ int main(int argc, char **argv)
       showInputFileHelp();
       return EXIT_SUCCESS;
     }
+
+    if (result.count("extrapolate")) {extrapolate = true;}
 
     fits = setPotentials(database_file);
 
