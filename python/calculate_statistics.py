@@ -7,6 +7,10 @@ import scipy.stats as sp
 import numpy as np
 from tabulate import tabulate
 import natsort
+import warnings
+
+np.seterr(all='warn')
+warnings.filterwarnings('error')
 
 parser = argparse.ArgumentParser(usage = '%(prog)s [-h] file [file file file ...]', description = "Calculate statistics for a set of data.")
 parser.add_argument('file', nargs = '+', help = "The file(s) to process")
@@ -27,6 +31,7 @@ min_summary = 0
 sd_summary = 0
 variance_summary = 0
 range_summary = 0
+mode_summary = 0
 
 
 for file in args.file:
@@ -61,13 +66,13 @@ for file in args.file:
 
     try:
         geometric_mean = sp.gmean(data_to_process)
-    except {ValueError, RuntimeWarning}:
+    except (ValueError, RuntimeWarning):
         print("Unable to calculate geometric mean")
         geometric_mean = 0
 
     try:
         harmonic_mean = sp.hmean(data_to_process)
-    except ValueError:
+    except (ValueError, RuntimeWarning):
         print("Unable to calculate harmonic mean")
         harmonic_mean = 0
 
@@ -79,10 +84,16 @@ for file in args.file:
     standard_deviation = statistics.stdev(data_to_process)
     variance = statistics.variance(data_to_process)
 
+    try:
+        mode = statistics.mode(data_to_process)
+    except:
+        mode = statistics.mode([round(i,-1) for i in data_to_process])
+
+    print("segregation energy: {}".format(mode - minimum))
     if not args.summary:
         print(tabulate([["G_Mean", geometric_mean], ["H_Mean", harmonic_mean], \
             ["A_Mean", arithmetic_mean], ["Min", minimum], ["Quartile1", quartile_25], \
-            ["Median", median], ["Quartile3", quartile_75], ["Max", maximum],  \
+            ["Median", median], ["Quartile3", quartile_75], ["Max", maximum],  ["Mode", mode], \
             ["Range", range_val], ["SD", standard_deviation], ["Variance", variance]], headers = \
             ["Statistic", "Value"]))
         print("\n")
@@ -98,6 +109,7 @@ for file in args.file:
     range_summary += range_val
     sd_summary += standard_deviation
     variance_summary += variance
+    mode_summary += mode
 
 g_mean_summary /= len(args.file)
 h_mean_summary /= len(args.file)
@@ -110,11 +122,12 @@ min_summary /= len(args.file)
 range_summary /= len(args.file)
 sd_summary /= len(args.file)
 variance_summary /= len(args.file)
+mode_summary /= len(args.file)
 
 print("Statistics Summary:")
 print(tabulate([["G_Mean", g_mean_summary], ["H_Mean", h_mean_summary], \
     ["A_Mean", a_mean_summary], ["Min", min_summary], ["Quartile1", q1_summary], \
-    ["Median", median_summary], ["Quartile3", q3_summary], ["Max", max_summary], \
+    ["Median", median_summary], ["Quartile3", q3_summary], ["Max", max_summary], ["Mode", mode_summary], \
     ["Range", range_summary], ["SD", sd_summary], ["Variance", variance_summary]], headers = \
     ["Statistic", "Value"]))
 print("\n")
