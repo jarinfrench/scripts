@@ -246,6 +246,13 @@ int main(int argc, char **argv)
     options.parse_positional({"file"});
     auto result = options.parse(argc, argv);
 
+    if (result.count("list-fits"))
+    {
+      fits = setPotentials(database_file);
+      listPotentials(fits);
+      return EXIT_SUCCESS;
+    }
+
     if (result.count("help") || result.count("file") == 0)
     {
       cout << options.help() << endl << endl;
@@ -283,16 +290,9 @@ int main(int argc, char **argv)
 
     if (result.count("estimate-fluctuations"))
     {
-      double temperature = result["estimate-fluctuatons"].as<double>();
+      double temperature = result["estimate-fluctuations"].as<double>();
       cout << "The estimated percentage of misassigned atoms at " << temperature
            << " K is:\n" << estimateAtomFluctuations(temperature) << endl;
-      return EXIT_SUCCESS;
-    }
-
-    if (result.count("list-fits"))
-    {
-      fits = setPotentials(database_file);
-      listPotentials(fits);
       return EXIT_SUCCESS;
     }
 
