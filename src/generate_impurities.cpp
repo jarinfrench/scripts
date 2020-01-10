@@ -140,9 +140,9 @@ double anInt(double x)
 void showInputFileHelp()
 {
   cout << "The input file may consist of multiple lines that may be formatted one of two ways:\n"
-       << "\t(1) datafile molecule_name impurity_value atom_type seed r_cut1 [r_cut2 r_cut3 ....]\n"
-       << "\t(2) datafile molecule_name atom_id r_cut1 [r_cut2 r_cut3 ....]\n"
-       << "\t(3) datafile molecule_name file_containing_atom_ids r_cut1 [r_cut2 r_cut3 ....]\n\n"
+       << "\t(1) datafile outfile molecule_name impurity_value atom_type seed r_cut1 [r_cut2 r_cut3 ....]\n"
+       << "\t(2) datafile outfile molecule_name atom_id r_cut1 [r_cut2 r_cut3 ....]\n"
+       << "\t(3) datafile outfile molecule_name file_containing_atom_ids r_cut1 [r_cut2 r_cut3 ....]\n\n"
        << "In all of these, the cutoff value must be specified for determining nearest neighbor\n"
        << "interactions. Note that the number of cutoff radii is dependent on the number\n"
        << "of unique elements in the structure.  For example, a system of two unique atoms\n"
@@ -210,7 +210,7 @@ void writeVacancyFile(const string& vac_file, const vector <Atom>& atoms,
 
   if (atom_id != num_atoms)
   {
-    cout << "Error in vacancy file: n_written = " << atom_id << " != num_atoms = " << num_atoms << endl;
+    cout << "Error in file " << vac_file << ": n_written = " << atom_id << " != num_atoms = " << num_atoms << endl;
     exit(ATOM_COUNT_ERROR);
   }
 }
@@ -281,7 +281,7 @@ void writeSubstitutionFile(const string& sub_file, const vector <Atom>& atoms,
 
   if (atom_id != num_atoms)
   {
-    cout << "Error in substitution file: n_written = " << atom_id << " != num_atoms = " << num_atoms << endl;
+    cout << "Error in file " << sub_file << ": n_written = " << atom_id << " != num_atoms = " << num_atoms << endl;
     exit(ATOM_COUNT_ERROR);
   }
 }
@@ -460,17 +460,17 @@ calculateImpurityDetails(const vector <Atom>& atoms, const vector <string>& comm
   double impurity_value;
   int seed;
 
-  if (commands.size() == 5 + num_cutoffs) // we either have a specific number to replace (randomly) or a percentage
+  if (commands.size() == 6 + num_cutoffs) // we either have a specific number to replace (randomly) or a percentage
   {
-    stringstream ss(commands[2]); // This is the impurity value for input type (1)
+    stringstream ss(commands[3]); // This is the impurity value for input type (1)
     ss >> impurity_value;
 
     ss.clear();
-    ss.str(commands[3]);
+    ss.str(commands[4]);
     ss >> impurity_details.atom_type_to_substitute;
 
     ss.clear();
-    ss.str(commands[4]);
+    ss.str(commands[5]);
     ss >> seed;
 
     cout << "The seed for random number generation is " << seed << endl;
@@ -485,29 +485,30 @@ calculateImpurityDetails(const vector <Atom>& atoms, const vector <string>& comm
       impurity_details.num_substituted = (int)((double)(numerator) / (double)(denominator) * impurity_value);
     }
   }
-  else if (commands.size() == 3 + num_cutoffs) // either one id, or a file containing a list of IDs has beeen specified
+  else if (commands.size() == 4 + num_cutoffs) // either one id, or a file containing a list of IDs has beeen specified
   {
-    // Check to see if the value specified in commands[2] is a file or a number
-    bool using_file = std::find_if(commands[2].begin(), commands[2].end(),
-                      [](char c) { return !std::isdigit(c); }) != commands[2].end();
+    // Check to see if the value specified in commands[3] is a file or a number
+    bool using_file = std::find_if(commands[3].begin(), commands[3].end(),
+                      [](char c) { return !std::isdigit(c); }) != commands[3].end();
 
     if (using_file)
     {
       string line;
       int tmp; // temporary variable to hold the atom id
       int atom_type;
-      int n = 0; // line number;
+      int line_num = 0;
       bool same_atom_type = true;
-      ifstream fin(commands[2].c_str());
-      checkFileStream(fin, commands[2]);
+      ifstream fin(commands[3].c_str());
+      checkFileStream(fin, commands[3]);
       while (getline(fin, line))
       {
         stringstream line_data(line);
         line_data >> tmp;
         impurity_details.atom_id.push_back(tmp);
-        if (n == 0) {atom_type = atoms[impurity_details.atom_id[n] - 1].getType();}
-        if (atoms[impurity_details.atom_id[n] - 1].getType() != atom_type) {same_atom_type = false;}
+        if (line_num == 0) {atom_type = atoms[impurity_details.atom_id[line_num] - 1].getType();}
+        if (atoms[impurity_details.atom_id[line_num] - 1].getType() != atom_type) {same_atom_type = false;}
         ++impurity_details.num_substituted;
+        ++line_num;
       }
       if (same_atom_type)
       {
@@ -516,13 +517,13 @@ calculateImpurityDetails(const vector <Atom>& atoms, const vector <string>& comm
       }
       else
       {
-        impurity_value = impurity_details.num_substituted / atoms.size();
+        impurity_value = (1.0 * impurity_details.num_substituted) / atoms.size();
       }
     }
     else
     {
       int tmp;
-      stringstream ss(commands[2]);
+      stringstream ss(commands[3]);
       ss >> tmp;
       impurity_details.atom_id.push_back(tmp);
       impurity_value = (1.0 * std::accumulate(compound_ratio.ratio.begin(), compound_ratio.ratio.end(), 0)) / \
@@ -552,6 +553,11 @@ vector <Atom> generateImpurities(vector <Atom>& atoms, const vector <string>& co
     substitutional_atoms.resize(impurity_details.num_substituted, Atom());
     for (unsigned int i = 0; i < impurity_details.atom_id.size(); ++i)
     {
+      if (impurity_details.atom_id[i] - 1 > atoms.size())
+      {
+        cout << "Atom id " << impurity_details.atom_id[i] << " is larger than number of atoms\n";
+        exit(BOUNDS_ERROR);
+      }
       atoms[impurity_details.atom_id[i] - 1].setMark(1);
       substitutional_atoms[i] = atoms[impurity_details.atom_id[i] - 1];
       ++n_removed;
@@ -832,8 +838,8 @@ bool validateNumElements(const int& n_types, const vector <string>& commands, in
   num_cutoffs = ((n_types + 1) * n_types) / 2;
 
   // The 5 and 3 come from the number of parameters in the different input formats.
-  // combinations represents the number of cutoff radii required.
-  if ((5 + num_cutoffs != commands.size()) && (3 + num_cutoffs != commands.size()))
+  // num_cutoffs represents the number of cutoff radii required.
+  if ((6 + num_cutoffs != commands.size()) && (4 + num_cutoffs != commands.size()))
   {
     cout << "Number of commands in line\n" << "  ";
     for (unsigned int i = 0; i < commands.size(); ++i)
@@ -842,8 +848,8 @@ bool validateNumElements(const int& n_types, const vector <string>& commands, in
     }
     cout << endl
          << "not correct.\nNumber of commands found: " << commands.size()
-         << " != expected number of commands = " << 5 + num_cutoffs
-         << " (input format 1) or " << 3 + num_cutoffs << " (input format 2)\n\n";
+         << " != expected number of commands = " << 6 + num_cutoffs
+         << " (input format 1) or " << 4 + num_cutoffs << " (input formats 2/3)\n\n";
 
     showInputFileHelp();
     return false;
@@ -999,7 +1005,6 @@ int main(int argc, char **argv)
       .add_options()
         ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
         ("d,defect-type", "Specify which output files are wanted: (m)arked atoms for removal, atoms with (s)ubstitutions,  or (v)acancies.  Interstitials not implemented.", cxxopts::value<string>()->default_value("msv"), "m, s and/or v")
-        ("o,outfile", "In the case of only one output file, specify the file name. (Assumes \'-d s\' unless otherwise specified).", cxxopts::value<string>(outfile), "Output file")
         ("no-molecule-removal", "Only remove the atom(s) specified for removal, without removing the whole molecule")
         ("h,help", "Show the help");
 
@@ -1041,24 +1046,6 @@ int main(int argc, char **argv)
       }
     }
 
-    if (result.count("outfile"))
-    {
-      if (!result.count("defect-type"))
-      {
-        marked = false;
-        substitutions = true;
-        vacancies = false;
-      }
-      else
-      {
-        if (marked + substitutions + vacancies > 1)
-        {
-          cout << "Output file name option only allowed with one output type!\n";
-          return INPUT_FORMAT_ERROR;
-        }
-      }
-    }
-
     if (result.count("file"))
     {
       // time_point<Clock> start = Clock::now();
@@ -1081,7 +1068,7 @@ int main(int argc, char **argv)
         map <pair <int, int>, double> r_cut_map, r_cut_sq_map;
         vector <Atom> substituted_atoms;
 
-        elements = determineElementRatios(impurity_commands[i][1], compound_ratio);
+        elements = determineElementRatios(impurity_commands[i][2], compound_ratio);
 
         if (!(validateNumElements(compound_ratio.n_types, impurity_commands[i], num_cutoffs)))
         {
@@ -1127,19 +1114,9 @@ int main(int argc, char **argv)
           }
         }
 
-        if (result.count("outfile"))
-        {
-          writeAtomsToFiles(atoms, impurity_commands[i][0], substituted_atoms,
-                          box, compound_ratio, outfile);
-        }
-        else
-        {
-          writeAtomsToFiles(atoms, impurity_commands[i][0], substituted_atoms,
-                          box, compound_ratio);
-        }
-
+        writeAtomsToFiles(atoms, impurity_commands[i][0], substituted_atoms,
+                          box, compound_ratio, impurity_commands[i][1]);
       }
-
     }
   }
   catch (cxxopts::OptionException& e)
