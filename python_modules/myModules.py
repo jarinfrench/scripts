@@ -206,10 +206,11 @@ def nonblank_lines(f):
         if line:
             yield line
 
-def verify_new_file(file):
+def verify_new_file(filebase):
     n = 1
+    file = filebase
     while os.path.isfile(file):
-        file = "{base}_{num}{ext}".format(base = os.path.splitext(file)[0], num = n, ext = os.path.splitext(file)[1])
+        file = "{base}_{num}{ext}".format(base = os.path.splitext(filebase)[0], num = n, ext = os.path.splitext(filebase)[1])
         n += 1
 
     return file
