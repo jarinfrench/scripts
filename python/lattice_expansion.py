@@ -27,8 +27,11 @@ else:
     args.scale = args.scale[0:3]
 
 for file in args.file:
-    output_filename = "{base}.dat".format(base = args.output)
-    output_filename = verify_new_file(output_filename)
+    if args.output.find(".dat") != -1: # if the .dat extension was found
+        output_filename = args.output # the exact filename will be used
+    else: # otherwise, we use the basename and check for already existing files.
+        output_filename = "{base}.dat".format(base = args.output)
+        output_filename = verify_new_file(output_filename)
 
     if not os.path.splitext(file)[1] == ".dat":
         print("Incorrect file type {}".format(os.path.splitext(file)[1]))
