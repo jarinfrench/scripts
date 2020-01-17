@@ -197,16 +197,16 @@ vector <string> parseInputFile(const string& input_file)
   input.new_z_axis = getAxisData(fin_input);
 
   cout << "Input parameters:\n"
-       << "\tn_files = " << input.n_files << endl
-       << "\tadditional rotation = " << input.theta << endl
-       << "\tn_types = " << input.n_types << endl
-       << "\tr_cut = " << input.r_cut << endl
-       << "\tfi_cut = " << input.fi_cut << endl
-       << "\ta0 = " << input.a0 << endl;
-  cout << "\tRotated coordinate system:\n"
-       << "\t  x = " << input.new_x_axis[0] << " " << input.new_x_axis[1] << " " << input.new_x_axis[2] << endl
-       << "\t  y = " << input.new_y_axis[0] << " " << input.new_y_axis[1] << " " << input.new_y_axis[2] << endl
-       << "\t  z = " << input.new_z_axis[0] << " " << input.new_z_axis[1] << " " << input.new_z_axis[2] << endl;
+       << "\tn_files = " << input.n_files
+       << "\n\tadditional rotation = " << input.theta
+       << "\n\tn_types = " << input.n_types
+       << "\n\tr_cut = " << input.r_cut
+       << "\n\tfi_cut = " << input.fi_cut
+       << "\n\ta0 = " << input.a0
+       << "\n\tRotated coordinate system:"
+       << "\n\t  x = " << input.new_x_axis[0] << " " << input.new_x_axis[1] << " " << input.new_x_axis[2]
+       << "\n\t  y = " << input.new_y_axis[0] << " " << input.new_y_axis[1] << " " << input.new_y_axis[2]
+       << "\n\t  z = " << input.new_z_axis[0] << " " << input.new_z_axis[1] << " " << input.new_z_axis[2] << "\n";
 
   normalize(input.new_x_axis);
   normalize(input.new_y_axis);
@@ -289,7 +289,7 @@ void getAtomData(ifstream& fin, vector <Atom>& atoms)
     if (type > input.n_types)
     {
       cout << "Error: unexpected atom type.\n"
-           << "n_types = " << input.n_types << " < this atom's type = " << type << endl;
+           << "n_types = " << input.n_types << " < this atom's type = " << type << "\n";
       exit(ATOM_TYPE_ERROR);
     }
 
@@ -314,7 +314,7 @@ void getAtomData(ifstream& fin, vector <Atom>& atoms)
   if (n_atoms_read != atoms.size())
   {
     cout << "Error: number of atoms read does not match number of atoms in the simulation.\n"
-         << "N = " << atoms.size() << " != n_atoms_read = " << n_atoms_read << endl;
+         << "N = " << atoms.size() << " != n_atoms_read = " << n_atoms_read << "\n";
     exit(ATOM_COUNT_ERROR);
   }
 }
@@ -493,7 +493,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const 
          << (atoms[i].getWrapped()[2] + box.zlow) * input.a0 << " "
          << atoms[i].getMark() << " "
          << symm[i] << " " << atoms[i].getUnwrapped()[0] << " " << atoms[i].getUnwrapped()[1]
-         << " " << atoms[i].getUnwrapped()[2] << endl;
+         << " " << atoms[i].getUnwrapped()[2] << "\n";
     ++n_atoms_written;
   }
   fout.close();
@@ -501,7 +501,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms, const 
   // if (n_atoms_read != atoms.size()) // TODO: This needs to be generalized
   // {
   //   cout << "Error: number of atoms written does not match number of atoms in the simulation.\n"
-  //        << "N = " << atoms.size() << " != n_atoms_written = " << n_atoms_written << endl;
+  //        << "N = " << atoms.size() << " != n_atoms_written = " << n_atoms_written << "\n";
   //   exit(ATOM_COUNT_ERROR);
   // }
 }
@@ -664,7 +664,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
           sort(neighs.begin(), neighs.end());
           for (unsigned int i = 0; i < neighs.size(); ++i)
           {
-            fout_neighbors << "\tAtom " << neighs[i] << endl;
+            fout_neighbors << "\tAtom " << neighs[i] << "\n";
           }
         }
       }
@@ -748,7 +748,8 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
       {
         if (warnings)
         {
-          cout << "\nWarning: no neighbors detected for atom " << atoms[i].getId() << ".  Using the symmetry parameter of the previous atom = " << symm[i - 1] << endl;
+          cout << "\nWarning: no neighbors detected for atom " << atoms[i].getId()
+               << ".  Using the symmetry parameter of the previous atom = " << symm[i - 1] << "\n";
         }
         symm[i] = symm[i - 1];
       }
@@ -769,7 +770,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
       }
     }
 
-    fout_data << n_grain_1 << " " << n_grain_2 << endl;
+    fout_data << n_grain_1 << " " << n_grain_2 << "\n";
 
     if (every != 0 && ((aa - 1) % every == 0 || aa == files.size())) {writeAtomsToFile(filename2, atoms, allowed_atoms, symm);}
 
@@ -845,8 +846,8 @@ int main(int argc, char** argv)
 
     if (result.count("help") || result.count("file") == 0)
     {
-      cout << options.help() << endl << endl
-           << "The first line of the input file must contain the following six items:\n"
+      cout << options.help()
+           << "\n\nThe first line of the input file must contain the following six items:\n"
            << "\t1. The number of files to be processed.\n"
            << "\t2. The additional rotation to apply to the system.\n"
            << "\t3. The number of atom types in the simulation.\n"
@@ -870,7 +871,7 @@ int main(int argc, char** argv)
         cout << *it;
         if (++it != input.ignored_atoms.end()) {cout << ", ";}
       }
-      cout << endl;
+      cout << "\n";
     }
     else {cout << "Processing all atom types.\n";}
 
@@ -906,12 +907,12 @@ int main(int argc, char** argv)
       }
       filenames = parseInputFile(input_file);
       processData(filenames, result);
-      cout << endl;
+      cout << "\n";
     }
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cout << "Error parsing options: " << e.what() << "\n";
     return OPTION_PARSING_ERROR;
   }
 

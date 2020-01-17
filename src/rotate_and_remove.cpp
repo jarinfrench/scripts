@@ -24,6 +24,7 @@ static bool rotated = true;
 static bool removed = true;
 static bool printedInputHelp = false;
 static bool type_one_only = false;
+static bool no_index = false;
 static map <string, double> first_nn_distances = {
   {"fcc", 0.707106781}, // 1/sqrt(2)
   {"fluorite", 0.707106781}, // same as fcc for the larger sublattice
@@ -212,7 +213,7 @@ void determineElementRatios(inputData& input)
           if (isdigit(input.molecule[i + 2])) {input.element_ratios[element] = findElementSubscript(input.molecule, i + 2);}
           else {input.element_ratios[element] = 1;} // second character after current is not a number
           if (input.number_to_element.insert(pair<int,string>(elem_num, element)).second) {++elem_num;}
-          else {cout << "Error inserting element " << element << endl;}
+          else {cout << "Error inserting element " << element << "\n";}
         }
         else
         {
@@ -229,7 +230,7 @@ void determineElementRatios(inputData& input)
           if (isdigit(input.molecule[i + 1])) {input.element_ratios[element] = findElementSubscript(input.molecule, i + 1);}
           else {input.element_ratios[element] = 1;}
           if (input.number_to_element.insert(pair<int,string>(elem_num, element)).second) {++elem_num;}
-          else {cout << "Error inserting element " << element << endl;}
+          else {cout << "Error inserting element " << element << "\n";}
         }
         else
         {
@@ -243,7 +244,7 @@ void determineElementRatios(inputData& input)
   if (input.n_types != input.number_to_element.size())
   {
     cout << "Error determining element types. Input file n_types = " << input.n_types
-         << " != found elements = " << input.number_to_element.size() << endl;
+         << " != found elements = " << input.number_to_element.size() << "\n";
     exit(ELEMENT_COUNT_ERROR);
   }
 }
@@ -253,7 +254,7 @@ void checkGrainSize(const double& r_grain, const double& val)
   if (r_grain * 2.0 > val)
   {
     cout << "Error: grain diameter = " << r_grain * 2.0
-         << " >= boundary = " << val << endl;
+         << " >= boundary = " << val << "\n";
     exit(GRAIN_TOO_LARGE_ERROR);
   }
 }
@@ -277,7 +278,7 @@ vector <Atom> readDataFile(inputData& input)
   if (n_types != input.n_types)
   {
     cout << "WARNING: Atom types calculated vs atom types in data file do not match.\n"
-         << "Calculated = " << input.n_types << " != data file = " << n_types << endl;
+         << "Calculated = " << input.n_types << " != data file = " << n_types << "\n";
   }
 
   fin >> input.box.xlow >> input.box.xhigh >> str >> str
@@ -336,7 +337,7 @@ vector <Atom> readDataFile(inputData& input)
     if (type > input.n_types)
     {
       cout << "Error: Atom type = " << type << " is greater than the number of types specified = "
-           << input.n_types << endl;
+           << input.n_types << "\n";
       exit(ATOM_TYPE_ERROR);
     }
 
@@ -347,7 +348,7 @@ vector <Atom> readDataFile(inputData& input)
 
   if (n_total != N)
   {
-    cout << "Error: n_total = " << n_total << " != N = " << N << endl;
+    cout << "Error: n_total = " << n_total << " != N = " << N << "\n";
     exit(ATOM_COUNT_ERROR);
   }
 
@@ -623,7 +624,7 @@ int removeAtoms(vector <Atom>& atoms, const vector <vector <int> >& iatom, const
       {
         cout << "Error: the element ratio has not been kept.\n"
              << input.element_ratios.at(input.number_to_element.at(j + 1)) << "*" << n_removed[i] << " != "
-             << input.element_ratios.at(input.number_to_element.at(i + 1)) << "*" << n_removed[j] << endl;
+             << input.element_ratios.at(input.number_to_element.at(i + 1)) << "*" << n_removed[j] << "\n";
         exit(ATOM_COUNT_ERROR);
       }
     }
@@ -643,7 +644,7 @@ void writeMarkedFile(const string& filename, const vector <Atom>& atoms, const i
     fout << atoms[i].getId() << " " << atoms[i].getType() << " ";
     if (input.has_charge) {fout << atoms[i].getCharge() << " ";}
     atoms[i].getWrapped().print3DSpace(fout);
-    fout << " " << atoms[i].getMark() << endl;
+    fout << " " << atoms[i].getMark() << "\n";
   }
   fout.close();
 }
@@ -680,7 +681,7 @@ void writeRotatedFile(const string& filename, const vector <Atom>& atoms, const 
     }
     fout.precision(6);
     atoms[i].getWrapped().print3DSpace(fout);
-    fout << endl;
+    fout << "\n";
   }
   fout.close();
 }
@@ -717,6 +718,7 @@ void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const 
       fout << n_total << " " << atoms[i].getType() << " ";
       if (input.has_charge) {fout << atoms[i].getCharge() << " ";}
       atoms[i].getWrapped().print3DSpace(fout);
+      fout << "\n";
     }
   }
 
@@ -724,7 +726,7 @@ void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const 
   {
     cout << "Error: The final number of removed atoms is not balanced.\n"
          << "n_total = " << n_total << " != N - n_removed = "
-         << atoms.size() - n_removed << endl;
+         << atoms.size() - n_removed << "\n";
     exit(ATOM_COUNT_ERROR);
   }
 
@@ -739,7 +741,8 @@ void rotateAndRemove(inputData& input, const unsigned int& index)
   int n_removed;
 
   stringstream ss;
-  ss << "_" << index << ".dat";
+  if (!no_index) {ss << "_" << index;}
+  ss << ".dat";
   marked_filename = input.output_basename + "_marked" + ss.str();
   rotated_filename = input.output_basename + "_rotated" + ss.str();
   removed_filename = input.output_basename + "_removed" + ss.str();
@@ -753,7 +756,7 @@ void rotateAndRemove(inputData& input, const unsigned int& index)
   if (rotated) {writeRotatedFile(rotated_filename, atoms, input);}
   if (removed) {writeRemovedFile(removed_filename, atoms, n_removed, input);}
 
-  cout << endl;
+  cout << "\n";
 }
 
 void printInputData(const inputData& input)
@@ -768,9 +771,9 @@ void printInputData(const inputData& input)
        << "\n\n  Elements found (" << input.n_types << "): ";
   for (map <int, string>::const_iterator it = input.number_to_element.begin(); it != input.number_to_element.end();)
   {
-    cout << "    " << it->second;
+    cout << it->second;
     if (++it != input.number_to_element.end()) {cout << ", ";}
-    else {cout << endl;}
+    else {cout << "\n";}
   }
 
   if (input.n_types > 1)
@@ -780,7 +783,7 @@ void printInputData(const inputData& input)
     {
       cout << input.element_ratios.at(it->second) << " " << it->second;
       if (++it != input.number_to_element.end()) {cout << " : ";}
-      else {cout << endl;}
+      else {cout << "\n";}
     }
   }
 }
@@ -790,13 +793,13 @@ void writeLogFile(const inputData& input, const unsigned int& index)
   ofstream fout("log.rotate_and_remove", fstream::app);
   checkFileStream(fout, "log.rotate_and_remove");
 
-  fout << "File: " << input.data_file << endl
-       << "Theta: " << input.theta << endl
-       << "Cutoff value(s): \n";
+  fout << "File: " << input.data_file
+       << "\nTheta: " << input.theta
+       << "\nCutoff value(s): \n";
   for (map <pair <int, int>, double>::const_iterator it = input.rcut.begin(); it != input.rcut.end(); ++it)
   {
     fout << "\t" << (*it).first.first << "-" << (*it).first.second << ": "
-         << (*it).second << endl;
+         << (*it).second << "\n";
   }
   stringstream ss;
   ss << "_" << index << ".dat";
@@ -941,6 +944,7 @@ int main (int argc, char **argv)
         cxxopts::value<string>(outputs)->default_value("r"), "mor")
       ("s,sphere", "Flag to create a spherical grain", cxxopts::value<bool>(is_sphere)->implicit_value("true"))
       ("1", "Flag to remove only type 1 atoms using the cutoff", cxxopts::value<bool>(type_one_only)->implicit_value("true"))
+      ("no-index", "Flag to not include the index in output file names", cxxopts::value<bool>(no_index)->implicit_value("true"))
       ("h,help", "Show the help");
 
     options.parse_positional({"file"});
@@ -948,7 +952,7 @@ int main (int argc, char **argv)
 
     if (result.count("help") || !result.count("file"))
     {
-      cout << options.help() << endl << endl;
+      cout << options.help() << "\n\n";
       printInputFileHelp();
       return EXIT_SUCCESS;
     }
@@ -988,7 +992,7 @@ int main (int argc, char **argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cout << "Error parsing options: " << e.what() << "\n";
     return OPTION_PARSING_ERROR;
   }
 
