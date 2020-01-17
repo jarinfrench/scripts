@@ -17,6 +17,9 @@ scale_all = False # scale all directions independently
 
 if len(args.scale) == 1:
     uniform = True
+    if args.scale[0] == 1.0:
+        print("No lattice scaling needed. Exiting...")
+        exit(0)
 elif len(args.scale) == 2:
     xy_only = True
 elif len(args.scale) == 3:
@@ -35,7 +38,7 @@ for file in args.file:
 
     if not os.path.splitext(file)[1] == ".dat":
         print("Incorrect file type {}".format(os.path.splitext(file)[1]))
-        os.exit(1)
+        exit(1)
 
     fout = open(output_filename, 'w')
     with open(file) as f:
@@ -51,7 +54,7 @@ for file in args.file:
             fout.write("The {file} structure has been expanded by a factor of x * {scale1}, y * {scale2}, z * {scale3}:{data_str}\n".format(file = file, scale1 = args.scale[0], scale2 = args.scale[1], scale3 = args.scale[2], data_str = data_format))
         else:
             print("Error: unknown scaling relationship.")
-            os.exit(1)
+            exit(1)
         data_format = data_format.strip(" []\n").split()
         tmp = f.readline() # blank line
         n_atoms = f.readline() # number of atoms
@@ -63,16 +66,16 @@ for file in args.file:
         xhi = float(tmp.split()[1]) # upper bound
         lower_bounds["x"] = xlo
         lower_bounds["xu"] = xlo
-        fout.write("{} {} xlo xhi\n".format(xlo, (xhi-xlo) * args.scale[0] + xlo)) # the x direction is always scaled by args.scale[0]
+        fout.write("{:8.6f} {:8.6f} xlo xhi\n".format(xlo, (xhi-xlo) * args.scale[0] + xlo)) # the x direction is always scaled by args.scale[0]
         tmp = f.readline() # y bounds
         ylo = float(tmp.split()[0]) # lower bound
         yhi = float(tmp.split()[1]) # upper bound
         lower_bounds["y"] = ylo
         lower_bounds["yu"] = ylo
         if uniform or xy_only: # the y direction is scaled by args.scale[0] in the uniform case, and in the x-y case
-            fout.write("{} {} ylo yhi\n".format(ylo, (yhi-ylo) * args.scale[0] + ylo))
+            fout.write("{:8.6f} {:8.6f} ylo yhi\n".format(ylo, (yhi-ylo) * args.scale[0] + ylo))
         elif scale_all: # otherwise it is scaled by args.scale[1]
-            fout.write("{} {} ylo yhi\n".format(ylo, (yhi-ylo) * args.scale[1] + ylo))
+            fout.write("{:8.6f} {:8.6f} ylo yhi\n".format(ylo, (yhi-ylo) * args.scale[1] + ylo))
         else:
             print("Error: unknown scaling relationship.")
             os.exit(1)
@@ -82,11 +85,11 @@ for file in args.file:
         lower_bounds["z"] = zlo
         lower_bounds["zu"] = zlo
         if uniform: # z scales with args.scale[0] if one value is given
-            fout.write("{} {} zlo zhi\n\n".format(zlo, (zhi-zlo) * args.scale[0] + zlo))
+            fout.write("{:8.6f} {:8.6f} zlo zhi\n\n".format(zlo, (zhi-zlo) * args.scale[0] + zlo))
         elif xy_only: # z scales with args.scale[1] if two values are given
-            fout.write("{} {} zlo zhi\n\n".format(zlo, (zhi-zlo) * args.scale[1] + zlo))
+            fout.write("{:8.6f} {:8.6f} zlo zhi\n\n".format(zlo, (zhi-zlo) * args.scale[1] + zlo))
         elif scale_all: # z scales with args.scale[2] if three (or more) values are given
-            fout.write("{} {} zlo zhi\n\n".format(zlo, (zhi-zlo) * args.scale[2] + zlo))
+            fout.write("{:8.6f} {:8.6f} zlo zhi\n\n".format(zlo, (zhi-zlo) * args.scale[2] + zlo))
         tmp = f.readline() # blank line
         tmp = f.readline() # "Atoms"
         fout.write("{}\n".format(tmp))
@@ -97,24 +100,24 @@ for file in args.file:
             for i in range(len(data)):
                 # This strips off the [,], and ' ' at the ends, and divides it into it's component parts
                 if data_format[i] in ["x", "xu"]:
-                    data[i] = str((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[0] + lower_bounds[data_format[i]])
+                    data[i] = "{:8.6f}".format((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[0] + lower_bounds[data_format[i]])
                 elif data_format[i] in ["y", "yu"]:
                     if uniform or xy_only:
-                        data[i] = str((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[0] + lower_bounds[data_format[i]])
+                        data[i] = "{:8.6f}".format((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[0] + lower_bounds[data_format[i]])
                     elif scale_all:
-                        data[i] = str((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[1] + lower_bounds[data_format[i]])
+                        data[i] = "{:8.6f}".format((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[1] + lower_bounds[data_format[i]])
                     else:
                         print("Error: unknown scaling relationship.")
-                        os.exit(1)
+                        exit(1)
                 elif data_format[i] in ["z", "zu"]:
                     if uniform:
-                        data[i] = str((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[0] + lower_bounds[data_format[i]])
+                        data[i] = "{:8.6f}".format((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[0] + lower_bounds[data_format[i]])
                     elif xy_only:
-                        data[i] = str((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[1] + lower_bounds[data_format[i]])
+                        data[i] = "{:8.6f}".format((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[1] + lower_bounds[data_format[i]])
                     elif scale_all:
-                        data[i] = str((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[2] + lower_bounds[data_format[i]])
+                        data[i] = "{:8.6f}".format((float(data[i]) - lower_bounds[data_format[i]]) * args.scale[2] + lower_bounds[data_format[i]])
                     else:
                         print("Error: unknown scaling relationship.")
-                        os.exit(1)
+                        exit(1)
             update = " ".join(data)
             fout.write("{}\n".format(update))
