@@ -34,7 +34,6 @@ static map <string, double> first_nn_distances = {
   {"diamond", 0.433012702} // sqrt(3)/4
 };
 
-bool mapValueCmp(pair<pair<int,int>,double> a, pair<pair<int,int>,double> b);
 
 struct neighborData
 {
@@ -58,6 +57,9 @@ struct boxData
   }
 };
 
+bool mapValueCmp(pair<pair<int,int>,double> a, pair<pair<int,int>,double> b);
+double findSmallestDimension(const boxData& box);
+
 struct inputData
 {
   // strictly from input file
@@ -78,9 +80,18 @@ struct inputData
   void calculateRCutSq()
   {
     r_cut_max_sq = r_cut_max * r_cut_max;
-    if (a0 * a0 > r_cut_max_sq) {r_cut_max_sq = a0 * a0;} // This is primarily for neighbor lists
+    if (a0 * a0 > r_cut_max_sq)
+    {
+      r_cut_max_sq = a0 * a0;
+      r_cut_max = a0;
+    } // This is primarily for neighbor lists
   }
-  void calculateRGrainSq() {r_grain_sq = r_grain * r_grain;}
+  void calculateRGrainSq()
+  {
+    double smallest = findSmallestDimension(box);
+    r_grain_sq = r_grain * r_grain * smallest * smallest / 4.0;
+
+  }
   void calculateRCutMax()
   {
     r_cut_max = (*max_element(rcut.begin(), rcut.end(), mapValueCmp)).second;
@@ -111,7 +122,7 @@ struct inputData
     if (data_file.empty()) {return false;}
     if (molecule.empty()) {return false;}
     if (crystal_structure.empty() || find(structures.begin(), structures.end(), crystal_structure) == structures.end()) {return false;}
-    if (r_grain <= 0) {return false;}
+    if (r_grain <= 0|| r_grain > 1.0) {return false;}
     if (((n_types + 1) * n_types) / 2 != rcut.size()) {return false;}
 
     return true;
@@ -178,7 +189,7 @@ void printInputFileHelp()
   cout << "The input file must contain the following items in order on one line:\n"
        << "1) The data file to process\n"
        << "2) The output file(s) basename\n"
-       << "3) The desired grain radius\n"
+       << "3) The desired grain radius as a percent of smallest dimension (x or y for cylinder, x, y, or z for sphere)\n"
        << "4) The desired misorientation angle\n"
        << "5) The chemical composition of the structure (i.e. Fe or FeO2)\n"
        << "6) The crystal structure of the data file (bcc, fcc, sc, fluorite)\n"
@@ -249,13 +260,18 @@ void determineElementRatios(inputData& input)
   }
 }
 
-void checkGrainSize(const double& r_grain, const double& val)
+double findSmallestDimension(const boxData& box)
 {
-  if (r_grain * 2.0 > val)
+  if (!is_sphere)
   {
-    cout << "Error: grain diameter = " << r_grain * 2.0
-         << " >= boundary = " << val << "\n";
-    exit(GRAIN_TOO_LARGE_ERROR);
+    return (box.Lx < box.Ly ? box.Lx : box.Ly);
+  }
+  else
+  {
+    if (box.Lx < box.Ly)
+      return (box.Lx < box.Lz ? box.Lx : box.Lz);
+    else
+      return (box.Ly < box.Lz ? box.Ly : box.Lz);
   }
 }
 
@@ -286,10 +302,7 @@ vector <Atom> readDataFile(inputData& input)
       >> input.box.zlow >> input.box.zhigh >> str >> str;
 
   input.box.calculateBoxLengths();
-
-  checkGrainSize(input.r_grain, input.box.Lx);
-  checkGrainSize(input.r_grain, input.box.Ly);
-  if (is_sphere) {checkGrainSize(input.r_grain, input.box.Lz);}
+  input.calculateRGrainSq();
 
   fin.ignore();
   getline(fin, str); // read the extra stuff
@@ -358,6 +371,7 @@ vector <Atom> readDataFile(inputData& input)
 void rotateAtoms(const inputData& input, vector <Atom>& atoms)
 {
   double x1, y1, z1, xtemp, ytemp;
+  int n_rotated = 0;
 
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
@@ -375,6 +389,7 @@ void rotateAtoms(const inputData& input, vector <Atom>& atoms)
         ytemp = x1 * input.sintheta + y1 * input.costheta;
         x1 = xtemp;
         y1 = ytemp;
+        ++n_rotated;
       }
     }
     else
@@ -385,6 +400,7 @@ void rotateAtoms(const inputData& input, vector <Atom>& atoms)
         ytemp = x1 * input.sintheta + y1 * input.costheta;
         x1 = xtemp;
         y1 = ytemp;
+        ++n_rotated;
       }
     }
 
@@ -733,10 +749,9 @@ void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const 
   fout.close();
 }
 
-void rotateAndRemove(inputData& input, const unsigned int& index)
+void rotateAndRemove(vector <Atom>& atoms, inputData& input, const unsigned int& index)
 {
   string marked_filename, rotated_filename, removed_filename;
-  vector <Atom> atoms;
   vector <vector <int> > iatom;
   int n_removed;
 
@@ -747,7 +762,6 @@ void rotateAndRemove(inputData& input, const unsigned int& index)
   rotated_filename = input.output_basename + "_rotated" + ss.str();
   removed_filename = input.output_basename + "_removed" + ss.str();
 
-  atoms = readDataFile(input);
   rotateAtoms(input, atoms);
   iatom = generateCellLinkedList(input, atoms);
   n_removed = removeAtoms(atoms, iatom, input);
@@ -761,9 +775,11 @@ void rotateAndRemove(inputData& input, const unsigned int& index)
 
 void printInputData(const inputData& input)
 {
+  double smallest = findSmallestDimension(input.box);
+
   cout << "Datafile: " << input.data_file
        << "\n  Output basename: " << input.output_basename
-       << "\n  Grain radius: " << input.r_grain
+       << "\n  Grain radius: " << input.r_grain * smallest / 2.0
        << "\n  Misorientation angle: " << input.theta
        << "\n  Molecule: " << input.molecule
        << "\n  Crystal structure: " << input.crystal_structure
@@ -817,11 +833,13 @@ void writeLogFile(const inputData& input, const unsigned int& index)
 
 void runCommands(vector <inputData>& commands)
 {
+  vector <Atom> atoms;
   map <int, string> elements;
   for (unsigned int i = 0; i < commands.size(); ++i)
   {
+    atoms = readDataFile(commands[i]);
     printInputData(commands[i]);
-    rotateAndRemove(commands[i], i);
+    rotateAndRemove(atoms, commands[i], i);
     writeLogFile(commands[i], i);
   }
 }
