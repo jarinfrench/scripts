@@ -14,6 +14,7 @@ alias moose-update='cd ~/projects/moose/ && git fetch upstream && git checkout d
 alias plot='plot_data.py'
 alias python-debug='python -m pdb'
 alias python3-debug='python3 -m pdb'
+alias rsync="rsync -ahrvz --exclude 'slurm-*.out'"
 alias start-moose='. ~/.moose_setup'
 alias 7za='7z a -m0=lzma -mx=9' # arguments needed are archive name, and files to compress
 
@@ -44,11 +45,9 @@ fi
 if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
   # Some way to check which host we are using (i.e. falcon vs cascades)
   # Probably need to use the HOSTNAME environment variable
-  # The following alias are from Cascades
-  alias qstat="echo 'Software changed.  Use squeue instead.'"
-  alias qsub="echo 'Software changed.  Use sbatch instead.'"
+  # The following aliases are from Cascades
   alias sq='squeue --user=jarinf -O jobarrayid:20,partition:11,name:20,username:8,state:12,numnodes:7,timeused:12,starttime'
-  alias sq_dir='squeue --user=jarinf -O workdir:200'
+  alias sq_dir='squeue --user=jarinf -O jobarrayid:10,workdir:150'
   alias rm_junk='find . -name "slurm-[1-9]*.out" | xargs rm'
   alias ll='ls -AlF'
   alias emacs='vi'
@@ -56,7 +55,7 @@ if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
   alias list_my_jobs='sq | awk '"'"'NR>1 {print $1}'"'"' | awk -F '"'"'.'"'"' '"'"'{print $1}'"'"
   alias fhere='find . -name'
 
-  # And the following here are from falcon
+  # And the following are from falcon
   alias qstat="qstat -u frenjari"
   alias ll='ls -AlF'
   alias rm_junk="find . -name '*.[eo][1-9]*' | xargs rm"

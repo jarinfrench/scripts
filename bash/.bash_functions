@@ -225,7 +225,7 @@ torange() {
   done < $1
 }
 
-ml() {
+mklnk() {
   if [ -z "$2" ]; then
     echo "Makes a hard link of the file to the original"
     echo "Usage: ml <source_file> <destination_file>"
@@ -237,13 +237,20 @@ ml() {
   abs_path_dest=$(get_abs_filename $2)
 
   ln ${abs_path_src} ${abs_path_dest}
-  
   return 0
 }
 
 # An efficient way of searching the bashhub history - uses fzf (fuzzy finder)
 hs() {
   eval $(bh | fzf)
+}
+
+body() {
+  # Print the header (first line of input), then run the specified command on the body
+  # Use in a pipeline, e.g. ps | body grep somepattern
+  IFS= read -r header
+  printf '%s\n' "${header}"
+  "$@"
 }
 
 source ~/.config/up/up.sh # see README for where to get this file.
@@ -255,23 +262,6 @@ if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
   cdls(){
     cd $1 && ls
   }
-
-  #qalter_range() {
-  #  if [ "$#" -ne 2 ]; then
-  #    echo "Please enter the beginning and end range for the jobs to alter"
-  #    return 1
-  #  else
-  #    local beg=$1
-  #    local end=$2
-  #  fi
-  #
-  #  read -p "Please enter the options you want to change: " options
-  #  job_list=`qstat | awk -F " " 'NR>=6 {print $1}' | awk -F "." -v start=${beg} -v finish=${end} '{if ($1 >= start && $1 <= finish) print $1}'`
-  #
-  #  for i in ${job_list}; do
-  #    qalter $i ${options}
-  #  done
-  #}
 
   scancel_range() {
     if [ "$#" -ne 2 ]; then
@@ -290,6 +280,19 @@ if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
       N|n|[Nn][Oo] ) echo "Not deleting jobs."; return 0 ;;
       * ) echo "Invalid option" ;;
     esac
+  }
+
+  shist() {
+    if [ -z "$1" ]; then
+      n=5
+    else
+      n=$1
+    fi
+    date_str=`date --date 'today -1 month' +%F`
+    format_str="JobID%10,JobName%15,Elapsed%13,State%12,End%20"
+    #sacct --starttime ${date_str} --format=${format_str} | awk 'NR==1 {print $0} NR==2 {print $0} {if ($2 != "extern" && $2 != "batch" && $2 != "orted" && $4 == "COMPLETED") a[++i%n]=$0} END {for (j=0;j<n;j++) print a[++i%n]}' n=${n}
+    #sacct --starttime ${date_str} --format=${format_str} | awk 'NR==1 {print $0} NR==2 {print $0} {if ($2 != "extern" && $2 != "batch" && $2 != "orted" && $4 == "TIMEOUT") a[++i%n]=$0} END {for (j=0;j<n;j++) print a[++i%n]}' n=${n}
+    sacct --starttime ${date_str} --format=${format_str} | awk 'NR==1 {print $0} NR==2 {print $0} {if ($2 != "extern" && $2 != "batch" && $2 != "orted" && $4 != "PENDING") a[++i%n]=$0} END {for (j=0;j<n;j++) print a[++i%n]}' n=${n}
   }
 
   cdjob() {
@@ -313,6 +316,8 @@ if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
   }
 
   torange() {
+    # Reads a file containing a list of numbers and converts it to a series of
+    # ranges
     while read num; do
       if [[ -z ${first} ]]; then
         first=${num}
