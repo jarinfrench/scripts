@@ -183,7 +183,9 @@ void writeVacancyFile(const string& vac_file, const vector <Atom>& atoms,
   ofstream fout(vac_file.c_str());
   checkFileStream(fout, vac_file);
   fout << "These " << compound_ratio.chem_formula << " coordinates have "
-       << substituted_atoms.size() << " vacancies: [ID type charge x y z]\n\n"
+       << substituted_atoms.size() << " vacancies: [ID type ";
+  if (has_charge) {fout << "charge ";}
+  fout << "x y z]\n\n"
        << num_atoms << "  atoms\n"
        << compound_ratio.n_types << "  atom types\n";
 
