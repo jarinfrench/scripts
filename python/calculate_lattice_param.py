@@ -6,12 +6,7 @@ from sys import exit
 import matplotlib.pyplot as plt
 import numpy as np
 import os, glob, csv, argparse
-
-def find(lst, elem):
-    for i, x in enumerate(lst):
-        if x == elem:
-            return i
-    return None
+from myModules import *
 
 parser = argparse.ArgumentParser(usage = '%(prog)s [-h] num_data_sets element', description = "Calculate the temperature-based lattice parameter based on multiple sets of data")
 parser.add_argument('num_data_sets', type = int, help = "The number of subdirectories from the current directory containing the data.")

@@ -214,3 +214,32 @@ def verify_new_file(filebase):
         n += 1
 
     return file
+
+# flattens a nested list of lists (of lists of lists...)
+def flatten(data_list):
+    if data_list == []:
+        return data_list
+    if isinstance(data_list[0], list):
+        return flatten(data_list[0]) + flatten(data_list[1:])
+    return data_list[:1] + flatten(data_list[1:])
+
+# simple way to return either the length of a list, or the "length" of a single number
+def depth(data):
+    try:
+        return len(data)
+    except:
+        return 1
+
+# counts the number of times each item appears in a list
+def list_duplicates(seq):
+    tally = defaultdict(list)
+    for i,item in enumerate(seq):
+        tally[item].append(i)
+    return ((key,locs) for key,locs in tally.items() if len(locs) > 1)
+
+# searches a list for a element, and returns the index of the element
+def find(lst, elem):
+    for i, x in enumerate(lst):
+        if x == elem:
+            return i
+    return None

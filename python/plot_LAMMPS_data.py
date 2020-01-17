@@ -8,20 +8,6 @@ import numpy as np
 import csv, argparse
 from myModules import *
 
-# counts the number of times each item appears in a list
-def list_duplicates(seq):
-    tally = defaultdict(list)
-    for i,item in enumerate(seq):
-        tally[item].append(i)
-    return ((key,locs) for key,locs in tally.items() if len(locs) > 1)
-
-# simple way to return either the length of a list, or the "length" of a single number
-def depth(data):
-    try:
-        return len(data)
-    except:
-        return 1
-
 def determine_label(label_set, label_dict, unit_dict):
     l = []
     for i in range(depth(label_set)):
@@ -59,13 +45,6 @@ def parsePlottedInput(string):
             return eval(string) # we return a nested list of indices to plot
     if not remaining:
         return eval(string)
-
-def flatten(data_list):
-    if data_list == []:
-        return data_list
-    if isinstance(data_list[0], list):
-        return flatten(data_list[0]) + flatten(data_list[1:])
-    return data_list[:1] + flatten(data_list[1:])
 
 parser = argparse.ArgumentParser(usage = '%(prog)s [-h] parsed_output.txt',
     description = "Script that extracts datasets from a parsed LAMMPS output file (using the parse_lammps_output script) and plots user-specified subsets.",
