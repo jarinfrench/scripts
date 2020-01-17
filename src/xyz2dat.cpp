@@ -215,7 +215,8 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
     }
     else
     {
-      type = elements[atom_type];
+      if (no_element_listed) {type = 1;}
+      else {type = elements[atom_type];}
       charge = 0.0; // Needs to be manually fixed later if there is a charge
     }
     ++n_atoms;
