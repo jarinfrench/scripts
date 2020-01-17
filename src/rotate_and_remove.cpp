@@ -23,6 +23,7 @@ static bool marked = true;
 static bool rotated = true;
 static bool removed = true;
 static bool printedInputHelp = false;
+static bool type_one_only = false;
 static map <string, double> first_nn_distances = {
   {"fcc", 0.707106781}, // 1/sqrt(2)
   {"fluorite", 0.707106781}, // same as fcc for the larger sublattice
@@ -533,7 +534,7 @@ int removeAtoms(vector <Atom>& atoms, const vector <vector <int> >& iatom, const
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
     int i_type = atoms[i].getType();
-    // if (i_type != 1) {continue;} // only focusing on the type 1 atoms
+    if (type_one_only && i_type != 1) {continue;} // only focusing on the type 1 atoms
     if (atoms[i].getMark() != 0) {continue;} // ignoring atoms we have already marked
 
     // Store the x, y, and z positions of the atom for easy comparison
@@ -939,6 +940,7 @@ int main (int argc, char **argv)
       ("o,output", "Output files: (m)arked data files, with atoms marked for removal, r(o)tated data files, with the atoms rotated, and (r)emoved data files, with the marked atoms removed",
         cxxopts::value<string>(outputs)->default_value("r"), "mor")
       ("s,sphere", "Flag to create a spherical grain", cxxopts::value<bool>(is_sphere)->implicit_value("true"))
+      ("1", "Flag to remove only type 1 atoms using the cutoff", cxxopts::value<bool>(type_one_only)->implicit_value("true"))
       ("h,help", "Show the help");
 
     options.parse_positional({"file"});
