@@ -1,24 +1,12 @@
-/******************************************************************************
-* This script requires as input the LAMMPS-formatted file for a single crystal
-* at 0K, the grain radius, and the rotation angle (in degrees).  Prompts will be
-* given if all three are not specified at the command line.  The atoms within
-* the radius are rotated, and then the distances between atoms are checked.
-* If the atoms are too close (as specified by the #define terms), one is removed,
-* being sure to maintain charge neutrality (one U for every 2 O removed).  Note
-* that this script is specifically for UO2.  Changes can be made for other systems.
-******************************************************************************/
-
 #include <iostream>
-#include <string>
-#include <cstring>
 #include <fstream>
 #include <sstream>
-#include <cstdlib>
-#include <cmath>
-#include <vector>
+#include <string>
 #include <map>
-#include <algorithm>
-#include <numeric>
+#include <vector>
+#include <set>
+#include <cmath> // for sin and cos
+#include <numeric> // for accumulate
 #include <cxxopts.hpp>
 
 #include "atom.h"
@@ -27,60 +15,36 @@
 
 using namespace std;
 
-#define PI 3.14159265358979 // easier and faster to simply store these values here.
-/*#define UU_RNN_CUT 2.0 // Cutoff value for U-U atoms too close (Basak Potential)
-#define UO_RNN_CUT 4.0 // Cutoff value for U-O atoms too close
-#define OO_RNN_CUT 0.63801 // Cutoff value for O-O atoms too close
-#define CU_RNN_CUT 1.0 // Cutoff value for Cu-Cu atoms too close (using Mishin potential)
-#define AL_RNN_CUT 2.4 // Cutoff value for Al-Al atoms too close (using Ercolessi-Adams potential)
-#define AG_RNN_CUT 1.0 // Cutoff value for Ag-Ag atoms too close (using Mishin potential)
-#define AU_RNN_CUT 1.0 // Cutoff value for Au-Au atoms too close (using Foiles Au1 potential)
-#define NI_RNN_CUT 1.0 // Cutoff value for Ni-Ni atoms too close (using Foiles-Hoyt potential)
-*/
+#define PI 3.14159265358979
 
-// Boolean flags
-bool is_sphere = false;
-bool has_charge = false;
-bool marked = true;
-bool rotated = true;
-bool removed = true;
-
-// forward declarations
-bool mapValueCmp(pair<pair<int,int>,double> a, pair<pair<int,int>,double> b);
-
-struct ratio
-{
-  string chem_formula;
-  int n_types;
-  vector <int> ratio;
-} compound_ratio;
-
-struct neighbor_data
-{
-  pair<int, int> ids;
-  pair<int, int> types;
-  double distance;
+// Global values
+static bool is_sphere = false;
+static bool marked = true;
+static bool rotated = true;
+static bool removed = true;
+static bool printedInputHelp = false;
+static map <string, double> first_nn_distances = {
+  {"fcc", 0.707106781}, // 1/sqrt(2)
+  {"fluorite", 0.707106781}, // same as fcc for the larger sublattice
+  {"bcc", 0.866025404}, // sqrt(3)/2
+  {"sc", 1.0},
+  {"hcp", 0.707106781}, // same as fcc
+  {"diamond", 0.433012702} // sqrt(3)/4
 };
 
-struct inputVars
+bool mapValueCmp(pair<pair<int,int>,double> a, pair<pair<int,int>,double> b);
+
+struct neighborData
 {
-  string data_file;
-  double r_grain, r_grain_sq;
-  double theta, costheta, sintheta;
-  double r_cut_max, r_cut_max_sq;
-  int axis;
-  map <pair <int, int>, double> rcut, rcut_sq;
-
-  void calculateRCutSq() {r_cut_max_sq = r_cut_max * r_cut_max;}
-  void calculateRGrainSq() {r_grain_sq = r_grain * r_grain;}
-  void calculateRCutMax() {r_cut_max = (*max_element(rcut.begin(), rcut.end(), mapValueCmp)).second;}
-
-} input;
+  pair <int, int> ids; // the ids of the two atoms
+  pair <int, int> types; // the types of the two atoms
+  double distance; // the distance between the two atoms
+};
 
 struct boxData
 {
   double xlow, xhigh, ylow, yhigh, zlow, zhigh;
-  double xy, xz, yz;
+  double xy = 0.0, xz = 0.0, yz = 0.0;
   double Lx, Ly, Lz;
   bool is_triclinic = false;
 
@@ -90,7 +54,72 @@ struct boxData
     Ly = yhigh - ylow;
     Lz = zhigh - zlow;
   }
-} box;
+};
+
+struct inputData
+{
+  // strictly from input file
+  string data_file, output_basename, molecule, crystal_structure;
+  double r_grain = 0, theta = 0, a0 = 0;
+  map <pair <int, int>, double> rcut;
+
+  // calculated from input
+  double r_grain_sq = 0, costheta = 0, sintheta = 0, r_cut_max = 0, r_cut_max_sq = 0;
+  int n_types = 0;
+  map <pair <int, int>, double> rcut_sq;
+  //vector <int> element_ratios;
+  map <string, int> element_ratios; // map of element to its ratio
+  map <int, string> number_to_element;
+  bool has_charge = false;
+  boxData box;
+
+  void calculateRCutSq()
+  {
+    r_cut_max_sq = r_cut_max * r_cut_max;
+    if (a0 * a0 > r_cut_max_sq) {r_cut_max_sq = a0 * a0;} // This is primarily for neighbor lists
+  }
+  void calculateRGrainSq() {r_grain_sq = r_grain * r_grain;}
+  void calculateRCutMax()
+  {
+    r_cut_max = (*max_element(rcut.begin(), rcut.end(), mapValueCmp)).second;
+    calculateRCutSq();
+  }
+  void calculateTrig() {costheta = cos(theta * PI / 180.0); sintheta = sin(theta * PI / 180.0);}
+  void calculateNumElements()
+  {
+    set <string> elements;
+    for (unsigned int i = 0; i < molecule.size(); ++i)
+    {
+      if (isdigit(molecule[i]) || islower(molecule[i])) {continue;}
+      if (isupper(molecule[i]))
+      {
+        if (i + 1 >= molecule.size()) {elements.insert(molecule.substr(i,1));}
+        else if (islower(molecule[i + 1])) {elements.insert(molecule.substr(i, 2));}
+        else if (isupper(molecule[i + 1]) || isdigit(molecule[i + 1])) {elements.insert(molecule.substr(i, 1));}
+        else {cout << "ERROR!\n";}
+      }
+    }
+    n_types = elements.size();
+    //element_ratios.resize(n_types, 0);
+  }
+
+  const bool validate() const
+  {
+    vector <string> structures = {"fcc", "bcc", "sc", "diamond", "fluorite"};
+    if (data_file.empty()) {return false;}
+    if (molecule.empty()) {return false;}
+    if (crystal_structure.empty() || find(structures.begin(), structures.end(), crystal_structure) == structures.end()) {return false;}
+    if (r_grain <= 0) {return false;}
+    if (((n_types + 1) * n_types) / 2 != rcut.size()) {return false;}
+
+    return true;
+  }
+};
+
+bool mapValueCmp(pair<pair<int,int>,double> a, pair<pair<int,int>,double> b)
+{
+  return (a.second < b.second);
+}
 
 // Calculate the rounded value of x
 double anInt(double x)
@@ -100,30 +129,6 @@ double anInt(double x)
   if (x < 0.0) x -= 0.5;
   temp = (int)(x);
   return (double)(temp);
-}
-
-bool mapValueCmp(pair<pair<int,int>,double> a, pair<pair<int,int>,double> b)
-{
-  return (a.second < b.second);
-}
-
-bool compareNeighbors(const neighbor_data &a, const neighbor_data &b)
-{
-  if (a.types.first  == b.types.first)
-  {
-    if (a.types.second == b.types.second)
-    {
-      return a.distance < b.distance;
-    }
-    else
-    {
-      return a.types.second < b.types.second;
-    }
-  }
-  else
-  {
-    return a.types.first < b.types.first;
-  }
 }
 
 template <typename K, typename V>
@@ -151,214 +156,265 @@ void checkFileStream(T& stream, const string& file)
   }
 }
 
-void parseInputFile(const string& file)
+bool compareNeighbors(const neighborData &a, const neighborData &b)
 {
-  unsigned int combinations;
-
-  ifstream finput(file.c_str());
-  checkFileStream(finput, file);
-  finput >> input.data_file >> input.r_grain >> compound_ratio.n_types;
-  input.calculateRGrainSq();
-
-  compound_ratio.ratio.resize(compound_ratio.n_types, 1);
-
-  combinations = ((compound_ratio.n_types + 1) * compound_ratio.n_types) / 2;
-
-  for (int i = 1; i <= compound_ratio.n_types; ++i)
-  {
-    for (int j = i; j <= compound_ratio.n_types; ++j)
-    {
-      double temp;
-      finput >> temp;
-      input.rcut.insert(make_pair(make_pair(i,j), temp));
-      input.rcut_sq.insert(make_pair(make_pair(i,j),temp * temp));
-      if (temp > input.r_cut_max) {input.r_cut_max = temp;}
-    }
-  }
-  if (input.rcut.size() != combinations)
-  {
-    cout << "Error: There are " << combinations << " interaction radii needed.  You provided " << input.rcut.size() << ".\n";
-    exit(INTERACTION_RADII_ERROR);
-  }
-  input.calculateRCutMax();
-  input.calculateRCutSq();
-  if (input.r_cut_max < 0.5)
-  {
-    cout << "Error: not enough memory available.\n";
-    exit(MEMORY_EXCEEDED_ERROR);
-  }
-
-  finput.close();
-
-  cout << "Input:"
-       << "\n\tData file: " << input.data_file
-       << "\n\tGrain radius: " << input.r_grain
-       << "\n\tMisorientation angle: " << input.theta
-       << "\n\tBoundary type: ";
-  (is_sphere) ? cout << "sphere" : cout << "cylinder";
-  cout << "\n\tNumber of atom types: " << compound_ratio.n_types
-       << "\n\tCutoff radii: ";
-  for (map <pair <int, int>, double>::iterator it = input.rcut.begin();
-       it != input.rcut.end();)
-  {
-    cout << (*it).second;
-    if (++it != input.rcut.end()) {cout << "; ";}
-    else {cout << endl;}
-  }
+  return a.distance < b.distance; // return the distance that is shorter
 }
 
-void determineAxisFromFilename()
+int findElementSubscript(const string& molecule, const size_t& index)
 {
-  // This requires that (if not specifically specified on the command line) the
-  // axis appears immediately before the file extension, meaning the filename is
-  // <precursor_to_axis>_<axis>.<extension>
-  istringstream iss(input.data_file.substr(input.data_file.find(".") - 3, 3));
-  if (!(iss >> input.axis))
-  {
-    cout << "Error determining rotation axis.\n";
-    exit(FILE_NAME_ERROR);
-  }
+  int value;
+  size_t last_digit_pos = molecule.find_first_not_of("0123456789", index);
+  stringstream ss(molecule.substr(index, last_digit_pos - index));
+  ss >> value;
+
+  return value;
 }
 
-map <int, string> determineElementRatios()
+void printInputFileHelp()
 {
-  size_t element_pos_start, element_pos_end, temp;
-  map <int, string> elements;
+  cout << "The input file must contain the following items in order on one line:\n"
+       << "1) The data file to process\n"
+       << "2) The output file(s) basename\n"
+       << "3) The desired grain radius\n"
+       << "4) The desired misorientation angle\n"
+       << "5) The chemical composition of the structure (i.e. Fe or FeO2)\n"
+       << "6) The crystal structure of the data file (bcc, fcc, sc, fluorite)\n"
+       << "7) The lattice parameter in Angstroms\n"
+       << "8) Cutoff distance as a percentage of 1NN distance. Input as the minimum\n"
+       << "allowed distance between nearest neighbor atoms.\n\n"
+       << "Note that the number of cutoff radii is dependent on the number of atom\n"
+       << "interactions. For example, if there are two atom types, there are the two\n"
+       << "same-element interactions, as well as the interaction between the two\n"
+       << "elements. Include all the relevant cutof radii one element at a time, i.e.\n"
+       << "the cutoff radii for a 3-element system would be input as 1-1, 1-2, 1-3,\n"
+       << "2-2, 2-3, 3-3. Maintain consistent numbering with the data file. If all cutoff\n"
+       << "values are the same, just a single value will work.\n";
+}
+
+void determineElementRatios(inputData& input)
+{
   int elem_num = 1;
 
-  // This next step requires LAMMPS to be in the filename, and immediately
-  // followed by the elements, i.e. LAMMPS_<element(s)>_[<extra_info>]_axis.extension
-  element_pos_start = input.data_file.find("LAMMPS_") + 7; // TODO: check that this is valid!  If adding 7 to string:npos works, what does it return?
-  if (element_pos_start == string::npos)
+  for (size_t i = 0; i < input.molecule.size(); ++i)
   {
-    cout << "Error determining element(s).\n";
-    exit(FILE_NAME_ERROR);
-  }
-
-  temp = input.data_file.find("_N");
-  temp = input.data_file.find("_N", temp + 1);
-  if (temp == string::npos) {element_pos_end = input.data_file.find("_N");}
-  else {element_pos_end = temp;}
-
-  for (unsigned int i = element_pos_start; i < element_pos_end; ++i)
-  {
-    if (islower(input.data_file[i])) // if the current character is lower-case
+    if (isdigit(input.molecule[i]) || islower(input.molecule[i])) {continue;}
+    if (isupper(input.molecule[i])) // current character is upper case
     {
-      if (isdigit(input.data_file[i + 1]))
+      if (islower(input.molecule[i + 1])) // next character is lowercase
       {
-        compound_ratio.ratio[elem_num - 1] = input.data_file[i + 1] - '0';
-      }
-      int test = findByValue(elements, input.data_file.substr(i-1, 2));
-      if (test < 0)
-      {
-        if ((elements.insert(pair<int,string>(elem_num,input.data_file.substr(i-1, 2)))).second) // check to see if insertion was successful
+        string element = input.molecule.substr(i, 2);
+        int element_index = findByValue(input.number_to_element, element);
+        if (element_index < 0)
         {
-          ++elem_num;
+          // second character after current is a number
+          if (isdigit(input.molecule[i + 2])) {input.element_ratios[element] = findElementSubscript(input.molecule, i + 2);}
+          else {input.element_ratios[element] = 1;} // second character after current is not a number
+          if (input.number_to_element.insert(pair<int,string>(elem_num, element)).second) {++elem_num;}
+          else {cout << "Error inserting element " << element << endl;}
         }
         else
         {
-          cout << "Error inserting element " << input.data_file.substr(i-1, 2);
+          if (isdigit(input.molecule[i + 2])) {input.element_ratios[input.number_to_element[element_index]] += findElementSubscript(input.molecule, i + 2);}
+          else {++input.element_ratios[input.number_to_element[element_index]];}
         }
       }
-      else
+      else // next character is either upper or a digit
       {
-        ++compound_ratio.ratio[test - 1];
+        string element = input.molecule.substr(i, 1);
+        int element_index = findByValue(input.number_to_element, element);
+        if (element_index < 0)
+        {
+          if (isdigit(input.molecule[i + 1])) {input.element_ratios[element] = findElementSubscript(input.molecule, i + 1);}
+          else {input.element_ratios[element] = 1;}
+          if (input.number_to_element.insert(pair<int,string>(elem_num, element)).second) {++elem_num;}
+          else {cout << "Error inserting element " << element << endl;}
+        }
+        else
+        {
+          if (isdigit(input.molecule[i + 1])) {input.element_ratios[element] = findElementSubscript(input.molecule, i + 1);}
+          else {++input.element_ratios[input.number_to_element[element_index]];}
+        }
+      }
+    }
+  }
+
+  if (input.n_types != input.number_to_element.size())
+  {
+    cout << "Error determining element types. Input file n_types = " << input.n_types
+         << " != found elements = " << input.number_to_element.size() << endl;
+    exit(ELEMENT_COUNT_ERROR);
+  }
+}
+
+void checkGrainSize(const double& r_grain, const double& val)
+{
+  if (r_grain * 2.0 > val)
+  {
+    cout << "Error: grain diameter = " << r_grain * 2.0
+         << " >= boundary = " << val << endl;
+    exit(GRAIN_TOO_LARGE_ERROR);
+  }
+}
+
+vector <Atom> readDataFile(inputData& input)
+{
+  string str; // junk string variable
+  int N, n_types, n_total = 0; // number of atoms, number of atom types, number of atoms read
+  vector <Atom> atoms;
+  int atom_id, type;
+  double charge, x, y, z;
+
+  ifstream fin(input.data_file.c_str());
+  checkFileStream(fin, input.data_file);
+
+  getline(fin, str);
+  transform(str.begin(), str.end(), str.begin(), ::tolower);
+  if (str.find("charge") != string::npos) {input.has_charge = true;}
+  fin >> N >> str;
+  fin >> n_types >> str >> str;
+  if (n_types != input.n_types)
+  {
+    cout << "WARNING: Atom types calculated vs atom types in data file do not match.\n"
+         << "Calculated = " << input.n_types << " != data file = " << n_types << endl;
+  }
+
+  fin >> input.box.xlow >> input.box.xhigh >> str >> str
+      >> input.box.ylow >> input.box.yhigh >> str >> str
+      >> input.box.zlow >> input.box.zhigh >> str >> str;
+
+  input.box.calculateBoxLengths();
+
+  checkGrainSize(input.r_grain, input.box.Lx);
+  checkGrainSize(input.r_grain, input.box.Ly);
+  if (is_sphere) {checkGrainSize(input.r_grain, input.box.Lz);}
+
+  fin.ignore();
+  getline(fin, str); // read the extra stuff
+  if (str.find("xy") != string::npos) // triclinic system check
+  {
+    stringstream tmp(str);
+    tmp >> input.box.xy >> input.box.xz >> input.box.yz >> str >> str >> str;
+    fin >> str;
+    input.box.is_triclinic = true;
+    fin.ignore();
+  }
+  else {getline(fin, str);} // line up the input file structures
+
+  atoms.resize(N, Atom());
+  getline(fin, str); // blank line before the data
+  while (getline(fin, str))
+  {
+    vector <double> data;
+    stringstream ss(str);
+    double dummy;
+    while (ss >> dummy)
+    {
+      data.push_back(dummy);
+    }
+    atom_id = (int)(data[0]);
+    type = (int)(data[1]);
+
+    switch (data.size())
+    {
+      // atom has charge
+      case 6: charge = data[2];
+              x = data[3]; y = data[4]; z = data[5];
+              break;
+      // atom does not have charge
+      case 5: charge = 0.0;
+              x = data[2]; y = data[3]; z = data[4];
+              break;
+      default: cout << "Unrecognized file format.  Expected format: id type charge* x y z.  * = optional.\n";
+               exit(FILE_FORMAT_ERROR);
+    }
+
+    data.clear();
+    ++n_total;
+
+    if (type > input.n_types)
+    {
+      cout << "Error: Atom type = " << type << " is greater than the number of types specified = "
+           << input.n_types << endl;
+      exit(ATOM_TYPE_ERROR);
+    }
+
+    Position p(x, y, z);
+    atoms[atom_id - 1] = Atom(atom_id, type, charge, p);
+  }
+  fin.close();
+
+  if (n_total != N)
+  {
+    cout << "Error: n_total = " << n_total << " != N = " << N << endl;
+    exit(ATOM_COUNT_ERROR);
+  }
+
+  return atoms;
+}
+
+void rotateAtoms(const inputData& input, vector <Atom>& atoms)
+{
+  double x1, y1, z1, xtemp, ytemp;
+
+  for (unsigned int i = 0; i < atoms.size(); ++i)
+  {
+    // change the origin to the center of the simulation for rotating the atoms
+    x1 = atoms[i].getWrapped().getX() - input.box.Lx / 2.0;
+    y1 = atoms[i].getWrapped().getY() - input.box.Ly / 2.0;
+    z1 = atoms[i].getWrapped().getZ() - input.box.Lz / 2.0;
+
+    // Only rotate atoms that are within the radius r_grain from the center
+    if (is_sphere)
+    {
+      if (x1 * x1 + y1 * y1 + z1 * z1 <= input.r_grain_sq)
+      {
+        xtemp = x1 * input.costheta - y1 * input.sintheta;
+        ytemp = x1 * input.sintheta + y1 * input.costheta;
+        x1 = xtemp;
+        y1 = ytemp;
       }
     }
     else
     {
-      if (islower(input.data_file[i+1])) // if the next character is lower-case
+      if (x1 * x1 + y1 * y1 <= input.r_grain_sq)
       {
-        continue;
-      }
-      else
-      {
-        if (isdigit(input.data_file[i]))
-        {
-          continue;
-        }
-        else
-        {
-          if (isdigit(input.data_file[i + 1]))
-          {
-            compound_ratio.ratio[elem_num - 1] = input.data_file[i + 1] - '0';
-          }
-          int test = findByValue(elements, input.data_file.substr(i, 1));
-          if (test < 0)
-          {
-            if ((elements.insert(pair<int,string>(elem_num,input.data_file.substr(i, 1)))).second) // check to see if insertion was successful
-            {
-              ++elem_num;
-            }
-            else
-            {
-              cout << "Error inserting element " << input.data_file.substr(i, 1);
-            }
-          }
-          else
-          {
-            ++compound_ratio.ratio[test - 1];
-          }
-        }
+        xtemp = x1 * input.costheta - y1 * input.sintheta;
+        ytemp = x1 * input.sintheta + y1 * input.costheta;
+        x1 = xtemp;
+        y1 = ytemp;
       }
     }
-  }
 
-  cout << endl;
-  compound_ratio.chem_formula = input.data_file.substr(element_pos_start, element_pos_end - element_pos_start);
-  if (compound_ratio.n_types != elements.size())
-  {
-    cout << "Error determining element types.  Input file n_types = "
-         << compound_ratio.n_types << " != found elements = " << elements.size() << endl;
-    exit(ELEMENT_COUNT_ERROR);
-  }
-  else
-  {
-    cout << "Elements found (" << compound_ratio.n_types << "): ";
-    for (map <int, string>::iterator it = elements.begin(); it != elements.end();)
-    {
-      cout << (*it).second;
-      if (++it != elements.end()) {cout << ", ";}
-      else {cout << endl;}
-    }
-  }
+    x1 += input.box.Lx / 2.0;
+    y1 += input.box.Ly / 2.0;
+    z1 += input.box.Lz / 2.0;
 
-  if (compound_ratio.n_types > 1)
-  {
-    cout << "The ratio of elements is calculated as: ";
-    map <int, string>::iterator elem_it = elements.begin();
-    for (vector <int>::iterator it = compound_ratio.ratio.begin();
-         it != compound_ratio.ratio.end();)
-    {
-      cout << (*it) << " " << (*elem_it).second;
-      ++elem_it;
-      if (++it != compound_ratio.ratio.end()) {cout << " : ";}
-      else {cout << endl;}
-    }
+    Position p(x1, y1, z1);
+    atoms[i].setWrapped(p);
   }
-
-  return elements;
 }
 
-void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& iatom)
+vector <vector <int> > generateCellLinkedList(const inputData& input, const vector <Atom>& atoms)
 {
   int ncellx, ncelly, ncellz; // number of cells in each direction
   int idx, idy, idz; // cell number in each direction
   double lcellx, lcelly, lcellz; // length of cells in each direction
   int n_atoms_per_cell; // number of atoms allowed per cell
   double drij_sq, rxij, ryij, rzij; // square of distance, x, y, and z separation.
+  vector <vector <int> > iatom; // the neighbor list
   vector <vector <vector <int> > > icell; // cell index
   vector <vector <vector <vector <int> > > > pcell; // atom index in each cell
 
-  // First we generate the number of cells in each direction
-  ncellx = (int)(box.Lx / input.r_cut_max) + 1;
-  ncelly = (int)(box.Ly / input.r_cut_max) + 1;
-  ncellz = (int)(box.Lz / input.r_cut_max) + 1;
+  // First we generate the number of cells in each direction - dependent on the lattice parameter and crystal structure
+  ncellx = (int)(input.box.Lx / (input.a0 * first_nn_distances[input.crystal_structure])) + 1;
+  ncelly = (int)(input.box.Ly / (input.a0 * first_nn_distances[input.crystal_structure])) + 1;
+  ncellz = (int)(input.box.Lz / (input.a0 * first_nn_distances[input.crystal_structure])) + 1;
 
   // Length of cells in each direction
-  lcellx = box.Lx / ncellx;
-  lcelly = box.Ly / ncelly;
-  lcellz = box.Lz / ncellz;
+  lcellx = input.box.Lx / ncellx;
+  lcelly = input.box.Ly / ncelly;
+  lcellz = input.box.Lz / ncellz;
 
   // Minimum number of atoms allowed of 100
   n_atoms_per_cell = max((int)(atoms.size() / (double)(3 * ncellx * ncelly * ncellz)), 100);
@@ -389,11 +445,6 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
     if (idx >= ncellx) idx = ncellx - 1;
     if (idy >= ncelly) idy = ncelly - 1;
     if (idz >= ncellz) idz = ncellz - 1;
-
-    // This is for unwrapped coordinates
-    while (idx < 0.0) idx = ncellx + idx; // Note that this keeps things within the bounds set by lcellx
-    while (idy < 0.0) idy = ncelly + idy; // Note that this keeps things within the bounds set by lcelly
-    while (idz < 0.0) idz = ncellz + idz; // Note that this keeps things within the bounds set by lcellz
 
     ++icell[idx][idy][idz]; // increase the number of atoms in this cell
     // assign the atom number to this index.
@@ -444,9 +495,9 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
                   rzij = atoms[id].getWrapped()[2] - atoms[jd].getWrapped()[2];
 
                   // Apply PBCs
-                  rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
-                  ryij = ryij - anInt(ryij / box.Ly) * box.Ly;
-                  rzij = rzij - anInt(rzij / box.Lz) * box.Lz;
+                  rxij = rxij - anInt(rxij / input.box.Lx) * input.box.Lx;
+                  ryij = ryij - anInt(ryij / input.box.Ly) * input.box.Ly;
+                  rzij = rzij - anInt(rzij / input.box.Lz) * input.box.Lz;
 
                   // Now calculate the distance
                   drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
@@ -469,271 +520,91 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
       } // k
     } // j
   } // i
+
+  return iatom;
 }
 
-vector <string> determineFilename()
-{
-  vector <string> name (3, "NONE");
-  ostringstream fn1, fn2;
-  fn1 << input.data_file.substr(0,input.data_file.find(".")).c_str()
-      << "_" << input.theta << "degree_r" << input.r_grain;
-  name[0] = fn1.str() + "A_marked.dat";
-  name[1] = fn1.str() + "A_rotated.dat";
-
-  fn2 << input.data_file.substr(0, input.data_file.find("N")).c_str()
-      << input.axis << "_";
-  fn2.precision(2);
-  fn2 << fixed << input.theta << "degree_r";
-  fn2.precision(0);
-  fn2 << input.r_grain << "A_removed.dat";
-  name[2] = fn2.str();
-
-  return name;
-}
-
-void checkGrainSize(const double& val)
-{
-  if (input.r_grain * 2.0 > val)
-  {
-    cout << "Error: grain diameter = " << input.r_grain * 2.0
-         << " >= boundary = " << val << endl;
-    exit(GRAIN_TOO_LARGE_ERROR);
-  }
-}
-
-vector <Atom> readDataFile()
-{
-  string str; // junk string variable
-  int N, n_types, n_total = 0; // number of atoms, number of atom types
-  double scale_factor_a, scale_factor_b, scale_factor_c;
-  vector <Atom> atoms;
-  int atom_id, type;
-  double charge, x, y, z, x1, y1, z1, xtemp, ytemp;
-
-  ifstream fin(input.data_file.c_str());
-  checkFileStream(fin, input.data_file);
-
-  getline(fin, str);
-  transform(str.begin(), str.end(), str.begin(), ::tolower);
-  if (str.find("charge") != string::npos)
-  {
-    has_charge = true;
-  }
-  fin >> N >> str;
-  fin >> n_types >> str >> str;
-  if (n_types != compound_ratio.n_types)
-  {
-    cout << "Atom types incorrectly determined.\n";
-    exit(ATOM_TYPE_ERROR);
-  }
-
-  fin >> box.xlow >> box.xhigh >> str >> str
-      >> box.ylow >> box.yhigh >> str >> str
-      >> box.zlow >> box.zhigh >> str >> str;
-
-  // Scaling factor
-  scale_factor_a = 1.0;
-  scale_factor_b = 1.0;
-  scale_factor_c = 1.0;
-
-  box.calculateBoxLengths();
-
-  checkGrainSize(box.Lx);
-  checkGrainSize(box.Ly);
-  if (is_sphere) {checkGrainSize(box.Lz);}
-
-  // scale the dimensions
-  box.xlow *= scale_factor_a;
-  box.xhigh *= scale_factor_a;
-  box.ylow *= scale_factor_b;
-  box.yhigh *= scale_factor_b;
-  box.zlow *= scale_factor_c;
-  box.zhigh *= scale_factor_c;
-  box.calculateBoxLengths();
-
-  fin.ignore();
-  getline(fin,str); // read the extra stuff
-  if (str.find("xy") != string::npos) // Triclinic system check
-  {
-    stringstream tmp(str);
-    tmp >> box.xy >> box.xz >> box.yz >> str >> str >> str;
-    fin >> str;
-    box.is_triclinic = true;
-    fin.ignore();
-  }
-  else
-  {
-    getline(fin, str); // required in order to line up the different input file structures
-  }
-
-  atoms.resize(N, Atom());
-
-  getline(fin, str); // blank line before the data
-  while (getline(fin, str))
-  {
-    vector <double> data;
-    stringstream ss(str);
-    double dummy;
-    while (ss >> dummy)
-    {
-      data.push_back(dummy);
-    }
-    atom_id = (int)(data[0]);
-    type = (int)(data[1]);
-
-    switch (data.size())
-    {
-      // atom has charge
-      case 6: charge = data[2];
-              x = data[3]; y = data[4]; z = data[5];
-              break;
-      // atom does not have charge
-      case 5: charge = 0.0;
-              x = data[2]; y = data[3]; z = data[4];
-              break;
-      default: cout << "Unrecognized file format.  Expected format: id type charge* x y z.  * = optional.\n";
-               exit(FILE_FORMAT_ERROR);
-    }
-
-    data.clear();
-    ++n_total;
-
-    if (type > compound_ratio.n_types)
-    {
-      cout << "Error: Atom type = " << type << " is greater than the number of types specified = " << compound_ratio.n_types << endl;
-      exit(ATOM_TYPE_ERROR);
-    }
-
-    // change the origin to the center of the simulation for rotating the atoms
-    x1 = x - box.Lx / 2.0;
-    y1 = y - box.Ly / 2.0;
-    z1 = z - box.Lz / 2.0;
-
-    // If we are smaller than the radius, rotate the atom by theta around the
-    // z axis.
-    if (is_sphere)
-    {
-      if (x1 * x1 + y1 * y1 + z1 * z1 <= input.r_grain_sq)
-      {
-        xtemp = x1 * input.costheta - y1 * input.sintheta;
-        ytemp = x1 * input.sintheta + y1 * input.costheta;
-        x1 = xtemp;
-        y1 = ytemp;
-      }
-    }
-    else
-    {
-      if (x1 * x1 + y1 * y1 <= input.r_grain_sq)
-      {
-        xtemp = x1 * input.costheta - y1 * input.sintheta;
-        ytemp = x1 * input.sintheta + y1 * input.costheta;
-        x1 = xtemp;
-        y1 = ytemp;
-      }
-    }
-
-    x1 += box.Lx / 2.0;
-    y1 += box.Ly / 2.0;
-    z1 += box.Lz / 2.0;
-
-    x1 *= scale_factor_a;
-    y1 *= scale_factor_b;
-    z1 *= scale_factor_c;
-
-    Position p(x1,y1,z1);
-    atoms[atom_id - 1] = Atom(atom_id, type, charge, p);
-  }
-  fin.close();
-
-  if (n_total != N)
-  {
-    cout << "Error: n_total = " << n_total << " != N = " << N << endl;
-    exit(ATOM_COUNT_ERROR);
-  }
-
-  return atoms;
-}
-
-int removeAtoms(vector <Atom>& atoms, vector <vector <int> >& iatom,
-                 map <int, string>& elements)
+int removeAtoms(vector <Atom>& atoms, const vector <vector <int> >& iatom, const inputData& input)
 {
   double rxij, ryij, rzij, drij_sq, x1, y1, z1;
-  vector <neighbor_data> neighbor_dataset;
-  vector <int> n_removed(compound_ratio.n_types, 0);
+  vector <neighborData> neighbor_dataset;
+  vector <int> n_removed(input.n_types, 0);
 
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
-    int j = atoms[i].getType();
-    if (atoms[i].getMark() == 0)
+    int i_type = atoms[i].getType();
+    // if (i_type != 1) {continue;} // only focusing on the type 1 atoms
+    if (atoms[i].getMark() != 0) {continue;} // ignoring atoms we have already marked
+
+    // Store the x, y, and z positions of the atom for easy comparison
+    x1 = atoms[i].getWrapped()[0];
+    y1 = atoms[i].getWrapped()[1];
+    z1 = atoms[i].getWrapped()[2];
+
+    // Now check it's nearest neighbors
+    neighbor_dataset.clear();
+    bool removed = false;
+    for (int l = 1; l <= iatom[0][i]; ++l)
     {
-      // Store the x, y, and z positions of the atom for easy comparison
-      x1 = atoms[i].getWrapped()[0];
-      y1 = atoms[i].getWrapped()[1];
-      z1 = atoms[i].getWrapped()[2];
+      // Note that we check the distances between the original atom and ALL of
+      // its neighbors to facilitate maintaining the same elemental ratios
+      int j = iatom[l][i];
+      int j_type = atoms[j].getType();
 
-      // Now check it's nearest neighbors
-      neighbor_dataset.clear();
-      bool removed = false;
-      for (int l = 1; l <= iatom[0][i]; ++l)
+      if (atoms[j].getMark() == 0) // If the atom is not marked, check it
       {
-        int id = iatom[l][i];
-        if (atoms[id].getMark() == 0) // If the atom is not marked, check it
+
+        // calculate the distance between the two
+        rxij = x1 - atoms[j].getWrapped()[0];
+        ryij = y1 - atoms[j].getWrapped()[1];
+        rzij = z1 - atoms[j].getWrapped()[2];
+
+        // Apply PBCs
+        rxij = rxij - anInt(rxij / input.box.Lx) * input.box.Lx;
+        ryij = ryij - anInt(ryij / input.box.Ly) * input.box.Ly;
+        rzij = rzij - anInt(rzij / input.box.Lz) * input.box.Lz;
+
+        drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+        if (input.n_types != 1)
+        { // This is only needed if there is more than 1 type of atom.
+          neighborData tmp;
+          tmp.ids = make_pair(atoms[i].getId(),atoms[j].getId());
+          tmp.types = make_pair(i_type,j_type);
+          tmp.distance = drij_sq;
+          neighbor_dataset.push_back(tmp);
+        }
+
+        if (j_type == i_type && !removed) // We are only interested in the primary atom interactions (1-1)
         {
-          int k = atoms[id].getType();
-          // calculate the distance between the two
-          rxij = x1 - atoms[id].getWrapped()[0];
-          ryij = y1 - atoms[id].getWrapped()[1];
-          rzij = z1 - atoms[id].getWrapped()[2];
-
-          // Apply PBCs
-          rxij = rxij - anInt(rxij / box.Lx) * box.Lx;
-          ryij = ryij - anInt(ryij / box.Ly) * box.Ly;
-          rzij = rzij - anInt(rzij / box.Lz) * box.Lz;
-
-          drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
-          if (compound_ratio.n_types != 1)
-          { // This is only needed if there is more than 1 type of atom.
-            neighbor_data tmp;
-            tmp.ids = make_pair(i,id);
-            tmp.types = make_pair(j,k);
-            tmp.distance = drij_sq;
-            neighbor_dataset.push_back(tmp);
-          }
-
-          if (atoms[id].getType() == j && !removed) // We are really only interested in the atoms that are too close to the same type of atom.
+          pair <int, int> key =  (i_type < j_type) ? make_pair(i_type,j_type) : make_pair(j_type,i_type); // make sure the lower index comes first
+          if (drij_sq < input.rcut_sq.at(key))
           {
-            pair <int, int> key =  (j < k) ? make_pair(j,k) : make_pair(k,j); // make sure the lower index comes first
-            if (drij_sq < input.rcut_sq[key])
-            {
-              atoms[i].setMark(1); // if we are below the specified cutoff, mark for removal
-              ++n_removed[j - 1]; // count the number removed of this type
-              removed = true;
-            }
+            atoms[i].setMark(1); // if we are below the specified cutoff, mark for removal
+            ++n_removed[i_type - 1]; // count the number removed of this type
+            removed = true;
           }
         }
       }
-      if (removed && compound_ratio.n_types != 1)
-      {
-        sort(neighbor_dataset.begin(), neighbor_dataset.end(), compareNeighbors);
-        // Now we need to remove atoms to maintain the original ratio
-        for (int it = 1; it <= compound_ratio.ratio.size(); ++it)
-        { // for each ratio
-          int ratio = compound_ratio.ratio[it - 1];
-          if (it == j) // if this is the atom we already removed, we don't want to remove an extra atom
-          {
-            ratio -= 1;
-          }
-          for (int ii = 0; ii < ratio; ++ii) // remove atoms until this ratio is met
-          {
-            for (vector <neighbor_data>::iterator neigh_it = neighbor_dataset.begin();
-                 neigh_it != neighbor_dataset.end(); ++neigh_it)
-            { // check each neighbor's type.  If it matches the type we are looking for, remove it, and break from the loop
-              if ((*neigh_it).types.second == it && atoms[(*neigh_it).ids.second - 1].getMark() == 0)
-              {
-                atoms[(*neigh_it).ids.second - 1].setMark(1);
-                ++n_removed[it - 1];
-                break;
-              }
+    }
+    if (removed && input.n_types != 1)
+    {
+      sort(neighbor_dataset.begin(), neighbor_dataset.end(), compareNeighbors);
+      // Now we need to remove atoms to maintain the original ratio
+      for (int type = 1; type <= input.element_ratios.size(); ++type)
+      { // for each ratio
+        int ratio = input.element_ratios.at(input.number_to_element.at(type));
+        if (type == i_type) {ratio -= 1;} // if this is the atom we already removed, we don't want to remove an extra atom
+
+        for (int ii = 0; ii < ratio; ++ii) // remove atoms until this ratio is met
+        {
+          for (vector <neighborData>::iterator neigh_it = neighbor_dataset.begin();
+               neigh_it != neighbor_dataset.end(); ++neigh_it)
+          { // check each neighbor's type.  If it matches the type we are looking for, remove it, and break from the loop
+            if ((*neigh_it).types.second == type && atoms[(*neigh_it).ids.second - 1].getMark() == 0)
+            {
+              atoms[(*neigh_it).ids.second - 1].setMark(1);
+              ++n_removed[type - 1];
+              break;
             }
           }
         }
@@ -743,22 +614,24 @@ int removeAtoms(vector <Atom>& atoms, vector <vector <int> >& iatom,
 
   for (unsigned int i = 0; i < n_removed.size(); ++i)
   {
-    for (unsigned int j = 0; j < compound_ratio.ratio.size(); ++j)
+    cout << "  " << n_removed[i] << " " << input.number_to_element.at(i + 1) << " atoms will be removed.\n";
+
+    for (unsigned int j = 0; j < input.element_ratios.size(); ++j)
     {
-      if (compound_ratio.ratio[j] * n_removed[i] != compound_ratio.ratio[i] * n_removed[j])
+      if (input.element_ratios.at(input.number_to_element.at(j + 1)) * n_removed[i] != input.element_ratios.at(input.number_to_element.at(i + 1)) * n_removed[j])
       {
         cout << "Error: the element ratio has not been kept.\n"
-             << compound_ratio.ratio[j] << "*" << n_removed[i] << " != "
-             << compound_ratio.ratio[i] << "*" << n_removed[j] << endl;
+             << input.element_ratios.at(input.number_to_element.at(j + 1)) << "*" << n_removed[i] << " != "
+             << input.element_ratios.at(input.number_to_element.at(i + 1)) << "*" << n_removed[j] << endl;
         exit(ATOM_COUNT_ERROR);
       }
     }
-    cout << n_removed[i] << " " << elements[i+1] << " atoms will be removed.\n";
   }
+
   return accumulate(n_removed.begin(), n_removed.end(), 0);
 }
 
-void writeMarkedFile(const string& filename, const vector <Atom>& atoms)
+void writeMarkedFile(const string& filename, const vector <Atom>& atoms, const inputData& input)
 {
   ofstream fout(filename.c_str());
   checkFileStream(fout, filename);
@@ -767,31 +640,31 @@ void writeMarkedFile(const string& filename, const vector <Atom>& atoms)
   for (unsigned int i = 0; i < atoms.size(); ++i)
   {
     fout << atoms[i].getId() << " " << atoms[i].getType() << " ";
-    if (has_charge) {fout << atoms[i].getCharge() << " ";}
-    fout << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " " << atoms[i].getWrapped()[2]
-         << " " << atoms[i].getMark() << endl;
+    if (input.has_charge) {fout << atoms[i].getCharge() << " ";}
+    atoms[i].getWrapped().print3DSpace(fout);
+    fout << " " << atoms[i].getMark() << endl;
   }
   fout.close();
 }
 
-void writeRotatedFile(const string& filename, const vector <Atom>& atoms)
+void writeRotatedFile(const string& filename, const vector <Atom>& atoms, const inputData& input)
 {
   ofstream fout(filename.c_str());
   checkFileStream(fout, filename);
   fout << fixed;
 
-  fout << "These " << compound_ratio.chem_formula << " coordinates are rotated [ID type ";
-  if (has_charge) {fout << "charge ";}
+  fout << "These " << input.molecule << " coordinates are rotated [ID type ";
+  if (input.has_charge) {fout << "charge ";}
   fout << "x y z]\n\n"
        << atoms.size() << " atoms\n"
-       << compound_ratio.n_types << " atom types\n";
+       << input.n_types << " atom types\n";
   fout.precision(6);
-  fout << box.xlow << " " << box.xhigh << " xlo xhi\n"
-       << box.ylow << " " << box.yhigh << " ylo yhi\n"
-       << box.zlow << " " << box.zhigh << " zlo zhi\n";
-  if (box.is_triclinic)
+  fout << input.box.xlow << " " << input.box.xhigh << " xlo xhi\n"
+       << input.box.ylow << " " << input.box.yhigh << " ylo yhi\n"
+       << input.box.zlow << " " << input.box.zhigh << " zlo zhi\n";
+  if (input.box.is_triclinic)
   {
-    fout << box.xy << " " << box.xz << " " << box.yz << " xz xy yz\n";
+    fout << input.box.xy << " " << input.box.xz << " " << input.box.yz << "xy xz yz\n";
   }
   fout << "\nAtoms\n\n";
 
@@ -799,18 +672,19 @@ void writeRotatedFile(const string& filename, const vector <Atom>& atoms)
   {
     fout.precision(0);
     fout << atoms[i].getId() << " " << atoms[i].getType() << " ";
-    if (has_charge)
+    if (input.has_charge)
     {
       fout.precision(1);
       fout << atoms[i].getCharge() << " ";
     }
     fout.precision(6);
-    fout << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " " << atoms[i].getWrapped()[2] << endl;
+    atoms[i].getWrapped().print3DSpace(fout);
+    fout << endl;
   }
   fout.close();
 }
 
-void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const int& n_removed)
+void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const int& n_removed, const inputData& input)
 {
   int n_total = 0;
 
@@ -818,16 +692,19 @@ void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const 
   checkFileStream(fout, filename);
   fout << fixed;
 
-  fout << "These " << compound_ratio.chem_formula << " coordinates are shifted and have atoms removed: [ID type ";
-  if (has_charge) {fout << "charge ";}
+  fout << "These " << input.molecule << " coordinates are shifted and have atoms removed: [ID type ";
+  if (input.has_charge) {fout << "charge ";}
   fout << "x y z]\n"
        << "\n"
        << atoms.size() - n_removed << "  atoms\n"
-       << compound_ratio.n_types << "  atom types\n"
-       << box.xlow << " " << box.xhigh << "   xlo xhi\n"
-       << box.ylow << " " << box.yhigh << "   ylo yhi\n"
-       << box.zlow << " " << box.zhigh << "   zlo zhi\n";
-  if (box.is_triclinic) {fout << box.xy << " " << box.xz << " " << box.yz << "  xy xz yz\n";}
+       << input.n_types << "  atom types\n"
+       << input.box.xlow << " " << input.box.xhigh << "   xlo xhi\n"
+       << input.box.ylow << " " << input.box.yhigh << "   ylo yhi\n"
+       << input.box.zlow << " " << input.box.zhigh << "   zlo zhi\n";
+  if (input.box.is_triclinic)
+  {
+    fout << input.box.xy << " " << input.box.xz << " " << input.box.yz << "  xy xz yz\n";
+  }
 
   fout << "\nAtoms\n\n";
 
@@ -837,9 +714,8 @@ void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const 
     {
       ++n_total;
       fout << n_total << " " << atoms[i].getType() << " ";
-      if (has_charge) {fout << atoms[i].getCharge() << " ";}
-      fout << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " "
-           << atoms[i].getWrapped()[2] << endl;
+      if (input.has_charge) {fout << atoms[i].getCharge() << " ";}
+      atoms[i].getWrapped().print3DSpace(fout);
     }
   }
 
@@ -854,92 +730,224 @@ void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const 
   fout.close();
 }
 
-void rotateAndRemove(map <int, string>& elements)
+void rotateAndRemove(inputData& input, const unsigned int& index)
 {
   string marked_filename, rotated_filename, removed_filename;
   vector <Atom> atoms;
   vector <vector <int> > iatom;
   int n_removed;
 
-  // Temporary namespace for determining filenames
-  {
-    vector <string> temp = determineFilename();
-    marked_filename = temp[0];
-    rotated_filename = temp[1];
-    removed_filename = temp[2];
-  }
+  stringstream ss;
+  ss << "_" << index << ".dat";
+  marked_filename = input.output_basename + "_marked" + ss.str();
+  rotated_filename = input.output_basename + "_rotated" + ss.str();
+  removed_filename = input.output_basename + "_removed" + ss.str();
 
-  atoms = readDataFile(); // rotates the atoms as well
-  generateCellLinkedList(atoms, iatom);
-  n_removed = removeAtoms(atoms, iatom, elements);
-  if (marked) {writeMarkedFile(marked_filename, atoms);}
-  if (rotated) {writeRotatedFile(rotated_filename, atoms);}
-  if (removed) {writeRemovedFile(removed_filename, atoms, n_removed);}
+  atoms = readDataFile(input);
+  rotateAtoms(input, atoms);
+  iatom = generateCellLinkedList(input, atoms);
+  n_removed = removeAtoms(atoms, iatom, input);
+
+  if (marked) {writeMarkedFile(marked_filename, atoms, input);}
+  if (rotated) {writeRotatedFile(rotated_filename, atoms, input);}
+  if (removed) {writeRemovedFile(removed_filename, atoms, n_removed, input);}
+
+  cout << endl;
 }
 
-void writeLogFile()
+void printInputData(const inputData& input)
 {
-  ofstream fout("rotate_and_remove.log", fstream::app);
-  checkFileStream(fout, "rotate_and_remove.log");
+  cout << "Datafile: " << input.data_file
+       << "\n  Output basename: " << input.output_basename
+       << "\n  Grain radius: " << input.r_grain
+       << "\n  Misorientation angle: " << input.theta
+       << "\n  Molecule: " << input.molecule
+       << "\n  Crystal structure: " << input.crystal_structure
+       << "\n  Lattice parameter: " << input.a0
+       << "\n\n  Elements found (" << input.n_types << "): ";
+  for (map <int, string>::const_iterator it = input.number_to_element.begin(); it != input.number_to_element.end();)
+  {
+    cout << "    " << it->second;
+    if (++it != input.number_to_element.end()) {cout << ", ";}
+    else {cout << endl;}
+  }
+
+  if (input.n_types > 1)
+  {
+    cout << "  The ratio of elements was calculated as: ";
+    for (map <int, string>::const_iterator it = input.number_to_element.begin(); it != input.number_to_element.end();)
+    {
+      cout << input.element_ratios.at(it->second) << " " << it->second;
+      if (++it != input.number_to_element.end()) {cout << " : ";}
+      else {cout << endl;}
+    }
+  }
+}
+
+void writeLogFile(const inputData& input, const unsigned int& index)
+{
+  ofstream fout("log.rotate_and_remove", fstream::app);
+  checkFileStream(fout, "log.rotate_and_remove");
 
   fout << "File: " << input.data_file << endl
        << "Theta: " << input.theta << endl
        << "Cutoff value(s): \n";
-  for (map <pair <int, int>, double>::iterator it = input.rcut.begin(); it != input.rcut.end(); ++it)
+  for (map <pair <int, int>, double>::const_iterator it = input.rcut.begin(); it != input.rcut.end(); ++it)
   {
     fout << "\t" << (*it).first.first << "-" << (*it).first.second << ": "
          << (*it).second << endl;
   }
-  vector <string> temp = determineFilename();
+  stringstream ss;
+  ss << "_" << index << ".dat";
+  string marked_filename = input.output_basename + "_marked" + ss.str();
+  string rotated_filename = input.output_basename + "_rotated" + ss.str();
+  string removed_filename = input.output_basename + "_removed" + ss.str();
+
   fout << "Outputs: \n";
-  if (marked) {fout << "\tMarked: " << temp[0] << "\n";}
-  if (rotated) {fout << "\tRotated: " << temp[1] << "\n";}
-  if (removed) {fout << "\tRemoved: " << temp[2] << "\n\n";}
+  if (marked) {fout << "\tMarked: " << marked_filename << "\n";}
+  if (rotated) {fout << "\tRotated: " << rotated_filename << "\n";}
+  if (removed) {fout << "\tRemoved: " << removed_filename << "\n\n";}
 
   fout.close();
 }
 
-int main(int argc, char **argv)
+void runCommands(vector <inputData>& commands)
+{
+  map <int, string> elements;
+  for (unsigned int i = 0; i < commands.size(); ++i)
+  {
+    printInputData(commands[i]);
+    rotateAndRemove(commands[i], i);
+    writeLogFile(commands[i], i);
+  }
+}
+
+vector <inputData> parseInputFile(const string& input_file)
+{
+  string str; // holds the whole line
+  vector <inputData> commands;
+  ifstream fin(input_file.c_str());
+  checkFileStream(fin, input_file);
+  bool good_stream = true;
+
+  while (getline(fin,str))
+  {
+    bool single_cutoff = false;
+    inputData input;
+    stringstream ss(str); // for parsing the command string
+    if (ss.str()[0] == '#') {continue;}
+    if (!(ss >> input.data_file >> input.output_basename >> input.r_grain >> input.theta >> input.molecule >> input.crystal_structure >> input.a0))
+    {
+      cout << "Incorrect line formatting.\n" << "Skipping... \"" << str << "\"\n\n";
+      continue;
+    }
+    input.calculateRGrainSq();
+    input.calculateTrig();
+    input.calculateNumElements();
+    determineElementRatios(input);
+    int combinations = ((input.n_types + 1) * input.n_types) / 2;
+    double first_cutoff;
+
+    for (int i = 1; i <= input.n_types; ++i)
+    {
+      if (!good_stream) {break;}
+      for (int j = i; j <= input.n_types; ++j)
+      {
+        double tmp;
+        double multiplier;
+        if (!(ss >> tmp))
+        {
+          if (i == 1) {first_cutoff = tmp;}
+          if (i == 1 && j == 2) {single_cutoff = true;} // looking at the 1-2 interaction (the second value in the list of cutoffs)
+          if (!single_cutoff)
+          {
+            cout << "Incorrect number of cutoff values - requires " << combinations << " cutoff values.\n\n";
+            good_stream = false;
+            break;
+          }
+        }
+        if (input.crystal_structure.compare("fcc") == 0) {multiplier = first_nn_distances["fcc"];}
+        else if (input.crystal_structure.compare("bcc") == 0) {multiplier = first_nn_distances["bcc"];}
+        else if (input.crystal_structure.compare("sc") == 0) {multiplier = first_nn_distances["sc"];}
+        else if (input.crystal_structure.compare("diamond") == 0) {multiplier = first_nn_distances["diamond"];}
+        else if (input.crystal_structure.compare("fluorite") == 0)
+        {
+          if (i == j) // comparing the same element
+          {
+            if (input.element_ratios[input.number_to_element[i]] == 1) {multiplier = first_nn_distances["fcc"];} // fcc lattice points
+            else if (input.element_ratios[input.number_to_element[i]] == 2) {multiplier = first_nn_distances["sc"] / 2.0;} // tetrahedral sites
+            else
+            {
+              cout << "Error determining nearest neighbor multiplier.\n";
+              exit(CRYSTAL_STRUCTURE_ERROR);
+            }
+          }
+          else {multiplier = first_nn_distances["diamond"];}
+        }
+
+        if (single_cutoff)
+        {
+          double val = first_cutoff * multiplier * input.a0;
+          input.rcut.insert(make_pair(make_pair(i,j), val));
+          input.rcut_sq.insert(make_pair(make_pair(i,j), val * val));
+        }
+        else
+        {
+          double val = tmp * multiplier * input.a0;
+          input.rcut.insert(make_pair(make_pair(i,j),val));
+          input.rcut_sq.insert(make_pair(make_pair(i,j), val * val));
+          if (val > input.r_cut_max) {input.r_cut_max = val;}
+        }
+      }
+    }
+    if (!good_stream)
+    {
+      cout << "Error processing line \"" << str << "\"\n\n";
+      if (!printedInputHelp)
+      {
+        printInputFileHelp();
+        printedInputHelp = true;
+      }
+      good_stream = true;
+      continue;
+    }
+    input.calculateRCutMax();
+
+    if (input.validate()) {commands.push_back(input);} // store the line
+  }
+
+  fin.close();
+  return commands;
+}
+
+int main (int argc, char **argv)
 {
   string input_file, outputs;
   map <int, string> elements;
+  vector <inputData> commands; // the list of commands for the script
   try
   {
-    cxxopts::Options options(argv[0], "Rotate atoms with a cylinder or sphere, and remove atoms that are too close to each other.");
+    cxxopts::Options options(argv[0], "Rotate atoms within a cylinder or sphere, and remove atoms that are too close to each other");
     options
-      .positional_help("file angle")
+      .positional_help("file")
       .show_positional_help();
 
     options
       .allow_unrecognised_options()
       .add_options()
       ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
-      ("t,theta", "Misorientation angle", cxxopts::value<double>(), "angle") // try to make this a vector
-      ("o,output", "Output files: (m)arked data files, with atoms marked for removal, (r)otated data files, with the atoms rotated, and r(e)moved data files, with the marked atoms removed.  If the flag is specified alone, no output files will be produced",
-        cxxopts::value<string>(outputs)->default_value("mre"), "mre")
-      ("a,axis", "Orientation axis.  If not identified before the file extension, must be included", cxxopts::value<int>(input.axis)) // TODO: This can be better generalized
-      ("s,sphere", "Flag to create a spherical grain", cxxopts::value<bool>(is_sphere)->default_value("false")->implicit_value("true"))
+      ("o,output", "Output files: (m)arked data files, with atoms marked for removal, r(o)tated data files, with the atoms rotated, and (r)emoved data files, with the marked atoms removed",
+        cxxopts::value<string>(outputs)->default_value("r"), "mor")
+      ("s,sphere", "Flag to create a spherical grain", cxxopts::value<bool>(is_sphere)->implicit_value("true"))
       ("h,help", "Show the help");
 
-    options.parse_positional({"file", "theta"});
+    options.parse_positional({"file"});
     auto result = options.parse(argc, argv);
 
-    if (result.count("help") || result.count("file") == 0 || result.count("theta") == 0)
+    if (result.count("help") || !result.count("file"))
     {
-      cout << options.help() << endl << endl
-           << "Please enter a valid input file containing (in order):\n"
-           << "1) the data file to be processed\n"
-           << "2) the desired grain radius\n"
-           << "3) the number of atom types\n"
-           << "4) cutoff radii\n\n"
-           << "Note that the number of cutoff radii is dependent on the\n"
-           << "number of atom interactions, so, for example, if there are\n"
-           << "two atom types, there are the two same-element interactions,\n"
-           << "and there is also the interaction between the two different\n"
-           << "elements.  Include all the relevant cutoff radii one element\n"
-           << "at a time, i.e. the cutoff radii for a 3 element system would\n"
-           << "be input as 1-1, 1-2, 1-3, 2-2, 2-3, 3-3. Maintain consistent\n"
-           << "numbering with the data file.\n";
+      cout << options.help() << endl << endl;
+      printInputFileHelp();
       return EXIT_SUCCESS;
     }
 
@@ -951,7 +959,7 @@ int main(int argc, char **argv)
 
       if (outputs.size() > 3)
       {
-        cout << "Error: please specify which outputs you want printed to a file as m|r|e\n";
+        cout << "Error: specify the desired outputs as a combination of m|o|r\n";
         return OUTPUT_SPECIFICATION_ERROR;
       }
       else
@@ -959,8 +967,8 @@ int main(int argc, char **argv)
         for (string::iterator it = outputs.begin(); it != outputs.end(); ++it)
         {
           if ((*it) == 'm') {marked = true;}
-          else if ((*it) == 'r') {rotated = true;}
-          else if ((*it) == 'e') {removed = true;}
+          else if ((*it) == 'o') {rotated = true;}
+          else if ((*it) == 'r') {removed = true;}
           else
           {
             cout << "Unknown output file format \'" << (*it) << "\'\n";
@@ -970,23 +978,10 @@ int main(int argc, char **argv)
       }
     }
 
-    if (result.count("theta"))
-    {
-      input.theta = result["theta"].as<double>();
-      input.costheta = cos(input.theta * PI / 180.0);
-      input.sintheta = sin(input.theta * PI / 180.0);
-    }
-
     if (result.count("file"))
     {
-      parseInputFile(input_file);
-      if (!result.count("axis"))
-      {
-        determineAxisFromFilename();
-      }
-      elements = determineElementRatios();
-      rotateAndRemove(elements);
-      writeLogFile();
+      commands = parseInputFile(input_file);
+      runCommands(commands);
     }
   }
   catch (const cxxopts::OptionException& e)
