@@ -139,26 +139,23 @@ double anInt(double x)
 
 void showInputFileHelp()
 {
-  cout << "The input file may consist of multiple lines that may be formatted one of two ways:\n"
-       << "\t(1) datafile outfile molecule_name impurity_value atom_type seed r_cut1 [r_cut2 r_cut3 ....]\n"
-       << "\t(2) datafile outfile molecule_name atom_id r_cut1 [r_cut2 r_cut3 ....]\n"
-       << "\t(3) datafile outfile molecule_name file_containing_atom_ids r_cut1 [r_cut2 r_cut3 ....]\n\n"
-       << "In all of these, the cutoff value must be specified for determining nearest neighbor\n"
-       << "interactions. Note that the number of cutoff radii is dependent on the number\n"
-       << "of unique elements in the structure.  For example, a system of two unique atoms\n"
-       << "would require three cutoff radii: one for each of the same-element interactions,\n"
-       << "and one for the interaction between the two elements.  All the radii must be\n"
-       << "specified one element at a time, i.e. if there are three unique elements, the\n"
-       << "interaction radii would be specified by 1-1, 1-2, 1-3, 2-2, 2-3, and finally 3-3.\n"
-       << "Maintain consitent numbering with the data file.\n\n"
+  cout << "The input file may consist of multiple lines that may be formatted one of three ways:\n"
+       << "\t(1) datafile outfile molecule_name impurity_value atom_type seed a0\n"
+       << "\t(2) datafile outfile molecule_name atom_id a0\n"
+       << "\t(3) datafile outfile molecule_name file_containing_atom_ids a0\n\n"
        << "Format (1) description:\n"
+       << "   datafile is the file containing the original structure\n"
+       << "   outfile is the basename of the output file(s) generated\n"
+       << "   molecule_name is the chemical composition of the structure (e.g. FeO2, Cu, etc.)\n"
        << "   the impurity value can either be a decimal (0 < impurity_value < 1) or an\n"
        << "      integer (>1)\n"
-       << "   atom_type specifies where substitutional atoms will be placed\n"
+       << "   atom_type specifies where substitutional atoms will be placed using the type number\n"
+       << "      as given in the original structure\n"
        << "   seed is used for random number generation\n"
+       << "   a0 is the lattice parameter\n"
        << "Format (2) and (3) description:\n"
-       << "   the only parameter required is the atom ID number being replaced,\n"
-       << "   or alternatively the file containing a list of atom IDs.\n"
+       << "   atom_id specifies the atom id to replace\n"
+       << "   file_containing_atom_ids specifies a list of atoms (one per line) to replace\n"
        << "   This is useful for situations where defects are desired at\n"
        << "   specific locations.\n\n";
 }
@@ -456,13 +453,13 @@ void determineAllowedSubstitionalAtoms(vector <Atom>& substitional_atoms, const 
 
 impurityDetails
 calculateImpurityDetails(const vector <Atom>& atoms, const vector <string>& commands,
-                         const int& num_cutoffs, const ratio& compound_ratio)
+                         const ratio& compound_ratio)
 {
   impurityDetails impurity_details;
   double impurity_value;
   int seed;
 
-  if (commands.size() == 6 + num_cutoffs) // we either have a specific number to replace (randomly) or a percentage
+  if (commands.size() == 7) // we either have a specific number to replace (randomly) or a percentage
   {
     stringstream ss(commands[3]); // This is the impurity value for input type (1)
     ss >> impurity_value;
@@ -487,7 +484,7 @@ calculateImpurityDetails(const vector <Atom>& atoms, const vector <string>& comm
       impurity_details.num_substituted = (int)((double)(numerator) / (double)(denominator) * impurity_value);
     }
   }
-  else if (commands.size() == 4 + num_cutoffs) // either one id, or a file containing a list of IDs has beeen specified
+  else if (commands.size() == 5) // either one id, or a file containing a list of IDs has beeen specified
   {
     // Check to see if the value specified in commands[3] is a file or a number
     bool using_file = std::find_if(commands[3].begin(), commands[3].end(),
@@ -541,13 +538,13 @@ calculateImpurityDetails(const vector <Atom>& atoms, const vector <string>& comm
   return impurity_details;
 }
 
-vector <Atom> generateImpurities(vector <Atom>& atoms, const vector <string>& commands, const int& num_cutoffs, const ratio& compound_ratio)
+vector <Atom> generateImpurities(vector <Atom>& atoms, const vector <string>& commands, const ratio& compound_ratio)
 {
   int n_removed = 0;
   impurityDetails impurity_details;
   vector <Atom> substitutional_atoms;
 
-  impurity_details = calculateImpurityDetails(atoms, commands, num_cutoffs, compound_ratio);
+  impurity_details = calculateImpurityDetails(atoms, commands, compound_ratio);
 
 
   if (impurity_details.atom_id.size() > 0) // if an atom id has been specified
@@ -592,7 +589,7 @@ vector <Atom> generateImpurities(vector <Atom>& atoms, const vector <string>& co
 }
 
 void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& iatom,
-                            const boxData& box, const double& r_cut_max)
+                            const boxData& box, const double& a0)
 {
   int ncellx, ncelly, ncellz; // number of cells in each direction
   int idx, idy, idz; // cell number in each direction
@@ -601,12 +598,12 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
   double drij_sq, rxij, ryij, rzij; // square of distance, x, y, and z separation.
   vector <vector <vector <int> > > icell; // cell index
   vector <vector <vector <vector <int> > > > pcell; // atom index in each cell
-  double r_cut_max_sq = r_cut_max * r_cut_max;
+  double a0_sq = a0 * a0;
 
   // First we generate the number of cells in each direction
-  ncellx = (int)(box.Lx / r_cut_max) + 1;
-  ncelly = (int)(box.Ly / r_cut_max) + 1;
-  ncellz = (int)(box.Lz / r_cut_max) + 1;
+  ncellx = (int)(box.Lx / a0) + 1;
+  ncelly = (int)(box.Ly / a0) + 1;
+  ncellz = (int)(box.Lz / a0) + 1;
 
   // Length of cells in each direction
   lcellx = box.Lx / ncellx;
@@ -614,7 +611,7 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
   lcellz = box.Lz / ncellz;
 
   // Minimum number of atoms allowed of 100
-  n_atoms_per_cell = std::max((int)(atoms.size() / (double)(ncellx * ncelly * ncellz)), 200);
+  n_atoms_per_cell = std::max((int)(atoms.size() / (double)(ncellx * ncelly * ncellz)), 100);
 
   // resize the vectors
   icell.resize(ncellx, vector <vector <int> > // x dimension
@@ -702,7 +699,7 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
                   // Now calculate the distance
                   drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
 
-                  if (drij_sq > r_cut_max_sq)
+                  if (drij_sq > a0_sq)
                   {
                     continue; // move to the next atom if we're too far away
                   }
@@ -720,35 +717,6 @@ void generateCellLinkedList(const vector <Atom>& atoms, vector <vector <int> >& 
       } // k
     } // j
   } // i
-}
-
-double extractCutoffs(const vector <string>& commands, const int& num_cutoffs,
-                        const ratio& compound_ratio,
-                        map <pair <int, int>, double>& r_cut_map,
-                        map <pair <int, int>, double>& r_cut_sq_map)
-{
-  double r_cut_max = 0, temp;
-  int i1 = 1, i2 = 1; // atom type indices for the cutoff maps
-
-  stringstream ss;
-  for (unsigned int i = commands.size() - num_cutoffs; i < commands.size(); ++i)
-  {
-    ss << commands[i] << " ";
-  }
-
-  for (int i = 1; i <= compound_ratio.n_types; ++i)
-  {
-    for (int j = i; j <= compound_ratio.n_types; ++j)
-    {
-      ss >> temp;
-      r_cut_map.insert(make_pair(make_pair(i,j),temp));
-      r_cut_sq_map.insert(make_pair(make_pair(i,j), temp * temp));
-
-      if (temp > r_cut_max) {r_cut_max = temp;}
-    }
-  }
-
-  return r_cut_max;
 }
 
 void readFile(vector <Atom>& atoms, const string& datafile, const ratio& compound_ratio, boxData& box)
@@ -835,13 +803,10 @@ void readFile(vector <Atom>& atoms, const string& datafile, const ratio& compoun
   }
 }
 
-bool validateNumElements(const int& n_types, const vector <string>& commands, int& num_cutoffs)
+bool validateNumElements(const int& n_types, const vector <string>& commands)
 {
-  num_cutoffs = ((n_types + 1) * n_types) / 2;
-
-  // The 5 and 3 come from the number of parameters in the different input formats.
-  // num_cutoffs represents the number of cutoff radii required.
-  if ((6 + num_cutoffs != commands.size()) && (4 + num_cutoffs != commands.size()))
+  // The 7 and 5 come from the number of parameters in the different input formats.
+  if ((7 != commands.size()) && (5 != commands.size()))
   {
     cout << "Number of commands in line\n" << "  ";
     for (unsigned int i = 0; i < commands.size(); ++i)
@@ -850,8 +815,8 @@ bool validateNumElements(const int& n_types, const vector <string>& commands, in
     }
     cout << endl
          << "not correct.\nNumber of commands found: " << commands.size()
-         << " != expected number of commands = " << 6 + num_cutoffs
-         << " (input format 1) or " << 4 + num_cutoffs << " (input formats 2/3)\n\n";
+         << " != expected number of commands = " << 7
+         << " (input format 1) or " << 5 << " (input formats 2/3)\n\n";
 
     showInputFileHelp();
     return false;
@@ -1065,21 +1030,21 @@ int main(int argc, char **argv)
           continue;
         }
 
-        int num_cutoffs;
         ratio compound_ratio;
         map <pair <int, int>, double> r_cut_map, r_cut_sq_map;
         vector <Atom> substituted_atoms;
 
         elements = determineElementRatios(impurity_commands[i][2], compound_ratio);
 
-        if (!(validateNumElements(compound_ratio.n_types, impurity_commands[i], num_cutoffs)))
+        if (!(validateNumElements(compound_ratio.n_types, impurity_commands[i])))
         {
           valid = false;
           continue;
         }
 
-        double r_cut_max = extractCutoffs(impurity_commands[i], num_cutoffs,
-                                          compound_ratio, r_cut_map, r_cut_sq_map);
+        stringstream ss(impurity_commands[i].back());
+        double a0;
+        ss >> a0;
 
         // If it's our first set of commands, or if the data file has changed between
         // the previous and current set of commands, read the data, and create the
@@ -1087,7 +1052,7 @@ int main(int argc, char **argv)
         if (i == 0)
         {
           readFile(atoms, impurity_commands[i][0], compound_ratio, box);
-          generateCellLinkedList(atoms, iatom, box, r_cut_max);
+          generateCellLinkedList(atoms, iatom, box, a0);
           valid = true;
         }
         else if (impurity_commands[i][0] != impurity_commands[i - 1][0] || !valid)
@@ -1095,7 +1060,7 @@ int main(int argc, char **argv)
           atoms.clear();
           iatom.clear(); // segfault with this vector if we don't do this.
           readFile(atoms, impurity_commands[i][0], compound_ratio, box);
-          generateCellLinkedList(atoms, iatom, box, r_cut_max);
+          generateCellLinkedList(atoms, iatom, box, a0);
           valid = true;
         }
         else
@@ -1104,7 +1069,7 @@ int main(int argc, char **argv)
           for (unsigned int i = 0; i < atoms.size(); ++i) {atoms[i].setMark(0);}
         }
 
-        substituted_atoms = generateImpurities(atoms, impurity_commands[i], num_cutoffs, compound_ratio);
+        substituted_atoms = generateImpurities(atoms, impurity_commands[i], compound_ratio);
 
         if (!(result.count("no-molecule-removal")))
         {
