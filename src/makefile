@@ -24,28 +24,31 @@ endif
 BIN =../bin
 
 # This may need some fine tuning between Mac and Linux
+# -L prints the name of each input file that does NOT have a match
+# -r searches the search directory recursively
+# -Z outputs a zero byte (NULL character) instead of the character that normally follows the file name
+# -l prints the name of each input file that does have a match
 ATOMPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed "s/.cpp//g")
 ATOMDBGPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed 's/.cpp/_dbg /g')
 UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="phase_field.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
 UTILSDBG := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="phase_field.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
-POSITIONPROGS = phase_field
-POSITIONDBGPROGS = phase_field_dbg
+POSITIONPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp//g')
+POSITIONDBGPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
 ALLEXECUTABLES = $(ATOMPROGS) $(ATOMDBGPROGS) $(UTILS) $(UTILSDBG) $(POSITIONPROGS) $(POSITIONDBGPROGS)
 
 ERRORCODES = error_code_defines.h
 
 all: FLAGS = $(CLIB) $(NODBGFLAGS)
-all: atom.o position.o atom_builds utils
+all: atom.o position.o atom_builds utils position_builds #phase_field
 
 debug: FLAGS = $(CLIB) $(DBGFLAGS)
-debug: atom_builds_dbg utils_dbg
+debug: atom_builds_dbg utils_dbg position_builds_dbg #phase_field_dbg
 
-# FIXME! This tries to build position_builds, but phase_field_dbg does not! why?!?
 phase_field: FLAGS = $(CLIB) -fopenmp $(NODBGFLAGS)
-phase_field: position_builds
+phase_field: $(addprefix $(BIN)/, phase_field) position.o
 
 phase_field_dbg: FLAGS = $(CLIB) -fopenmp $(DBGFLAGS)
-phase_field_dbg: position_dbg_builds
+phase_field_dbg: $(addprefix $(BIN)/, phase_field_dbg) position.o
 
 # The extra line for each rule allows a different value to be passed to the pattern-matched rule.
 atom_builds: TARGETS=atom.o position.o
@@ -63,8 +66,8 @@ atom_builds_dbg: $(addprefix $(BIN)/, $(ATOMDBGPROGS)) atom.o position.o
 utils_dbg: TARGETS=
 utils_dbg: $(addprefix $(BIN)/, $(UTILSDBG))
 
-position_dbg_builds: TARGETS=position.o
-position_dbg_builds: $(addprefix $(BIN)/, $(POSITIONDBGPROGS)) position.o
+position_builds_dbg: TARGETS=position.o
+position_builds_dbg: $(addprefix $(BIN)/, $(POSITIONDBGPROGS)) position.o
 
 atom.o : atom.h atom.cpp
 	$(CC) -O3 $(STDLIB) $(CLIB) -c atom.cpp $(ADDITIONAL_LDFLAGS)

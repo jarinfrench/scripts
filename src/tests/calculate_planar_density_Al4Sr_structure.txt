@@ -1,0 +1,11 @@
+# from https://aip.scitation.org/action/showPopup?citid=citart1&id=app1&doi=10.1063%2F1.5097251
+0 0 0
+0 0.5 0.25
+0 0 0.38
+0 0.5 0.75
+0 0 0.62
+0.5 0 0.25
+0.5 0 0.75
+0.5 0.5 0.5
+0.5 0.5 0.88
+0.5 0.5 0.12
