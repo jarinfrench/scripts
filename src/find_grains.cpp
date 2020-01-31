@@ -662,9 +662,9 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
             neighs.push_back(iatom[l][i]);
           }
           sort(neighs.begin(), neighs.end());
-          for (unsigned int i = 0; i < neighs.size(); ++i)
+          for (unsigned int j = 0; j < neighs.size(); ++j)
           {
-            fout_neighbors << "\tAtom " << neighs[i] << "\n";
+            fout_neighbors << "\tAtom " << neighs[j] << "\n";
           }
         }
       }
@@ -691,6 +691,9 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
       // atom over and over.
       for (int l = 1; l <= iatom[0][i]; ++l)
       {
+        // TODO: Consider trying to do this while comparing to the perfect structure, so
+        // I end up calculating the symmetry parameter based on a structure without thermal
+        // fluctuations.
         unsigned int id = iatom[l][i];
 
         // calculate the position difference vector
