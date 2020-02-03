@@ -46,17 +46,14 @@ struct compareMQRatio
 
 void printInputFileHelp()
 {
-  cout << "The input file should contain the following items on one line, in order:"
+  cout << "The input file should contain the following items on one line, in order:\n"
        << "  1. The name of the file containing the list of atoms in a unit cell\n"
        << "  2. The a lattice constant\n"
        << "  3. The b lattice constant\n"
        << "  4. The c lattice constant\n"
        << "  5. The alpha angle (in degrees)\n"
        << "  6. The beta angle (in degrees)\n"
-       << "  7. The gamma angle (in degrees)\n"
-       << "  8. The h index of the desired plane\n"
-       << "  9. The k index of the desired plane\n"
-       << " 10. The l index of the desired plane\n";
+       << "  7. The gamma angle (in degrees)\n";
 }
 
 double calculateDeterminant(const vector <vector <double> >& m)
@@ -126,6 +123,11 @@ pair <int, int> decimal2Fraction (const double& target)
   }
 
   return make_pair(numerator, denominator);
+}
+
+void printCitationInfo()
+{
+  cout << "Fan, Q. Journal of Applied Crystallography 49(5) (2016) 1454-1458\n";
 }
 
 inputData parseInputFile(const string& file, const unsigned int& verbosity)
@@ -344,7 +346,7 @@ int main(int argc, char** argv)
 
   try
   {
-    cxxopts::Options options(argv[0], "Script to determine the interplanar spacing based on the Position-Duplication-Number (PDN) method");
+    cxxopts::Options options(argv[0], "Script to determine the planar density based on the Position-Duplication-Number (PDN) method");
     options
       .positional_help("file h k l")
       .show_positional_help();
@@ -357,18 +359,21 @@ int main(int argc, char** argv)
         ("k", "k Miller index", cxxopts::value<int>(k), "k")
         ("l", "l Miller index", cxxopts::value<int>(l), "l")
         ("v,verbose", "Verbosity - if specified, shows the intermediate calulations", cxxopts::value<bool>())
+        ("c,citation", "Show the citation of the paper where the method originated", cxxopts::value<bool>()->implicit_value("true"))
         ("help", "Show the help");
 
     options.parse_positional({"file", "h", "k", "l"});
     auto result = options.parse(argc, argv);
     verbosity = result.count("verbose");
 
-    if (result.count("help") || !result.count("file"))
+    if (result.count("help") || !result.count("file") || !result.count("h") || !result.count("k") || !result.count("l"))
     {
       cout << options.help() << "\n";
       printInputFileHelp();
       return EXIT_SUCCESS;
     }
+
+    if (result.count("citation")) {printCitationInfo();}
 
     if (result.count("file"))
     {
