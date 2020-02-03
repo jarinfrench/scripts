@@ -162,7 +162,7 @@ inputData parseInputFile(const string& file, const unsigned int& verbosity)
   return input;
 }
 
-vector <Position> parseUnitCellFile(const string& file, const unsigned int& verbosity)
+vector <Position> parseUnitCellFile(const string& file, const unsigned int& verbosity = 0)
 {
   double x, y, z, dummy; // positions
   vector <Position> unit_cell_positions;
@@ -204,19 +204,25 @@ vector <Position> parseUnitCellFile(const string& file, const unsigned int& verb
   return unit_cell_positions;
 }
 
-double calculateUnitCellVolume(const inputData& input)
+double calculateUnitCellVolume(const inputData& input, const unsigned int& verbosity = 0)
 {
   double abc = input.a * input.b * input.c;
   double cos_mult = 2 * input.cos_alpha * input.cos_beta * input.cos_gamma;
   double cos_alpha_sq = input.cos_alpha * input.cos_alpha;
   double cos_beta_sq = input.cos_beta * input.cos_beta;
   double cos_gamma_sq = input.cos_gamma * input.cos_gamma;
-
   // Eq. 3
-  return abc * sqrt(1 - cos_alpha_sq - cos_beta_sq - cos_gamma_sq + cos_mult);
+  double unit_cell_vol = abc * sqrt(1 - cos_alpha_sq - cos_beta_sq - cos_gamma_sq + cos_mult);
+
+  if (verbosity >= 1)
+  {
+    cout << "Volume of unit cell: " << unit_cell_vol << "\n";
+  }
+
+  return unit_cell_vol;
 }
 
-double calculateInterplanarSpacing(const inputData& input)
+double calculateInterplanarSpacing(const inputData& input, const unsigned int& verbosity = 0)
 {
   vector <vector <double> > m1 (3, vector <double> (3,0.0));
   vector <vector <double> > m2 (3, vector <double> (3,0.0));
@@ -246,7 +252,13 @@ double calculateInterplanarSpacing(const inputData& input)
   double det3 = calculateDeterminant(m3);
   double det4 = calculateDeterminant(m4);
 
-  return 1.0 / sqrt((a * det1 + b * det2 + c * det3) / det4);
+  // Eq. 4
+  double interplanar_spacing = 1.0 / sqrt((a * det1 + b * det2 + c * det3) / det4);
+  if (verbosity >= 1)
+  {
+    cout << "Interplanar spacing: " << interplanar_spacing << "\n";
+  }
+  return interplanar_spacing;
 
 }
 
@@ -254,7 +266,7 @@ void calculatePlanarDensities(const inputData& input,
                               const vector <Position>& positions,
                               const double& dhkl,
                               const double& v_cell,
-                              const unsigned int& verbosity)
+                              const unsigned int& verbosity = 0)
 {
   // calculate the position factors
   vector <double> position_factors (positions.size(), 0);
@@ -385,8 +397,8 @@ int main(int argc, char** argv)
         << "\n\n";
       }
       unit_cell_positions = parseUnitCellFile(input.unit_cell_file, verbosity);
-      unit_cell_volume = calculateUnitCellVolume(input);
-      interplanar_spacing = calculateInterplanarSpacing(input);
+      unit_cell_volume = calculateUnitCellVolume(input, verbosity);
+      interplanar_spacing = calculateInterplanarSpacing(input, verbosity);
       calculatePlanarDensities(input, unit_cell_positions, interplanar_spacing, unit_cell_volume, verbosity);
     }
   }
