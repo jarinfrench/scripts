@@ -39,15 +39,17 @@ ALLEXECUTABLES = $(ATOMPROGS) $(ATOMDBGPROGS) $(UTILS) $(UTILSDBG) $(POSITIONPRO
 ERRORCODES = error_code_defines.h
 
 all: FLAGS = $(CLIB) $(NODBGFLAGS)
-all: atom.o position.o atom_builds utils position_builds #phase_field
+all: atom.o position.o atom_builds utils position_builds phase_field
 
 debug: FLAGS = $(CLIB) $(DBGFLAGS)
-debug: atom_builds_dbg utils_dbg position_builds_dbg #phase_field_dbg
+debug: atom_builds_dbg utils_dbg position_builds_dbg phase_field_dbg
 
-phase_field: FLAGS = $(CLIB) -fopenmp $(NODBGFLAGS)
+phase_field: FLAGS = $(CLIB) -fopenmp $(NODBGFLAGS) # sets the FLAGS variable
+phase_field: TARGETS = position.o # sets the TARGETS variable
 phase_field: $(addprefix $(BIN)/, phase_field) position.o
 
 phase_field_dbg: FLAGS = $(CLIB) -fopenmp $(DBGFLAGS)
+phase_field_dbg: TARGETS = position.o
 phase_field_dbg: $(addprefix $(BIN)/, phase_field_dbg) position.o
 
 # The extra line for each rule allows a different value to be passed to the pattern-matched rule.
