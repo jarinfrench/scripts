@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <numeric> // iota
 #include <algorithm> // sort
-#include <omp.h> // for omp_get_cancellation
+#include <omp.h> // for omp_get_cancellation - requires the -fopenmp options during compiling
 
 #include "error_code_defines.h"
 #include "position.h"
@@ -188,6 +188,20 @@ vector <Field> getFieldFromFile(const string& file)
   ifstream fin(file.c_str());
   checkFileStream(fin, file);
 
+  unsigned int row = 0, col, eta_index;
+
+  while (getline(fin, str))
+  {
+    col = 0;
+    stringstream ss(str);
+    while (ss >> eta_index)
+    {
+      etas[eta_index - 1].values[row][col] = 1;
+      ++col;
+    }
+    ++row;
+  }
+
   fin.close();
 
   return etas;
@@ -362,7 +376,6 @@ void printField(const vector <Field> & etas, const string& filename, const bool&
         if (!etas[i].is_active) {continue;}
         if (use_grain_num)
         {
-          //cout << etas[i].values[j][k] << " is the value of eta " << i << " at " << j << "," << k << endl;
           field.values[j][k] += etas[i].values[j][k] * etas[i].values[j][k] * (i + 1);
         }
         else
@@ -704,7 +717,7 @@ void calculateInfo(const vector <Field>& etas,
       }*/
 
       // get positions of multi-junctions
-      if (num_active >= 3 && checked_grid_points.values[i][j] < 1.0) // if the 'checked field' shows that this multijunction grid point has not been examined
+      /*if (num_active >= 3 && checked_grid_points.values[i][j] < 1.0) // if the 'checked field' shows that this multijunction grid point has not been examined
       {
         multi_junctions.push_back(MultiJunction()); // add in a blank multijunction
         for (int ii = (int)(i) - (GRID_X / 20); ii < (int)(i) + (GRID_X / 20) + 1; ++ii) // check all grid points within GRID_X / 20
@@ -738,22 +751,22 @@ void calculateInfo(const vector <Field>& etas,
         }
 
         ++num_junctions;
-      }
+      }*/
     } // GRID_Y loop
   } // GRID_X loop
 
-  for (size_t a = 0; a < multi_junctions.size(); ++a)
+  /*for (size_t a = 0; a < multi_junctions.size(); ++a)
   {
     for (size_t b = 0; b < multi_junctions[a].active_etas.size(); ++b)
     {
       multi_junctions[a].position = averagePositions(multi_junctions[a].points);
     }
-  }
+  }*/
 
-  vector <JunctionNeighbors> neighbors_list = findMultiJunctionNeighbors(multi_junctions, etas);
+  // vector <JunctionNeighbors> neighbors_list = findMultiJunctionNeighbors(multi_junctions, etas);
 
   // Calculate the angles at the multi junction
-  vector <pair <MultiJunction, vector <double> > > junction_angles = calculateJunctionAngles(neighbors_list);
+  // vector <pair <MultiJunction, vector <double> > > junction_angles = calculateJunctionAngles(neighbors_list);
 
   // output the grain size data to fout1
   fout1 << step;
@@ -761,7 +774,7 @@ void calculateInfo(const vector <Field>& etas,
   {
     fout1 << " " << sizes[i];
   }
-  fout1 << endl;
+  fout1 << "\n";
 
   // output the gb data to fout2
 /*  double total2 = 0.0;
@@ -777,17 +790,17 @@ void calculateInfo(const vector <Field>& etas,
   }
   if (abs(total2 - total_gb_length) < 1.0e-8)
   {
-    fout2 << total2 << endl;
+    fout2 << total2 << "\n";
   }
   else
   {
-    fout2 << total_gb_length << " " << total2 << endl;
+    fout2 << total_gb_length << " " << total2 << "\n";
   }*/
 
   // output the multi junction data to fout3
   // step junction_position active_etas junction_neighbors(positions) junction_angles
   // Assumes that multi_junctions, neighbors_list, and junction_angles all have the same number of elements
-  fout3 << step << " ";
+  /*fout3 << step << " ";
   for (size_t a = 0; a < multi_junctions.size(); ++a)
   {
     fout3 << multi_junctions[a].position;
@@ -805,9 +818,9 @@ void calculateInfo(const vector <Field>& etas,
     {
       fout3 << " " << junction_angles[a].second[b];
     }
-    fout3 << endl;
+    fout3 << "\n";
     if (a + 1 != multi_junctions.size()) {fout3 << "---- ";}
-  }
+  }*/
 }
 
 // eq (11) from Fan and Chen
@@ -1084,10 +1097,11 @@ int main(int argc, char** argv)
   checkFileStream(fout_multi_junctions, "multi_junctions.txt");
   fout_multi_junctions << "# Step junction_position active_etas junction_neighbors junction_angles\n";
 
-  printField(etas_old, "initial_structure.txt", true);
+  if (ic.compare("input") != 0)
+    printField(etas_old, "initial_structure.txt", true);
 
-  cout << "DX = " << DX << endl
-       << "DT = " << DT << endl;
+  cout << "DX = " << DX << "\n"
+       << "DT = " << DT << "\n";
 
   for (unsigned int a = 1; a < NUMSTEPS + 1; ++a)
   {
@@ -1163,7 +1177,7 @@ int main(int argc, char** argv)
            << flush;
       if (a == NUMSTEPS)
       {
-        cout << endl;
+        cout << "\n";
       }
     }
 
@@ -1178,7 +1192,7 @@ int main(int argc, char** argv)
 
     if ((a % 100) == 0 && a >= EQUILIBRIUM)
     {
-      // calculateInfo(etas_old, fout_grain_size, fout_GB, fout_multi_junctions, a);
+      calculateInfo(etas_old, fout_grain_size, fout_GB, fout_multi_junctions, a);
       // printIndividualFields(etas, a); // for debugging and individual field analysis
     }
 
