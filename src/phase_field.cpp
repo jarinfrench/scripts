@@ -31,7 +31,7 @@ unsigned int NUMSTEPS; // number of timesteps to run
 unsigned int NSKIP; // number of timesteps to run before outputting a file
 int NCHECK; // number of timesteps to run before giving the user a progress update
 double DT; // timestep
-int EQUILIBRIUM = 500; // The number of timesteps for the sharp interface to equilibrate
+int EQUILIBRIUM = NUMSTEPS / 50; // The number of timesteps for the sharp interface to equilibrate
 string mobility_file; // the name of the txt file containing the L matrix
 
 struct Field
@@ -663,7 +663,7 @@ void calculateInfo(const vector <Field>& etas,
     }
   }*/
 
-  #pragma omp parallel for collapse(2)
+  // #pragma omp parallel for collapse(2)
   for (unsigned int i = 0; i < GRID_X; ++i)
   {
     for (unsigned int j = 0; j < GRID_Y; ++j)
@@ -1187,7 +1187,7 @@ int main(int argc, char** argv)
       ss << "out_" << a << ".txt";
       ss >> next_filename;
       printField(etas, next_filename);
-      printIndividualFields(etas, 0);
+      // printIndividualFields(etas, 0);
     }
 
     if ((a % 100) == 0 && a >= EQUILIBRIUM)
