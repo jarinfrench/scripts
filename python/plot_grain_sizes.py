@@ -15,6 +15,7 @@ parser.add_argument('-g','--grain-ids', type = int, nargs = '+', help = "The spe
 parser.add_argument('--dt', type = float, nargs = '+', help = "Optional timesteps for each file (multiplied by the step number to get a time value)")
 parser.add_argument('--names', nargs = '+', help = "The legend names for each file specified, defaults to the file name")
 parser.add_argument('-i','--ic', help = "The (optional) initial condition image to be embedded in the figure")
+parser.add_argument('--normalize', action = 'store_true', help = "Normalize the area of each grain to it's initial value (i.e. all grain areas start at 1.0)")
 parser.add_argument('--no-display', action = 'store_true', help = "Flag to not display the figure")
 parser.add_argument('--growth-table', choices = ["end", "max"], default = argparse.SUPPRESS, help = "Shows a table showing the growth of each specified grain at the end of the simulation (end), or the maximum difference (max)")
 parser.add_argument('-s','--save', help = "Filename to save the figure as (saves as a png image)")
@@ -65,6 +66,8 @@ if args.growth_table is not None:
 for i in tqdm(range(len(args.files)), ncols = 80):
     step = [j[0] for j in all_data[i]] # step is the first value in each row
     data = np.array([j[1:] for j in all_data[i]]) # the remaining columns are the sizes for each grain
+    if args.normalize:
+        data = np.array([[data[j,k] / data[0,k] for k in range(len(data[0]))] for j in range(len(data))])
     mark_every = int(len(step) / 20) # keep 20 markers to avoid clutter
     plt.xlabel("Step", fontsize = 16)
     plt.title("Area of all grains", fontsize = 20)
