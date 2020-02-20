@@ -19,8 +19,8 @@ using namespace std;
 
 // Global values
 static bool is_sphere = false;
-static bool marked = true;
-static bool rotated = true;
+static bool marked = false;
+static bool rotated = false;
 static bool removed = true;
 static bool printedInputHelp = false;
 static bool type_one_only = false;
@@ -120,9 +120,11 @@ struct inputData
   {
     vector <string> structures = {"fcc", "bcc", "sc", "diamond", "fluorite"};
     if (data_file.empty()) {return false;}
+    if (output_basename.empty()) {return false;}
     if (molecule.empty()) {return false;}
     if (crystal_structure.empty() || find(structures.begin(), structures.end(), crystal_structure) == structures.end()) {return false;}
     if (r_grain <= 0|| r_grain > 1.0) {return false;}
+    if (a0 < 0) {return false;}
     if (((n_types + 1) * n_types) / 2 != rcut.size()) {return false;}
 
     return true;
@@ -189,20 +191,21 @@ void printInputFileHelp()
   cout << "The input file must contain the following items in order on one line:\n"
        << "1) The data file to process\n"
        << "2) The output file(s) basename\n"
-       << "3) The desired grain radius as a percent of smallest dimension (x or y for cylinder, x, y, or z for sphere)\n"
+       << "3) The desired grain radius as a percent of smallest dimension (x or y\n"
+       << "   for cylinder, x, y, or z for sphere)\n"
        << "4) The desired misorientation angle\n"
        << "5) The chemical composition of the structure (i.e. Fe or FeO2)\n"
        << "6) The crystal structure of the data file (bcc, fcc, sc, fluorite)\n"
        << "7) The lattice parameter in Angstroms\n"
        << "8) Cutoff distance as a percentage of 1NN distance. Input as the minimum\n"
-       << "allowed distance between nearest neighbor atoms.\n\n"
+       << "   allowed distance between nearest neighbor atoms.\n\n"
        << "Note that the number of cutoff radii is dependent on the number of atom\n"
        << "interactions. For example, if there are two atom types, there are the two\n"
        << "same-element interactions, as well as the interaction between the two\n"
        << "elements. Include all the relevant cutof radii one element at a time, i.e.\n"
        << "the cutoff radii for a 3-element system would be input as 1-1, 1-2, 1-3,\n"
        << "2-2, 2-3, 3-3. Maintain consistent numbering with the data file. If all cutoff\n"
-       << "values are the same, just a single value will work.\n";
+       << "values are the same, a single value can be used.\n\n";
 }
 
 void determineElementRatios(inputData& input)
@@ -877,10 +880,14 @@ vector <inputData> parseInputFile(const string& input_file)
       {
         double tmp;
         double multiplier;
-        if (!(ss >> tmp))
-        {
+        if (!(ss >> tmp)) // attempt to read in a value
+        { // if reading in a value fails
+          // if we are still at the first element interactions, assign the generalized cutoff for general use.
+          // Note that first_cutoff = tmp uses the LAST KNOWN VALUE of tmp -
+          // meaning that if we have reached this statement, the last known value
+          // of tmp is from the previous iteration.
           if (i == 1) {first_cutoff = tmp;}
-          if (i == 1 && j == 2) {single_cutoff = true;} // looking at the 1-2 interaction (the second value in the list of cutoffs)
+          if (i == 1 && j == 2) {single_cutoff = true;} // if it is the second cutoff we are looking at that failed, we are using a single cutoff value for all interactions
           if (!single_cutoff)
           {
             cout << "Incorrect number of cutoff values - requires " << combinations << " cutoff values.\n\n";
@@ -888,6 +895,8 @@ vector <inputData> parseInputFile(const string& input_file)
             break;
           }
         }
+
+        if (tmp >= 1) {cout << "Error: Cutoff value too large: r_cut = " << tmp << ">= 1\n"; exit(INPUT_FORMAT_ERROR);}
         if (input.crystal_structure.compare("fcc") == 0) {multiplier = first_nn_distances["fcc"];}
         else if (input.crystal_structure.compare("bcc") == 0) {multiplier = first_nn_distances["bcc"];}
         else if (input.crystal_structure.compare("sc") == 0) {multiplier = first_nn_distances["sc"];}
@@ -1001,6 +1010,7 @@ int main (int argc, char **argv)
         }
       }
     }
+    else {marked = false; rotated = false; removed = true;}
 
     if (result.count("file"))
     {
