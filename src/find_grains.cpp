@@ -116,7 +116,6 @@ double calculateAxisMagnitude(vector <double>& axis)
 
 void normalize(vector <double>& axis)
 {
-  double sum = 0;
   double magnitude = calculateAxisMagnitude(axis);
 
   if (axis.size() > 3)
@@ -516,7 +515,7 @@ void processData(vector <string>& files, const cxxopts::ParseResult& result)
   vector <bool> allowed_atoms;
   vector <vector <int> > iatom; // cell-linked list
   vector <double> symm;
-  double x, y, z, rxij, ryij, rzij, drij_sq, xtemp, ytemp, ztemp;
+  double x, y, z, rxij, ryij, rzij, drij_sq, xtemp, ytemp;
   double costheta_sq;
   double coeffs [2] = {3.0, 2.0};
   int n_grain_1, n_grain_2;

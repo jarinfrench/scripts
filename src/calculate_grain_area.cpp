@@ -17,15 +17,15 @@ bool extrapolate = false;
 struct fit
 {
   string name;
-  double T0, T1, T2;
-  double lin_y_int, lin_slope;
-  double parabolic_int, parabolic_lin, parabolic_term;
+  double x3, x2, x1, y3, y2, y1, xy, xy2, x2y, z0;
+  double min_conc, max_conc;
+  double min_T, max_T;
 };
 
 struct inputData
 {
   string datafile, structure;
-  double temperature, height, a0;
+  double temperature, height, a0, concentration;
 } input;
 
 #define PI 3.141592653589793
@@ -45,9 +45,10 @@ void showInputFileHelp()
   cout << "The input file must contain the following on one line, in order:\n"
        << "\t1) The filename containing the number of atoms in each grain, formatted\n\t   as output by find_grains\n"
        << "\t2) The temperature in Kelvin\n"
-       << "\t3) The height of the original cylinder in Angstroms\n"
-       << "\t4) The 0 K lattice parameter in Angstroms\n"
-       << "\t5) The crystal structure (must be one of sc (simple cubic), bcc\n\t   (body-centered cubic) or fcc (face-centered cubic)\n";
+       << "\t3) The concentration of solute\n"
+       << "\t4) The height of the original cylinder in Angstroms\n"
+       << "\t5) The 0 K lattice parameter in Angstroms\n"
+       << "\t6) The crystal structure (must be one of sc (simple cubic), bcc\n\t   (body-centered cubic) or fcc (face-centered cubic)\n";
 }
 
 fit promptForPotential(const vector <fit>& fits)
@@ -70,16 +71,6 @@ fit promptForPotential(const vector <fit>& fits)
   return fits[potential];
 }
 
-double estimateAtomFluctuations(const double T)
-{
-  // Based on the Boltzmann probability distribution.  Only two allowed states,
-  // where the "activated" state is a positive fluctuation (atom assigned to
-  // shrinking grain), and the "non-activated" state is when the atom is assigned
-  // to the exterior grain.
-  // return 1 / (1 + exp(1 / (8.617E-5 * T))); <-- This should give the same value... TODO: check this!
-  return exp(-1 / (8.617E-5 * T)) / (exp(-1 / (8.617E-5 * T)) + 1);
-}
-
 vector <fit> setPotentials(const string& database_file)
 {
   string str;
@@ -87,16 +78,26 @@ vector <fit> setPotentials(const string& database_file)
   ifstream fin(database_file.c_str());
   checkFileStream(fin, database_file);
 
-  for (int i = 0; i < 6; ++i) {getline(fin,str);} // get the comment lines
+  for (int i = 0; i < 5; ++i) {getline(fin,str);} // get the comment lines
   while (getline(fin, str))
   {
     fit temp;
     stringstream ss(str);
-    if (!(ss >> temp.name >> temp.T0 >> temp.T1 >> temp.lin_y_int
-             >> temp.lin_slope >> temp.T2 >> temp.parabolic_int
-             >> temp.parabolic_lin >> temp.parabolic_term))
+    if (!(ss >> temp.name >> temp.min_conc >> temp.max_conc >> temp.min_T
+             >> temp.max_T >> temp.x3 >> temp.x2 >> temp.x1 >> temp.y3 >> temp.y2
+             >> temp.y1 >> temp.xy >> temp.xy2 >> temp.x2y >> temp.z0))
     {
       cout << "Error: Corrupted database file.\n";
+      exit(FILE_FORMAT_ERROR);
+    }
+    if (temp.max_T <= temp.min_T)
+    {
+      cout << "Error: Corrupted database file: T_max = " << temp.max_T << " <= T_min = " << temp.min_T << ".\n";
+      exit(FILE_FORMAT_ERROR);
+    }
+    if (temp.max_conc < temp.min_conc)
+    {
+      cout << "Error: Corrupted database file: conc_max = " << temp.max_conc << " <= conc_min = " << temp.min_conc << ".\n";
       exit(FILE_FORMAT_ERROR);
     }
     fits.push_back(temp);
@@ -114,32 +115,38 @@ void listPotentials(const vector <fit>& fits)
   }
 }
 
-double latticeParam(const double T, const fit& lattice_fit)
+double latticeParam(const double T, const double conc, const fit& lattice_fit)
 {
   // A is the y intercept, B is the linear coefficient, C is the parabolic
   // coefficient
-  double A, B, C;
+  double x3, x2, x1, y3, y2, y1, xy, xy2, x2y, z0;
+  x3 = lattice_fit.x3; y3 = lattice_fit.y3;
+  x2 = lattice_fit.x2; y2 = lattice_fit.y2;
+  x1 = lattice_fit.x1; y1 = lattice_fit.y1;
+  xy = lattice_fit.xy; xy2 = lattice_fit.xy2; x2y = lattice_fit.x2y;
+  z0 = lattice_fit.z0;
 
-  if (T >= lattice_fit.T0 && T <= lattice_fit.T1)
-  {
-    A = lattice_fit.lin_y_int;
-    B = lattice_fit.lin_slope;
-    C = 0.0;
-  }
-  else if ((T > lattice_fit.T1 && T <= lattice_fit.T2) || (T > lattice_fit.T1 && extrapolate))
+  if (T > lattice_fit.max_T && extrapolate)
   {
     if (extrapolate) {cout << "Warning: extrapolating beyond fitted temperatures.\n";}
-    A = lattice_fit.parabolic_int;
-    B = lattice_fit.parabolic_lin;
-    C = lattice_fit.parabolic_term;
   }
-  else
+  else if (T > lattice_fit.max_T || T <= lattice_fit.min_T)
   {
-    cout << "Temperature out of fitted range (" << lattice_fit.T0 << " K - " << lattice_fit.T2 << " K).\n";
-    exit(10); // We don't want to continue with execution if we're out of range.
+    cout << "Temperature out of fitted range (" << lattice_fit.min_T << " K - " << lattice_fit.max_T << " K).\n";
+    exit(BOUNDS_ERROR); // We don't want to continue with execution if we're out of range.
   }
 
-  return A + B * T + C * T * T;
+  if (conc > lattice_fit.max_conc || conc < lattice_fit.min_conc)
+  {
+    cout << "Concentration out of fitted range (" << lattice_fit.min_conc << "% - " << lattice_fit.max_conc << "%).\n";
+    exit(BOUNDS_ERROR);
+  }
+
+  double conc_poly = x3 * conc * conc * conc + x2 * conc * conc + x1 * conc;
+  double T_poly = y3 * T * T * T + y2 * T * T + y1 * T;
+  double cross_terms = xy * conc * T + xy2 * conc * T * T + x2y * conc * conc * T;
+
+  return conc_poly + T_poly + cross_terms + z0;
 }
 
 void parseInput(const string& filename)
@@ -150,14 +157,21 @@ void parseInput(const string& filename)
 
   getline(fin, str);
   stringstream ss(str);
-  if (!(ss >> input.datafile >> input.temperature >> input.height >> input.a0 >> input.structure))
+  if (!(ss >> input.datafile >> input.temperature >> input.concentration >> input.height >> input.a0 >> input.structure))
   {
     showInputFileHelp();
+  }
+
+  if (input.concentration > 1)
+  {
+    cout << "Assuming concentration given in percent, converting to fraction: " << input.concentration << " --> " << input.concentration / 100.0 << "\n";
+    input.concentration /= 100.0;
   }
 
   cout << "Input parameters:"
        << "\n\tDatafile: " << input.datafile
        << "\n\tSimulation temperature: " << input.temperature
+       << "\n\tConcentration of solute: " << input.concentration
        << "\n\tCylinder thickness: " << input.height
        << "\n\t0 K lattice parameter: " << input.a0
        << "\n\tCrystal structure: " << input.structure << endl;
@@ -168,10 +182,9 @@ void calculateGrainArea(const fit& lattice_fit, const string& output_file)
   string str;
   double t0, t1, structure_factor; // Times
   int N1_0, N2_0, N1_next, N2_next; // atom numbers
-  double lattice_param = latticeParam(input.temperature, lattice_fit);
+  double lattice_param = latticeParam(input.temperature, input.concentration, lattice_fit);
   double scale_factor = lattice_param / input.a0;
   double Lz = input.height * scale_factor;
-  double n_extra = estimateAtomFluctuations(input.temperature);
 
   ifstream fin(input.datafile.c_str());
   checkFileStream(fin, input.datafile);
@@ -184,20 +197,12 @@ void calculateGrainArea(const fit& lattice_fit, const string& output_file)
   getline(fin, str);
   fin >> t0 >> N1_0 >> N2_0;
 
-  if (t0 != 0.0)
-  {
-    cout << "This script requires that the second line in the data file contain the timestep 0 information.\n";
-    exit(FILE_FORMAT_ERROR);
-  }
-
-  fout << "# Note that at this temperature a possibility of " << setprecision(0) << fixed << n_extra * (N1_0 + N2_0) << " atoms may be misassigned.\n";
-
-  fin >> str >> str >> str; // ignore the minimization step
-
   structure_factor = lattice_param * lattice_param * lattice_param;
   if (input.structure.compare("sc") == 0) {structure_factor /= Lz;}
   if (input.structure.compare("fcc") == 0) {structure_factor /= 4 * Lz;}
   if (input.structure.compare("bcc") == 0) {structure_factor /= 2 * Lz;}
+
+  fout << fixed;
 
   fout << setprecision(0) << t0 * 0.002 << " " << setprecision(2) << N1_0 * structure_factor << " " << N2_0 * structure_factor << endl;
   while (fin >> t1 >> N1_next >> N2_next)
@@ -236,8 +241,7 @@ int main(int argc, char **argv)
         ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
         ("o,output", "Output filename", cxxopts::value<string>(output_file)->default_value("area_data.txt"), "filename")
         ("p,potential", "The potential to use as specified in the database file", cxxopts::value<int>(potential)->default_value("0"))
-        ("show-lattice-parameter", "Shows the calculated lattice parameter at the given temperature.  Can only be used with a database file and a potential.", cxxopts::value<double>(), "temperature")
-        ("estimate-fluctuations", "Estimates the percentage of misassigned atoms based on the temperature given using the Boltzmann probability", cxxopts::value<double>(), "temperature")
+        ("show-lattice-parameter", "Shows the calculated lattice parameter at the given temperature.  Can only be used with a database file and a potential. Assumes concentration is 0", cxxopts::value<double>(), "temperature")
         ("list-fits", "List the names of the fits given in the database file")
         ("potential-file", "Full path of the fitted lattice parameter database to use", cxxopts::value<string>(database_file)->default_value((string)(getenv("HOME")) + "/projects/scripts/lattice_params.db"), "db_file")
         ("e,extrapolate", "Proceed with calculations even if temperature is above fitted range.")
@@ -273,7 +277,7 @@ int main(int argc, char **argv)
     {
       if (potential > fits.size())
       {
-        cout << "Invalid potential";
+        cout << "Invalid potential\n";
         return BOUNDS_ERROR;
       }
       else {lattice_fit = fits[potential - 1];}
@@ -282,17 +286,10 @@ int main(int argc, char **argv)
     if (result.count("show-lattice-parameter"))
     {
       double temperature = result["show-lattice-parameter"].as<double>();
+      double concentration = 0.0;
       int potential = result["potential"].as<int>();
       cout << "The lattice parameter at " << temperature << " K is:\n"
-           << latticeParam(temperature, fits[--potential]) << " Angstroms\n";
-      return EXIT_SUCCESS;
-    }
-
-    if (result.count("estimate-fluctuations"))
-    {
-      double temperature = result["estimate-fluctuations"].as<double>();
-      cout << "The estimated percentage of misassigned atoms at " << temperature
-           << " K is:\n" << estimateAtomFluctuations(temperature) << endl;
+           << latticeParam(temperature, concentration, fits[potential - 1]) << " Angstroms\n";
       return EXIT_SUCCESS;
     }
 
