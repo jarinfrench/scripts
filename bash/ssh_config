@@ -19,9 +19,13 @@ Host hpclogin hpclogin.inl.gov
   HostName hpclogin.inl.gov
   LocalForward 8080 hpcweb:80
 
-Host hpcgitlab.inl.gov
+Host hpcgitlab.hpc.inl.gov
   User frenjari
-  ProxyCommand nc -x localhost:5555 %h %p
+  ProxyCommand nc --proxy-type socks5 --proxy localhost:5555 %h %p
+
+Host hpcsc.inl.gov
+  User frenjari
+  ProxyCommand nc --proxy-type socks5 --proxy localhost:5555 %h %p
 
 Host moosebuild.inl.gov
   User frenjari
