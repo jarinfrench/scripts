@@ -28,6 +28,11 @@ BIN =../bin
 # -r searches the search directory recursively
 # -Z outputs a zero byte (NULL character) instead of the character that normally follows the file name
 # -l prints the name of each input file that does have a match
+OMPFILES := $(shell $(GREP) -lr "\#include <omp.h>" *.cpp)
+ATOMFILES := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp)
+UTILFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="phase_field.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"")
+POSITIONFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" | xargs -0 grep -lr "\#include \"position.h\"")
+
 ATOMPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed "s/.cpp//g")
 ATOMDBGPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed 's/.cpp/_dbg /g')
 UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="phase_field.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
