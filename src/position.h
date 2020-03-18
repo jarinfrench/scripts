@@ -6,9 +6,9 @@
 *******************************************************************************/
 
 #include <iostream>
+#include <vector>
 
-class Position
-{
+class Position {
 private:
   double x; // x position
   double y; // y position
@@ -18,6 +18,7 @@ public:
   Position(); // Default Constructor
   Position(double x, double y);
   Position(double x, double y, double z); // Constructor given the coordinates
+  Position(std::vector <double> pos); // given the coordinates as a 1x3 vector
 
   double getX() const {return x;}
   double getY() const {return y;}
@@ -43,44 +44,37 @@ bool operator==(const Position& lhs, const Position& rhs);
 bool operator!=(const Position& lhs, const Position& rhs);
 
 // inline non member operator overloads - must be defined in the .h file
-inline Position operator - (const Position& rhs)
-{
+inline Position operator - (const Position& rhs) {
   return Position(-1.0 * rhs.getX(), -1.0 * rhs.getY(), -1.0 * rhs.getZ());
 }
 
-inline Position operator + (const Position& lhs, const Position& rhs)
-{
+inline Position operator + (const Position& lhs, const Position& rhs) {
   return Position(lhs.getX() + rhs.getX(),
                   lhs.getY() + rhs.getY(),
                   lhs.getZ() + rhs.getZ());
 }
 
-inline Position operator - (const Position& lhs, const Position& rhs)
-{
+inline Position operator - (const Position& lhs, const Position& rhs) {
   return lhs + (-rhs);
 }
 
-inline double operator * (const Position& lhs, const Position& rhs)
-{
+inline double operator * (const Position& lhs, const Position& rhs) {
   return (lhs.getX() * rhs.getX() + lhs.getY() * rhs.getY() + lhs.getZ() * rhs.getZ());
 }
 
 template <typename T>
-inline Position operator * (const Position& lhs, const T& rhs)
-{
+inline Position operator * (const Position& lhs, const T& rhs) {
   static_assert(std::is_arithmetic<T>::value, "Cannot multiply non-numeric values");
   return Position(lhs.getX() * rhs, lhs.getY() * rhs, lhs.getZ() * rhs);
 }
 
 template <typename T>
-inline Position operator * (const T& lhs, const Position& rhs)
-{
+inline Position operator * (const T& lhs, const Position& rhs) {
   static_assert(std::is_arithmetic<T>::value, "Cannot multiply non-numeric values");
   return rhs * lhs;
 }
 
-inline Position operator * (const Position& lhs, const int& rhs)
-{
+inline Position operator * (const Position& lhs, const int& rhs) {
   return Position(lhs.getX() * rhs, lhs.getY() * rhs, lhs.getZ() * rhs);
 }
 
