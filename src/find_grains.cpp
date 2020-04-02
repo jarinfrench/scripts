@@ -309,14 +309,13 @@ void printInputFileHelp() {
   cout << "\n\nThe first line of the input file must contain the following items in order:\n"
        << "  1. The number of files to be processed.\n"
        << "  2. The additional rotation to apply to the system (for Zhang method) OR\n"
-       << "     the misorientation of the embedded grain (for Trautt and Janssens methods).\n"
-       << "     This parameter is ignored by the Ulomek method.\n"
+       << "     the misorientation of the embedded grain (for the other methods).\n"
        << "  3. The number of atom types in the simulation.\n"
        << "  4. The cutoff distance (r_cut) for generating the nearest neighbor list\n"
        << "     in terms of the lattice parameter.\n"
        << "  5. The cutoff value (fi_cut) for assigning orientation parameter values\n"
        << "     to a specific grain (for Zhang method) OR the cutoff value (< 0.5) for\n"
-       << "     the Janssens method.\n"
+       << "     the Janssens method. Ignored by Ulomek method.\n"
        << "  6. The lattice parameter in Angstroms.\n"
        << "  7. The crystal structure of the lattice (fcc, bcc, sc).\n\n"
        << "These lines are then followed by the orientation matrix of the system, i.e.\n"
@@ -912,8 +911,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms,
   fout << "\"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
 
   for (size_t i = 0; i < atoms.size(); ++i) {
-    if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(),
-        atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
+    if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
 
     if (!(allowed_atoms[i])) {continue;}
 
@@ -1011,6 +1009,7 @@ void processData(const inputData& input) {
       }
 
       getline(fin, str);
+      getline(fin, str);
       filename2 = (*it).substr(0,(*it).find(".dat")) + "_interface.dat";
 
       fout_data << (*it).substr(0, (*it).find(".dat")) << " ";
@@ -1033,7 +1032,17 @@ void processData(const inputData& input) {
         allowed_atoms[input.atom_ids_list[i] - 1] = true;
       }
     }
-    else {allowed_atoms.assign(N, true);} // print all atom results
+    else {
+      allowed_atoms.assign(N, true);
+      if (input.ignored_atoms.size() > 0) {
+        for (size_t i = 0; i < atoms.size(); ++i)
+        {
+          if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {
+            allowed_atoms[i] = false;
+          }
+        }
+      }
+    }
 
     if (print_nearest_neighbors) {
       string neighbor_filename = input.generateNNFilename(aa);
@@ -1063,6 +1072,8 @@ void processData(const inputData& input) {
     }
 
     for (size_t i = 0; i < atoms.size(); ++i) {
+      if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
+      if (!allowed_atoms[i]) {continue;}
       if (atoms[i].getMark() == 1) {++n_grain_1;}
       else if (atoms[i].getMark() == 2) {++n_grain_2;}
       else {
