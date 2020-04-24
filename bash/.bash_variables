@@ -6,17 +6,20 @@ export LAMMPS_PYTHON_TOOLS="${LAMMPS_HOME}/tools/python/pizza"
 #export TEC_360_2018=/usr/local/tecplot/360ex_2018r1
 #export TEC_CHORUS_2018=/usr/local/tecplot/chorus_2018r1
 export ELECTRON_TRASH=gvfs-trash # required for Atom to be able to delete files from tree view
+export BH_FILTER="(ssh)" # variable that filters what commands are saved to bashhub
+export UNCRUSTIFY_CONFIG=$HOME/.uncrustify/config
+export PS1_SHORTEN_INDIVIDUAL=0 # whether to have each individual directory shortened as needed, or to just cut out the middle ones
 
 # Path variables
 export JAVA_HOME=/usr/java/jrel.8.0_121
-export LAMMPS=${HOME}/projects/lammps/executables
+export LAMMPS=${HOME}/projects/lammps/executables/
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/tecplot/360ex_2018r1/bin:/usr/local/tecplot/360ex_2018r1/bin/sys:/home/${USER}/.openmpi/lib/"
-export OPENMPI_PATH=${HOME}/.openmpi/bin
+export OPENMPI_PATH=${HOME}/.openmpi/bin/
 export OVITO=/usr/local/ovito-2.8.2-x86_64
 export PEACOCK="${HOME}/projects/moose/python/peacock"
 export PYTHONPATH=${HOME}/projects/moose/python:${HOME}/projects/scripts/python_modules:${PYTHONPATH}
-export PYTHON3PATH=${HOME}/Library/Python/3.7/bin
 export USER_SCRIPTS="${HOME}/projects/scripts/bin"
+export GOPATH=/usr/local/go/bin
 
 # System variables
 export EDITOR=atom # default editor when commands require use of an editor
@@ -25,12 +28,13 @@ export HAS_ALLOW_UNSAFE=y # for allowing 'unsafe' program versions for has
 export HISTTIMEFORMAT="%h %d %H:%M:%S "
 export HISTIGNORE="&:[ ]*:exit:ls:history" # ignore the exit, ls, and history commands in the history
 export OMP_NUM_THREADS=4 # for threads per MPI task
-export PS3=">> " # Used for the bash select prompt
+export PS3=">> " # Used for the bash 'select' prompt
 
 # Mac-specific variables
 if [[ $(uname -s) == "Darwin" ]]; then
+  export PYTHON3PATH=${HOME}/Library/Python/3.7/bin
   export CLICOLOR=1 # for colorizing ls output on mac
   export LSCOLORS=ExGxBxDxCxEgEdxbxgxcxd # same as above
 fi
 
-export PATH=${JAVA_HOME}/bin:${LAMMPS}:${LD_LIBRARY_PATH}:${OPENMPI_PATH}:${OVITO}/bin:${PEACOCK}:${PYTHON3PATH}:${USER_SCRIPTS}:${PATH}
+export PATH=${JAVA_HOME}/bin:${LAMMPS}:${LD_LIBRARY_PATH}:${OPENMPI_PATH}:${OVITO}/bin:${PEACOCK}:${PYTHON3PATH}:${USER_SCRIPTS}:${GOPATH}:${PATH}

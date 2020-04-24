@@ -6,7 +6,7 @@ alias fhere='find . -name'
 alias gbstudio="appletviewer https://staff.aist.go.jp/h.ogawa/GBstudio/gbs3/GBs_PJ.html"
 alias ga="git add"
 alias gc="git commit"
-alias go="git checkout"
+alias gco="git checkout"
 alias gs="git status"
 alias lh='ls -lisAd .[^.]*' # list just the hidden files in a directory
 alias moose-commit='cd ~/projects/moose/ && go devel && git push origin devel && cd ${OLDPWD}'
@@ -36,7 +36,7 @@ elif [[ "$(uname -s)" = "Linux" ]]; then
   alias moose-run="mpiexec -n 8 ~/projects/moose/modules/phase_field/phase_field-opt -i"
   alias open='xdg-open'
   alias rm_junk='find . \( -name "*.[eo][1-9]*" -or -name "slurm-[1-9]*.out" \) | xargs rm'
-  alias update='sudo apt-get update && sudo apt-get upgrade && sudo apt-get autoremove'
+  alias update='sudo apt-get update && sudo apt-get -y upgrade && sudo apt-get -y autoremove && sudo apt-get autoclean'
 else
   echo "Unrecognized system: $(uname -s)"
   echo "No known $(uname -s)-specific aliases have been created."

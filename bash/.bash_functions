@@ -242,7 +242,12 @@ mklnk() {
 
 # An efficient way of searching the bashhub history - uses fzf (fuzzy finder)
 hs() {
-  eval $(bh | fzf)
+  if [ -z "$1" ]; then
+    n=100
+  else
+    n=$1
+  fi
+  eval $(bh -n $n | fzf)
 }
 
 body() {

@@ -79,7 +79,7 @@ source ~/projects/scripts/bash/git_completion.sh
 source ${HOME}/projects/scripts/bash/git_prompt.sh
 
 if [ "$color_prompt" = yes ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;33m\]$(__git_ps1)\[\033[00m\] \[\033[01;31m\][$(date +%l:%M:%S)]\[\033[00m\]$ '
+    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u\[\033[00m\]:\[\033[01;34m\]$(shorten_path.py)\[\033[01;33m\]$(__git_ps1)\[\033[00m\] \[\033[01;31m\][$(date +%l:%M:%S)]\[\033[00m\]$ '
 else
     PS1='${debian_chroot:+($debian_chroot)}\u:\w\$ '
 fi
@@ -148,6 +148,8 @@ fi
 
 # Allows for tab-completion of aliases
 source ~/.alias_completion.sh
+
+source <(cod init $$ bash)
 
 ### Bashhub.com Installation.
 ### This Should be at the EOF. https://bashhub.com/docs
