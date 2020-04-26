@@ -8,7 +8,7 @@ export LAMMPS_PYTHON_TOOLS="${LAMMPS_HOME}/tools/python/pizza"
 export ELECTRON_TRASH=gvfs-trash # required for Atom to be able to delete files from tree view
 export BH_FILTER="(ssh)" # variable that filters what commands are saved to bashhub
 export UNCRUSTIFY_CONFIG=$HOME/.uncrustify/config
-export PS1_SHORTEN_INDIVIDUAL=0 # whether to have each individual directory shortened as needed, or to just cut out the middle ones
+export PROMPT_DIRTRIM=2 # Bash variable used to shorten shown paths. Used by the shorten_path.py script.
 
 # Path variables
 export JAVA_HOME=/usr/java/jrel.8.0_121
