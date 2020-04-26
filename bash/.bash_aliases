@@ -66,6 +66,6 @@ if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
   alias brls='git for-each-ref --count=30 --sort=-committerdate refs/heads/ --format='\''%(refname:short)'\'''
   alias ga='git add'
   alias gc='git commit'
-  alias go='git checkout'
+  alias gco='git checkout'
   alias gs='git status'
 fi

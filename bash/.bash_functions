@@ -85,19 +85,19 @@ dp() {
   if [[ $1 -eq "1" || $# -eq "0" ]]; then
     # My prompt
     echo "Using prompt: <user>:<dirpath> (git branch) [time]$"
-    PS1="\[\033[01;32m\]\u\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;33m\]$(__git_ps1)\[\033[00m\] \[\033[01;31m\][$(date +%l:%M:%S)]\[\033[00m\]$"
+    PS1="\[\033[01;32m\]\u\[\033[00m\]:\[\033[01;34m\]$(shorten_path.py)\[\033[01;33m\]$(__git_ps1)\[\033[00m\] \[\033[01;31m\][\T]\[\033[00m\]$ "
   elif [[ $1 -eq "2" ]]; then
     # A prompt with only the $ symbol
-    echo "Using prompt: $"
+    echo "Using prompt: $ "
     PS1="\033[01;32m$\033[00m "
   elif [[ $1 -eq "3" ]]; then
     # A prompt with the current directory
-    echo "Using prompt: <current directory>S"
-    PS1="\w\033[01;32m$\033[00m "
+    echo "Using prompt: <current directory>$ "
+    PS1="\[\033[01;34m\]$(shorten_path.py)\033[01;32m $\033[00m "
   elif [[ $1 -eq "4" ]]; then
     # A full prompt with user@host:<path>
-    echo "Using prompt: <user>@<host>:<current directory>$"
-    PS1="\033[01;32m\u@\H:\w\033[01;32m$\033[00m "
+    echo "Using prompt: <user>@<host>:<current directory>$ "
+    PS1="\033[01;32m\u@\H:\[\033[01;34m\]$(shorten_path.py)\033[01;32m $\033[00m "
   fi
   return;
 }
