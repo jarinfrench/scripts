@@ -1,11 +1,18 @@
 #! /usr/bin/env python3
 
 import os
+import math
 from sys import exit
 
 cwd = os.getcwd().split("/")
 
-shorten_individual_dirs = True if os.getenv('PS1_SHORTEN_INDIVIDUAL') is not None and int(os.getenv('PS1_SHORTEN_INDIVIDUAL')) > 0 else False
+shorten_individual_dirs = False if os.getenv('PROMPT_DIRTRIM') is not None and int(os.getenv('PROMPT_DIRTRIM')) > 0 else True
+if os.getenv('PROMPT_DIRTRIM') is not None:
+    num_dirs = int(os.getenv('PROMPT_DIRTRIM'))
+    if num_dirs <= 3:
+        num_dirs = 4
+else:
+    num_dirs = 4
 
 if len(cwd) < 3:
     result = ""
@@ -24,6 +31,9 @@ else:
                 else:
                     result += char.upper()
         cwd = cwd[4:] # truncate the beginning part of the path
+    elif len(cwd) > 4 and "/".join(cwd[0:4]) == "/work/cascades/jarinf":
+        result = "w~"
+        cwd = cwd[4:]
     else:
         result = ""
 
@@ -38,6 +48,6 @@ if shorten_individual_dirs:
             result += "/{}".format(directory)
     print(result)
 else:
-    if len(cwd) > 4:
-        cwd = [cwd[0], cwd[1], "...", cwd[-2], cwd[-1]]
+    if len(cwd) > num_dirs:
+        cwd = cwd[0:math.floor(num_dirs / 2)] + ["..."] + cwd[-math.floor(num_dirs / 2):]
     print("/".join([result] + cwd))
