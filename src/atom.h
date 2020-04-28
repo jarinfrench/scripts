@@ -75,5 +75,7 @@ public:
 
 };
 bool operator==(const Atom& lhs, const Atom& rhs);
+bool operator<(const Atom& lhs, const Atom& rhs);
+bool operator>(const Atom& lhs, const Atom& rhs);
 std::ostream& operator << (std::ostream&, const Atom&);
 #endif //  ATOM_H

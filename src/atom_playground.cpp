@@ -4,15 +4,19 @@
 #include <fstream>
 #include <vector>
 #include <map>
+#include <set>
 #include "atom.h"
 #include "error_code_defines.h"
 
 #include <cxxopts.hpp>
 
+#define NO_CLUSTER_FOUND 10000000
+
 using namespace std;
 
 struct Header {
-  double xlo = 0.0, xhi = 0.0, ylo = 0.0, yhi = 0.0, zlo = 0.0, zhi = 0.0; // box lengths
+  string filename, file_type;
+  double xlo = 0.0, xhi = 0.0, ylo = 0.0, yhi = 0.0, zlo = 0.0, zhi = 0.0; // box bounds
   double Lx = 0.0, Ly = 0.0, Lz = 0.0; // box lengths
   double xy = 0.0, xz = 0.0, yz = 0.0; // triclinic factors
 
@@ -23,7 +27,7 @@ struct Header {
   vector <string> data_types;
   bool has_charge = false;
 
-  int N = 0, n_types = 0; // number of atoms/atom types
+  int N = -1, n_types = -1; // number of atoms/atom types
 
   // map from the data_list index to the extra_info vector list index
   // the string is the data type, the first unsigned int is the index number
@@ -37,7 +41,17 @@ template <typename T>
 void checkFileStream(T& stream, const string& file) {
   if (stream.fail()) {
     cout << "Error opening file \"" << file << "\"\n";
+    exit(FILE_OPEN_ERROR);
   }
+}
+
+// Calculate the rounded value of x
+double anInt(double x) {
+  int temp; // temporary variable to hold the integer value of x
+  if (x > 0.0) {x += 0.5;}
+  if (x < 0.0) {x -= 0.5;}
+  temp = (int)(x);
+  return (double)(temp);
 }
 
 void showCommandList() {
@@ -167,22 +181,31 @@ vector <Atom> getAtomData(ifstream& fin, Header& header) {
     while (ss >> dummy) {data.push_back(dummy);}
     for (unsigned int i = 0; i < data.size(); ++i) {
       if (i == header.id_index) {atom_id = (int)(data[i]);}
-      else if (i == header.type_index) {type = (int)(data[i]);}
+      else if (i == header.type_index) {
+        type = (int)(data[i]);
+        if (header.file_type.compare("dump") == 0) {
+          if (type > header.n_types) {header.n_types = type;}
+        } else if (header.file_type.compare("dat") == 0) {
+          if (type > header.n_types) {
+            cout << "Error: incorrect number of atom types.\n"
+                 << "This atom type: " << type << " specified atom types: " << header.n_types << "\n";
+            exit(ATOM_TYPE_ERROR);
+          }
+        }
+      }
       else if (header.has_charge && i == header.charge_index) {charge = data[i];}
-      else if (i == header.x_index) {x = data[i];}
-      else if (i == header.y_index) {y = data[i];}
-      else if (i == header.z_index) {z = data[i];}
-      else if (i == header.xu_index) {xu = data[i];}
-      else if (i == header.yu_index) {yu = data[i];}
-      else if (i == header.zu_index) {zu = data[i];}
+      else if (i == header.x_index) {x = data[i] - header.xlo;}
+      else if (i == header.y_index) {y = data[i] - header.ylo;}
+      else if (i == header.z_index) {z = data[i] - header.zlo;}
+      else if (i == header.xu_index) {xu = data[i] - header.xlo;}
+      else if (i == header.yu_index) {yu = data[i] - header.ylo;}
+      else if (i == header.zu_index) {zu = data[i] - header.zlo;}
       else {
         additional_data.push_back(data[i]);
         pair <unsigned int, unsigned int> value = make_pair(i, additional_data.size() - 1);
         pair <string, pair <unsigned int, unsigned int> > key_value_pair = make_pair(header.data_types[i], value);
         header.indexConverter.insert(key_value_pair);
       }
-
-      if (type > header.n_types) {header.n_types = type;}
     }
 
     data.clear();
@@ -195,8 +218,13 @@ vector <Atom> getAtomData(ifstream& fin, Header& header) {
     if (header.zu_index != -1) {p.setZ(zu);}
     atoms[atom_id - 1].setUnwrapped(p);
     atoms[atom_id - 1].setExtraInfo(additional_data);
+    ++n_atoms_read;
   }
 
+  if (n_atoms_read != atoms.size()) {
+    cout << "Error reading file: number of atoms read versus number of atoms assigned do not match:\n"
+         << n_atoms_read << " != " << atoms.size() << "\n";
+  }
   return atoms;
 }
 
@@ -216,10 +244,12 @@ pair <vector <Atom>, Header> readFile(const string& filename) {
 
   if (filename.substr(filename.length() - 4) == "dump") {
     header_tmp = getHeaderData("dump", fin);
+    header_tmp.file_type = "dump";
     atom_tmp = getAtomData(fin, header_tmp);
   }
   else if (filename.substr(filename.length() - 3) == "dat") {
     header_tmp = getHeaderData("dat", fin);
+    header_tmp.file_type = "dat";
     atom_tmp = getAtomData(fin, header_tmp);
   } else {
     bool known = false;
@@ -229,11 +259,13 @@ pair <vector <Atom>, Header> readFile(const string& filename) {
       cin  >> file_type;
       if (file_type.compare("dump") == 0) {
         header_tmp = getHeaderData("dump", fin);
+        header_tmp.file_type = "dump";
         atom_tmp = getAtomData(fin, header_tmp);
         known = true;
       }
       else if (file_type.compare("dat") == 0) {
         header_tmp = getHeaderData("dat", fin);
+        header_tmp.file_type = "dat";
         atom_tmp = getAtomData(fin, header_tmp);
         known = true;
       }
@@ -241,6 +273,7 @@ pair <vector <Atom>, Header> readFile(const string& filename) {
   }
 
   fin.close();
+  header_tmp.filename = filename;
   return make_pair(atom_tmp,header_tmp);
 }
 
@@ -403,7 +436,7 @@ void printSelectedAtomInfo(const vector <Atom>& selected_atoms, Header& header) 
     else if (dummy.compare("yu") == 0) {print_data[header.yu_index] = true;}
     else if (dummy.compare("zu") == 0) {print_data[header.zu_index] = true;} else {
       if (header.indexConverter.find(dummy) != header.indexConverter.end()) {
-        print_data[header.indexConverter[dummy].first] == true;
+        print_data[header.indexConverter[dummy].first] = true;
       } else {
         cout << "Unrecognized data type specified.\n";
       }
@@ -429,12 +462,12 @@ void printSelectedAtomInfo(const vector <Atom>& selected_atoms, Header& header) 
         if (j == header.id_index) {fout << selected_atoms[i].getId() << " ";}
         else if (j == header.type_index) {fout << selected_atoms[i].getType() << " ";}
         else if (j == header.charge_index) {fout << selected_atoms[i].getCharge() << " ";}
-        else if (j == header.x_index) {fout << selected_atoms[i].getWrapped().getX() << " ";}
-        else if (j == header.y_index) {fout << selected_atoms[i].getWrapped().getY() << " ";}
-        else if (j == header.z_index) {fout << selected_atoms[i].getWrapped().getZ() << " ";}
-        else if (j == header.xu_index) {fout << selected_atoms[i].getUnwrapped().getX() << " ";}
-        else if (j == header.yu_index) {fout << selected_atoms[i].getUnwrapped().getY() << " ";}
-        else if (j == header.zu_index) {fout << selected_atoms[i].getUnwrapped().getZ() << " ";} else {
+        else if (j == header.x_index) {fout << selected_atoms[i].getWrapped().getX() + header.xlo << " ";}
+        else if (j == header.y_index) {fout << selected_atoms[i].getWrapped().getY() + header.ylo << " ";}
+        else if (j == header.z_index) {fout << selected_atoms[i].getWrapped().getZ() + header.zlo << " ";}
+        else if (j == header.xu_index) {fout << selected_atoms[i].getUnwrapped().getX() + header.xlo << " ";}
+        else if (j == header.yu_index) {fout << selected_atoms[i].getUnwrapped().getY() + header.ylo << " ";}
+        else if (j == header.zu_index) {fout << selected_atoms[i].getUnwrapped().getZ() + header.zlo << " ";} else {
           fout << selected_atoms[i].getExtraInfo()[header.indexConverter[header.data_types[j]].second] << " ";
         }
       }
@@ -445,17 +478,208 @@ void printSelectedAtomInfo(const vector <Atom>& selected_atoms, Header& header) 
   fout.close();
 }
 
-void clusterAnalysis(const Atom& atoms, const Header& header) {
-  string str;
+vector <vector <int> > generateCellLinkedList(const vector <Atom>& atoms,
+                                              const double& rcut,
+                                              const double& lx,
+                                              const double& ly,
+                                              const double& lz,
+                                              const vector <int> types_to_keep) {
+  int ncellx, ncelly, ncellz;
+  int idx, idy, idz;
+  double lcellx, lcelly, lcellz;
+  int n_atoms_per_cell;
+  double drij_sq, rxij, ryij, rzij;
+  vector <vector <int> > iatom;
+  vector <vector <vector <int> > > icell;
+  vector <vector <vector <vector <int> > > > pcell;
+
+  double rcut_sq = rcut * rcut;
+
+  ncellx = (int)(lx / rcut) + 1;
+  ncelly = (int)(ly / rcut) + 1;
+  ncellz = (int)(lz / rcut) + 1;
+
+  lcellx = lx / ncellx;
+  lcelly = ly / ncelly;
+  lcellz = lz / ncellz;
+
+  n_atoms_per_cell = max((int)(atoms.size() / (double)(ncellx * ncelly * ncellz)), 100);
+
+  icell.resize(ncellx, vector <vector <int> > // x dimension
+              (ncelly, vector <int> // y dimension
+              (ncellz, 0))); // z dimension
+  pcell.resize(ncellx, vector <vector <vector <int> > > // x dimension
+              (ncelly, vector <vector <int> > // y dimension
+              (ncellz, vector <int> // z dimension
+              (n_atoms_per_cell, 0)))); // atom number in cell.
+  iatom.resize(n_atoms_per_cell, vector <int> (atoms.size(),0));
+
+  // generate the pcell and icell matrices.
+  for (size_t i = 0; i < atoms.size(); ++i) {
+    // If we aren't interested in this atom type, skip it.
+    if (find(types_to_keep.begin(), types_to_keep.end(), atoms[i].getType()) == types_to_keep.end()) {continue;}
+    // Assign this atom to a cell
+    // Rounds towards 0 with a type cast
+    idx = (int)(atoms[i].getWrapped()[0] / lcellx); // assign the x cell
+    idy = (int)(atoms[i].getWrapped()[1] / lcelly); // assign the y cell
+    idz = (int)(atoms[i].getWrapped()[2] / lcellz); // assign the z cell
+    // Check if we went out of bounds
+    // C++ indexes from 0, so we have to subtract 1 from the maximum value to
+    // stay within our memory bounds
+    if (idx >= ncellx) idx = ncellx - 1;
+    if (idy >= ncelly) idy = ncelly - 1;
+    if (idz >= ncellz) idz = ncellz - 1;
+
+    ++icell[idx][idy][idz]; // increase the number of atoms in this cell
+    // assign the atom number to this index.
+    pcell[idx][idy][idz][icell[idx][idy][idz] - 1] = i;
+  }
+
+  for (int i = 0; i < ncellx; ++i) { // For each x cell
+    for (int j = 0; j < ncelly; ++j) { // For each y cell
+      for (int k = 0; k < ncellz; ++k) { // For each z cell
+        for (int l = 0; l < icell[i][j][k]; ++l) { // For each atom in this cell
+          int id = pcell[i][j][k][l]; // store this atom id
+          // Now we check each sub cell around the current one
+          for (int ii = -1; ii < 2; ++ii) { // allowed values: -1, 0, and 1
+            for (int jj = -1; jj < 2; ++jj) {
+              for (int kk = -1; kk < 2; ++kk) {
+                int ia = i + ii; // min value: -1.  Max value: number of cells in dimension
+                int ja = j + jj;
+                int ka = k + kk;
+                // Check to make sure we are still in bounds
+                // C++ indexes from 0, so we accomodate.
+                if (ia >= ncellx) ia = 0;
+                if (ja >= ncelly) ja = 0;
+                if (ka >= ncellz) ka = 0;
+                if (ia < 0) ia = ncellx - 1;
+                if (ja < 0) ja = ncelly - 1;
+                if (ka < 0) ka = ncellz - 1;
+
+                // Now check each atom in this cell
+                for (int m = 0; m < icell[ia][ja][ka]; ++m) {
+                  int jd = pcell[ia][ja][ka][m];
+                  // If jd <= id, we've already dealt with this interaction
+                  if (jd <= id) {continue;}
+
+                  // Now the actual calculations!
+                  rxij = atoms[id].getWrapped()[0] - atoms[jd].getWrapped()[0];
+                  ryij = atoms[id].getWrapped()[1] - atoms[jd].getWrapped()[1];
+                  rzij = atoms[id].getWrapped()[2] - atoms[jd].getWrapped()[2];
+
+                  // Apply PBCs
+                  rxij = rxij - anInt(rxij / lx) * lx;
+                  ryij = ryij - anInt(ryij / ly) * ly;
+                  rzij = rzij - anInt(rzij / lz) * lz;
+
+                  // Now calculate the distance
+                  drij_sq = (rxij * rxij) + (ryij * ryij) + (rzij * rzij);
+
+                  // move to the next atom if we're too far away
+                  if (drij_sq > rcut_sq) {continue;}
+
+                  // Create the neighbor list
+                  iatom[0][id] += 1; //for atom id - number of neighbors
+                  if (iatom[0][id] >= n_atoms_per_cell) {
+                    n_atoms_per_cell += 100;
+                    iatom.resize(n_atoms_per_cell, vector <int> (atoms.size(),0));
+                  }
+                  iatom[(iatom[0][id])][id] = jd; // point to the next atom
+                  iatom[0][jd] += 1; // for atom jd
+                  if (iatom[0][jd] >= n_atoms_per_cell) {
+                    n_atoms_per_cell += 100;
+                    iatom.resize(n_atoms_per_cell, vector <int> (atoms.size(),0));
+                  }
+                  iatom[(iatom[0][jd])][jd] = id;
+                } // m
+              } //kk
+            } //jj
+          } //ii
+        } // l
+      } // k
+    } // j
+  } // i
+
+  return iatom;
+}
+
+void clusterAnalysis(vector <Atom>& atoms, const Header& header) {
+  string str, structure;
+  double a0;
   vector <int> cluster_types;
+  map <string, double> first_nn_distances = {{"fcc", 0.853553}, {"bcc", 0.933013}, {"sc", 1.2071068}};
 
   cout << "There are " << header.n_types << " atom types. Enter the atom type number(s) to examine for clusters, separated by a space: ";
+  cin.ignore();
   getline(cin, str);
   stringstream ss(str);
-
   int tmp;
   while (ss >> tmp) {cluster_types.push_back(tmp);}
 
+  cout << "Enter the crystal structure (fcc, bcc, sc): ";
+  cin  >> structure;
+
+  while (structure.compare("fcc") != 0 && structure.compare("bcc") != 0 && structure.compare("sc") != 0) {
+    cout << "Please enter fcc, bcc, or sc: ";
+    cin  >> structure;
+  }
+
+  cout << "Enter the lattice parameter in angstroms: ";
+  cin  >> a0;
+
+  while (a0 < 0) {
+    cout << "Please enter a number greater than 0: ";
+    cin  >> a0;
+  }
+
+
+  // generate a neighbor list with atoms that are only within the desired cutoff distance from each other
+  vector <vector <int> > iatom = generateCellLinkedList(atoms, first_nn_distances[structure] * a0, header.Lx, header.Ly, header.Lz, cluster_types);
+  vector <set <Atom> > clusters;
+  int num_atoms = 0;
+  for (unsigned int i = 0; i < atoms.size(); ++i) {
+    // If the current atom type is not listed as one to do cluster analysis for, skip it
+    if (find(cluster_types.begin(), cluster_types.end(), atoms[i].getType()) == cluster_types.end()) {continue;}
+    ++num_atoms;
+    int cluster_index = NO_CLUSTER_FOUND;
+    if (atoms[i].getMark() == 0) {
+      for (int l = 1; l <= iatom[0][i]; ++l) { // for each neighbor
+        if (atoms[iatom[l][i]].getMark() != 0 && atoms[iatom[l][i]].getMark() < cluster_index) {
+          cluster_index = atoms[iatom[l][i]].getMark();
+        }
+      }
+      if (cluster_index == NO_CLUSTER_FOUND) {cluster_index = clusters.size() + 1;}
+      set <Atom> tmp;
+      atoms[i].setMark(cluster_index);
+      tmp.insert(atoms[i]);
+      for (int l = 1; l <= iatom[0][i]; ++l) {
+        atoms[iatom[l][i]].setMark(cluster_index);
+        tmp.insert(atoms[iatom[l][i]]);
+      }
+      if (cluster_index > clusters.size()) {clusters.push_back(tmp);}
+      else {clusters[cluster_index - 1].insert(tmp.begin(), tmp.end());}
+    } // atom has not already been assigned to cluster
+  } // all atoms
+
+  cout << clusters.size() << " clusters were found, containing " << num_atoms << " atoms\n";
+
+  string outfile = header.filename.substr(0,header.filename.find("." + header.file_type)) + "_cluster_analysis.txt";
+  ofstream fout (outfile.c_str());
+
+  fout << "# Cluster_id num_atom_in_cluster\n";
+  for (unsigned int i = 0; i < clusters.size(); ++i)
+  {
+    fout << i + 1 << " " << clusters[i].size() << "\n";
+  }
+  fout.close();
+
+  ofstream fouttmp ("tmp.dat");
+  for (unsigned int i = 0; i < atoms.size(); ++i) {
+    if (find(cluster_types.begin(), cluster_types.end(), atoms[i].getType()) == cluster_types.end()) {continue;}
+    fouttmp << atoms[i].getId() << " " << atoms[i].getType() << " " << atoms[i].getCharge() << " "
+            << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " "
+            << atoms[i].getWrapped()[2] << " " << atoms[i].getMark() << "\n";
+  }
 }
 
 void playground(string filename = "None") {
@@ -496,7 +720,7 @@ void playground(string filename = "None") {
       if (selected_atoms.size() == 0) {selected_atoms = atoms;}
       printSelectedAtomInfo(selected_atoms, header);
     } else if (command.compare("cluster") == 0 || command.compare("c") == 0) {
-      clusterAnalysis(atoms, header));
+      clusterAnalysis(atoms, header);
     } else {
       cout << "Unrecognized command!\n";
     }
