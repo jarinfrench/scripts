@@ -1,3 +1,5 @@
+// #define PY_SSIZE_T_CLEAN
+// #include <python3.5m/Python.h>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -5,6 +7,8 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <glob.h> // glob(), globfree()
+
 #include "atom.h"
 #include "error_code_defines.h"
 
@@ -45,6 +49,81 @@ void checkFileStream(T& stream, const string& file) {
   }
 }
 
+/*string verifyNewFile(const string& filename) {
+  PyObject *pName, *pModule, *pFunc, *pArgs, *pValue;
+  string new_filename;
+
+  Py_Initialize();
+  pName = PyUnicode_DecodeFSDefault("myModules");
+  pModule = PyImport_Import(pName);
+  Py_DECREF(pName);
+  if (pModule != NULL) {
+    pFunc = PyObject_GetAttrString(pModule,"verify_new_file");
+
+    if (pFunc && PyCallable_Check(pFunc)) {
+      pArgs = PyTuple_New(1);
+      pValue = PyUnicode_FromString(filename.c_str());
+      if (!pValue) {
+        Py_DECREF(pArgs);
+        Py_DECREF(pModule);
+        cerr << "Error: Cannot convert argument\n";
+        exit(PYTHON_CONVERT_ERROR);
+      }
+      PyTuple_SetItem(pArgs, 0, pValue);
+      pValue = PyObject_CallObject(pFunc, pArgs);
+      Py_DECREF(pArgs);
+      if (pValue != NULL) {
+        if (PyUnicode_Check(pValue)) {
+          PyObject* tmp_bytes = PyUnicode_AsEncodedString(pValue, "UTF-8", "strict");
+          if (tmp_bytes != NULL) {
+            new_filename = PyBytes_AS_STRING(tmp_bytes);
+            new_filename = strdup(new_filename.c_str());
+            Py_DECREF(tmp_bytes);
+          } else {
+            cerr << "Encoding error\n";
+            exit(PYTHON_CONVERT_ERROR);
+          }
+        }
+      } else if (PyBytes_Check(pValue)) {
+        new_filename = PyBytes_AS_STRING(pValue);
+        new_filename = strdup(new_filename.c_str());
+      } else {
+        cerr << "Unrecognized return type.\n";
+        exit(PYTHON_CONVERT_ERROR);
+      }
+    }
+  }
+  return new_filename;
+}
+*/
+
+// Following https://stackoverflow.com/a/8615450
+vector <string> expandGlob(const string& pattern) {
+  // glob struct resides on the stack
+  glob_t glob_result;
+  memset(&glob_result, 0, sizeof(glob_result));
+
+  // do the glob operation
+  int return_value = glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
+  if (return_value != 0) {
+    globfree(&glob_result);
+    stringstream ss;
+    ss << "glob() failed with return value " << return_value << "\n";
+    throw(runtime_error(ss.str()));
+  }
+
+  // collect all the filenames into a vector
+  vector <string> filenames;
+  for (size_t i = 0; i < glob_result.gl_pathc; ++i) {
+    filenames.push_back(string(glob_result.gl_pathv[i]));
+  }
+
+  // cleanup
+  globfree(&glob_result);
+
+  return filenames;
+}
+
 // Calculate the rounded value of x
 double anInt(double x) {
   int temp; // temporary variable to hold the integer value of x
@@ -81,7 +160,7 @@ void printHeaderInfo(const Header& header) {
        << "N: " << header.N << "\n"
        << "Number of atom types: " << header.n_types << "\n"
        << "Data types: \n  ";
-  for (unsigned int i = 0; i < header.data_types.size(); ++i) {
+  for (size_t i = 0; i < header.data_types.size(); ++i) {
     cout << header.data_types[i] << " ";
   }
   cout << endl;
@@ -161,7 +240,7 @@ vector <Atom> getAtomData(ifstream& fin, Header& header) {
   double charge, x, y, z, xu, yu, zu;
 
 
-  for (unsigned int i = 0; i < header.data_types.size(); ++i) {
+  for (size_t i = 0; i < header.data_types.size(); ++i) {
     string name = header.data_types[i];
     if (name.compare("ID") == 0 || name.compare("id") == 0) {header.id_index = i;}
     else if (name.compare("type") == 0) {header.type_index = i;}
@@ -179,7 +258,7 @@ vector <Atom> getAtomData(ifstream& fin, Header& header) {
     double dummy;
     vector <double> additional_data;
     while (ss >> dummy) {data.push_back(dummy);}
-    for (unsigned int i = 0; i < data.size(); ++i) {
+    for (size_t i = 0; i < data.size(); ++i) {
       if (i == header.id_index) {atom_id = (int)(data[i]);}
       else if (i == header.type_index) {
         type = (int)(data[i]);
@@ -289,7 +368,7 @@ vector <Atom> getAtomsByType(const vector <Atom>& atoms) {
 
   int type_tmp;
   while (ss >> type_tmp) {atom_types.push_back(type_tmp);}
-  for (unsigned int i = 0; i < atoms.size(); ++i) {
+  for (size_t i = 0; i < atoms.size(); ++i) {
     if (find(atom_types.begin(), atom_types.end(), atoms[i].getType()) != atom_types.end()) {
       selected_atoms.push_back(atoms[i]);
     }
@@ -332,7 +411,7 @@ vector <int> getAtomIdsByRange(unsigned int num_atoms) {
   stringstream ss(range_string);
   while (ss >> str) {ranges.push_back(str);}
 
-  for (unsigned int i = 0; i < ranges.size(); ++i) {
+  for (size_t i = 0; i < ranges.size(); ++i) {
     size_t minus_pos = ranges[i].find("-");
     if (minus_pos == string::npos) {
       int single_id;
@@ -368,7 +447,7 @@ vector <int> getAtomIdsByRange(unsigned int num_atoms) {
 vector <Atom> getAtomsById(const vector <Atom>& atoms, const vector <int>& atom_ids) {
   vector <Atom> selected_atoms (atom_ids.size(), Atom());
 
-  for (unsigned int i = 0; i < atom_ids.size(); ++i) {
+  for (size_t i = 0; i < atom_ids.size(); ++i) {
     selected_atoms[i] = atoms[atom_ids[i] - 1];
   }
 
@@ -413,7 +492,7 @@ void printSelectedAtomInfo(const vector <Atom>& selected_atoms, Header& header) 
   vector <bool> print_data(header.data_types.size(), false);
 
   cout << "The following data is available: \n  ";
-  for (unsigned int i = 0; i < header.data_types.size(); ++i) {
+  for (size_t i = 0; i < header.data_types.size(); ++i) {
     cout << header.data_types[i] << " ";
   }
   cout << endl;
@@ -450,14 +529,14 @@ void printSelectedAtomInfo(const vector <Atom>& selected_atoms, Header& header) 
   checkFileStream(fout, filename);
 
   fout << "# ";
-  for (unsigned int i = 0; i < print_data.size(); ++i) {
+  for (size_t i = 0; i < print_data.size(); ++i) {
     if (print_data[i]) {fout << header.data_types[i] << " ";}
   }
 
   fout << endl;
 
-  for (unsigned int i = 0; i < selected_atoms.size(); ++i) {
-    for (unsigned int j = 0; j < print_data.size(); ++j) {
+  for (size_t i = 0; i < selected_atoms.size(); ++i) {
+    for (size_t j = 0; j < print_data.size(); ++j) {
       if (print_data[j]) {
         if (j == header.id_index) {fout << selected_atoms[i].getId() << " ";}
         else if (j == header.type_index) {fout << selected_atoms[i].getType() << " ";}
@@ -603,33 +682,41 @@ vector <vector <int> > generateCellLinkedList(const vector <Atom>& atoms,
   return iatom;
 }
 
-void clusterAnalysis(vector <Atom>& atoms, const Header& header) {
-  string str, structure;
-  double a0;
-  vector <int> cluster_types;
+void clusterAnalysis(vector <Atom>& atoms, const Header& header,
+                     vector <int> cluster_types = {}, string structure = "None",
+                     double a0 = -1.0) {
+  string str;
+  map <int, int> cluster_size_counts;
+  // These values are the halfway point beween 1st and 2nd nearest neighbors
   map <string, double> first_nn_distances = {{"fcc", 0.853553}, {"bcc", 0.933013}, {"sc", 1.2071068}};
 
-  cout << "There are " << header.n_types << " atom types. Enter the atom type number(s) to examine for clusters, separated by a space: ";
-  cin.ignore();
-  getline(cin, str);
-  stringstream ss(str);
-  int tmp;
-  while (ss >> tmp) {cluster_types.push_back(tmp);}
-
-  cout << "Enter the crystal structure (fcc, bcc, sc): ";
-  cin  >> structure;
-
-  while (structure.compare("fcc") != 0 && structure.compare("bcc") != 0 && structure.compare("sc") != 0) {
-    cout << "Please enter fcc, bcc, or sc: ";
-    cin  >> structure;
+  if (cluster_types.size() == 0) {
+    cout << "There are " << header.n_types << " atom types. Enter the atom type number(s) to examine for clusters, separated by a space: ";
+    cin.ignore();
+    getline(cin, str);
+    stringstream ss(str);
+    int tmp;
+    while (ss >> tmp) {cluster_types.push_back(tmp);}
   }
 
-  cout << "Enter the lattice parameter in angstroms: ";
-  cin  >> a0;
+  if (structure.compare("None") == 0) {
+    cout << "Enter the crystal structure (fcc, bcc, sc): ";
+    cin  >> structure;
 
-  while (a0 < 0) {
-    cout << "Please enter a number greater than 0: ";
+    while (structure.compare("fcc") != 0 && structure.compare("bcc") != 0 && structure.compare("sc") != 0) {
+      cout << "Please enter fcc, bcc, or sc: ";
+      cin  >> structure;
+    }
+  }
+
+  if (a0 < 0) {
+    cout << "Enter the lattice parameter in angstroms: ";
     cin  >> a0;
+
+    while (a0 < 0) {
+      cout << "Please enter a number greater than 0: ";
+      cin  >> a0;
+    }
   }
 
 
@@ -637,7 +724,7 @@ void clusterAnalysis(vector <Atom>& atoms, const Header& header) {
   vector <vector <int> > iatom = generateCellLinkedList(atoms, first_nn_distances[structure] * a0, header.Lx, header.Ly, header.Lz, cluster_types);
   vector <set <Atom> > clusters;
   int num_atoms = 0;
-  for (unsigned int i = 0; i < atoms.size(); ++i) {
+  for (size_t i = 0; i < atoms.size(); ++i) {
     // If the current atom type is not listed as one to do cluster analysis for, skip it
     if (find(cluster_types.begin(), cluster_types.end(), atoms[i].getType()) == cluster_types.end()) {continue;}
     ++num_atoms;
@@ -663,23 +750,112 @@ void clusterAnalysis(vector <Atom>& atoms, const Header& header) {
 
   cout << clusters.size() << " clusters were found, containing " << num_atoms << " atoms\n";
 
-  string outfile = header.filename.substr(0,header.filename.find("." + header.file_type)) + "_cluster_analysis.txt";
+  string basename = header.filename.substr(0,header.filename.find("." + header.file_type));
+  string outfile =  basename + "_cluster_analysis.txt";
   ofstream fout (outfile.c_str());
 
   fout << "# Cluster_id num_atom_in_cluster\n";
-  for (unsigned int i = 0; i < clusters.size(); ++i)
-  {
+  for (size_t i = 0; i < clusters.size(); ++i) {
     fout << i + 1 << " " << clusters[i].size() << "\n";
   }
   fout.close();
+  fout.clear();
 
-  ofstream fouttmp ("tmp.dat");
-  for (unsigned int i = 0; i < atoms.size(); ++i) {
+  fout.open(basename + "_positions_with_cluster_num.dat");
+  for (size_t i = 0; i < atoms.size(); ++i) {
     if (find(cluster_types.begin(), cluster_types.end(), atoms[i].getType()) == cluster_types.end()) {continue;}
-    fouttmp << atoms[i].getId() << " " << atoms[i].getType() << " " << atoms[i].getCharge() << " "
-            << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " "
-            << atoms[i].getWrapped()[2] << " " << atoms[i].getMark() << "\n";
+    fout << atoms[i].getId() << " " << atoms[i].getType() << " " << atoms[i].getCharge() << " "
+         << atoms[i].getWrapped()[0] << " " << atoms[i].getWrapped()[1] << " "
+         << atoms[i].getWrapped()[2] << " " << atoms[i].getMark() << "\n";
   }
+
+  fout.close();
+  fout.clear();
+
+  for (size_t i = 0; i < clusters.size(); ++i) {
+    if (!cluster_size_counts.insert(pair<int, int> (clusters[i].size(),1)).second) {
+      ++cluster_size_counts[clusters[i].size()];
+    }
+  }
+
+  ifstream test("cluster_size_distribution.txt");
+  if (!test) {
+    fout.open("cluster_size_distribution.txt");
+    fout << "# cluster_size num_in_cluster\n";
+    fout << "# File " << header.filename << "\n";
+  } else {
+    test.close();
+    fout.open("cluster_size_distribution.txt", std::ios_base::app);
+  }
+  fout << "\n\n# File " << header.filename << "\n";
+  for (map <int, int>::iterator it = cluster_size_counts.begin(); it != cluster_size_counts.end(); ++it) {
+    fout << it->first << " " << it->second << "\n";
+  }
+  fout.close();
+}
+
+void clusterBatchMode(const string& cluster_args) {
+  vector <int> cluster_types;
+  double a0;
+  string structure, str;
+  vector <string> files;
+  vector <Atom> atoms;
+  Header header;
+
+  stringstream ss(cluster_args);
+
+  vector <string> tmp;
+  while (ss >> str) {tmp.push_back(str);} // store each argument separately as a string
+
+  size_t i;
+  // get the atom types to analyze for clusters
+  for (i = 0; i < tmp.size(); ++i) {
+    if (tmp[i].find(".") == string::npos) {
+      int inttmp;
+      ss.clear();
+      ss.str(tmp[i]);
+      ss >> inttmp;
+      cluster_types.push_back(inttmp);
+    } else {
+      if (i == 0) {
+        cout << "Cluster batch mode requires at least one integer as the first argument\n";
+        exit(OPTION_PARSING_ERROR);
+      } else {break;} // break otherwise
+    }
+  }
+
+  // get the lattice parameter
+  ss.clear();
+  ss.str(tmp[i++]); // Uses the last number (that failed the first if condition) - presumably a double -and then increments the counter
+  if (!(ss >> a0)) {
+    cout << "Error converting argument " << i - 1 << " (" << tmp[i - 1] << ") to double\n";
+    exit(OPTION_PARSING_ERROR);
+  }
+
+  structure = tmp[i++]; // store the structure
+  if (structure.compare("fcc") != 0 && structure.compare("bcc") != 0 && structure.compare("sc") != 0) {
+    cout << "Error: structure must be one of either fcc, bcc, or sc. You entered " << tmp[i -1] << "\n";
+    exit(OPTION_PARSING_ERROR);
+  }
+
+  files.assign(tmp.begin()+i, tmp.end()); // all the other arguments are the files.
+  vector <string> expanded_files;
+  size_t files_size_initial = files.size();
+  for (i = 0; i < files_size_initial;) {
+    if (files[i].find("*") != string::npos) {
+      expanded_files = expandGlob(files[i]);
+      files.insert(files.end(), expanded_files.begin(), expanded_files.end());
+      files.erase(files.begin() + i);
+    } else { ++i;}
+  }
+
+  for (i = 0; i < files.size(); ++i) {
+    pair <vector <Atom>, Header> tmp = readFile(files[i]);
+    atoms = tmp.first;
+    header = tmp.second;
+    clusterAnalysis(atoms, header, cluster_types, structure, a0);
+  }
+
 }
 
 void playground(string filename = "None") {
@@ -729,6 +905,13 @@ void playground(string filename = "None") {
 
 int main(int argc, char** argv) {
   string file;
+  string cluster_args;
+/*  wchar_t *program = Py_DecodeLocale(argv[0], NULL);
+  if (program == NULL) {
+    cerr << "Error: cannot decode argv[0]\n";
+    return EXIT_FAILURE;
+  }
+  Py_SetProgramName(program);*/
 
   try
   {
@@ -741,6 +924,7 @@ int main(int argc, char** argv) {
       .allow_unrecognised_options()
       .add_options()
         ("f,file", "Data file to play with", cxxopts::value<string>(file), "data_file")
+        ("c,cluster", "Batch mode for cluster analysis", cxxopts::value<string>(cluster_args), "\"atom_type(s) a0 structure file(s)\"")
         ("h,help", "Show the help");
 
     options.parse_positional({"file"});
@@ -750,7 +934,20 @@ int main(int argc, char** argv) {
       cout << options.help() << endl;
       return EXIT_SUCCESS;
     }
-
+    if (result.count("cluster")) {
+      stringstream ss(cluster_args);
+      string dummy;
+      int num_args = 0;
+      while (ss >> dummy) {++num_args;}
+      if (num_args < 4) {
+        cout << "Cluster batch mode requires a space separated string of at least four arguments:\n"
+             << "atom_type(s) a0 structure file(s)\n";
+        exit(OPTION_PARSING_ERROR);
+      } else {
+        clusterBatchMode(cluster_args);
+      }
+      return EXIT_SUCCESS;
+    }
     welcome();
 
     if (result.count("file")) {
