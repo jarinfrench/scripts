@@ -130,15 +130,15 @@ double latticeParam(const double T, const double conc, const fit& lattice_fit)
   {
     if (extrapolate) {cout << "Warning: extrapolating beyond fitted temperatures.\n";}
   }
-  else if (T > lattice_fit.max_T || T <= lattice_fit.min_T)
+  else if (T > lattice_fit.max_T || T < lattice_fit.min_T)
   {
-    cout << "Temperature out of fitted range (" << lattice_fit.min_T << " K - " << lattice_fit.max_T << " K).\n";
+    cerr << "Temperature out of fitted range (" << lattice_fit.min_T << " K - " << lattice_fit.max_T << " K).\n";
     exit(BOUNDS_ERROR); // We don't want to continue with execution if we're out of range.
   }
 
   if (conc > lattice_fit.max_conc || conc < lattice_fit.min_conc)
   {
-    cout << "Concentration out of fitted range (" << lattice_fit.min_conc << "% - " << lattice_fit.max_conc << "%).\n";
+    cerr << "Concentration out of fitted range (" << lattice_fit.min_conc << "% - " << lattice_fit.max_conc << "%).\n";
     exit(BOUNDS_ERROR);
   }
 
