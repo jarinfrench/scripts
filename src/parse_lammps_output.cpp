@@ -31,7 +31,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -104,7 +104,7 @@ void parseFile(const string& input_file, const string& output_file,
   fin >> str >> date1 >> date2 >> date3;
   if (str.compare("LAMMPS") != 0)
   {
-    cout << "Error: this file does not look like a LAMMPS output file.\n"
+    cerr << "Error: this file does not look like a LAMMPS output file.\n"
          << "If you are sure that this is a LAMMPS output file, check that the "
          << "beginning of your file has the format \"LAMMPS ([date])\"\n";
     exit(FILE_FORMAT_ERROR);
@@ -321,7 +321,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
   return EXIT_SUCCESS;

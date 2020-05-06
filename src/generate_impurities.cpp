@@ -21,6 +21,7 @@
 // using std::chrono::milliseconds;
 // using std::this_thread::sleep_for;
 using std::cout;
+using std::cerr;
 using std::vector;
 using std::string;
 using std::endl;
@@ -53,6 +54,7 @@ struct impurityDetails
 struct boxData
 {
   double xlow, xhigh, ylow, yhigh, zlow, zhigh;
+  double xy, xz, yz;
   double Lx, Ly, Lz;
 
   void calculateBoxLengths()
@@ -82,7 +84,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -209,7 +211,7 @@ void writeVacancyFile(const string& vac_file, const vector <Atom>& atoms,
 
   if (atom_id != num_atoms)
   {
-    cout << "Error in file " << vac_file << ": n_written = " << atom_id << " != num_atoms = " << num_atoms << endl;
+    cerr << "Error in file " << vac_file << ": n_written = " << atom_id << " != num_atoms = " << num_atoms << endl;
     exit(ATOM_COUNT_ERROR);
   }
 }
@@ -280,7 +282,7 @@ void writeSubstitutionFile(const string& sub_file, const vector <Atom>& atoms,
 
   if (atom_id != num_atoms)
   {
-    cout << "Error in file " << sub_file << ": n_written = " << atom_id << " != num_atoms = " << num_atoms << endl;
+    cerr << "Error in file " << sub_file << ": n_written = " << atom_id << " != num_atoms = " << num_atoms << endl;
     exit(ATOM_COUNT_ERROR);
   }
 }
@@ -331,7 +333,7 @@ void writeAtomsToFiles(const vector <Atom>& atoms, const string& datafile,
     else if (marked) {marked_file = outfile;}
     else
     {
-      cout << "Error: no output specification found.\n";
+      cerr << "Error: no output specification found.\n";
     }
   }
 
@@ -429,7 +431,7 @@ void removeWholeMolecule(vector <Atom>& substituted_atoms, vector <Atom>& atoms,
     {
       if (compound_ratio.ratio[j] * n_removed[i] != compound_ratio.ratio[i] * n_removed[j] && !remove_whole_molecule)
       {
-        cout << "Error: the element ratio has not been kept.\n"
+        cerr << "Error: the element ratio has not been kept.\n"
              << compound_ratio.ratio[j] << "*" << n_removed[i] << " != "
              << compound_ratio.ratio[i] << "*" << n_removed[j] << endl;
         exit(ATOM_COUNT_ERROR);
@@ -456,7 +458,7 @@ calculateImpurityDetails(const vector <Atom>& atoms, const vector <string>& comm
                          const ratio& compound_ratio)
 {
   impurityDetails impurity_details;
-  double impurity_value;
+  double impurity_value = 0.0;
   int seed;
 
   if (commands.size() == 7) // we either have a specific number to replace (randomly) or a percentage
@@ -571,7 +573,7 @@ vector <Atom> generateImpurities(vector <Atom>& atoms, const vector <string>& co
     {
       if (atoms[substitutional_atoms[i].getId() - 1].getType() != impurity_details.atom_type_to_substitute)
       {
-        cout << "Error in removing atoms.\n";
+        cerr << "Error in removing atoms.\n";
         exit(ATOM_TYPE_ERROR);
       }
       atoms[substitutional_atoms[i].getId() - 1].setMark(1);
@@ -581,7 +583,7 @@ vector <Atom> generateImpurities(vector <Atom>& atoms, const vector <string>& co
 
   if (n_removed != impurity_details.num_substituted)
   {
-    cout << "Error substituting atoms: n_removed = " << n_removed << " != num_substituted = " << impurity_details.num_substituted << endl;
+    cerr << "Error substituting atoms: n_removed = " << n_removed << " != num_substituted = " << impurity_details.num_substituted << endl;
     exit(ATOM_COUNT_ERROR);
   }
 
@@ -723,8 +725,6 @@ void readFile(vector <Atom>& atoms, const string& datafile, const ratio& compoun
 {
   string str, str2;
   int N, ntotal = 0; // number of atoms, atom types
-  double xlow, xhigh, ylow, yhigh, zlow, zhigh, xy, xz, yz; // box bounds, tilt factors
-  double Lx, Ly, Lz; // Box lengths
   int atom_id, atom_type, n_types;
   double atom_charge, x, y, z;
 
@@ -745,7 +745,7 @@ void readFile(vector <Atom>& atoms, const string& datafile, const ratio& compoun
   fin >> n_types >> str >> str; // get the number of atom types
   if (compound_ratio.n_types != n_types)
   {
-    cout << "Error: Number of element types calculated does not match number of element types in the data file:\n"
+    cerr << "Error: Number of element types calculated does not match number of element types in the data file:\n"
          << "calculated value = " << compound_ratio.n_types << " != data file value = " << n_types << endl;
     exit(ATOM_TYPE_ERROR);
   }
@@ -759,14 +759,13 @@ void readFile(vector <Atom>& atoms, const string& datafile, const ratio& compoun
   getline(fin,str);
   if (str.find("xy") != string::npos)
   {
-    fin >> xy >> xz >> yz >> str >> str >> str;
+    fin >> box.xy >> box.xz >> box.yz >> str >> str >> str;
     fin.ignore();
   }
 
   box.calculateBoxLengths();
 
-  fin >> str; // Gets the next line (Atoms)
-  fin.ignore();
+  getline(fin, str); // Gets the next line (Atoms)
   getline(fin, str); // get the empty line
 
   // Actually read the atoms now
@@ -786,7 +785,7 @@ void readFile(vector <Atom>& atoms, const string& datafile, const ratio& compoun
     ++ntotal;
     if (atom_type > compound_ratio.n_types)
     {
-      cout << "Error: Atom type = " << atom_type << " > n_types = " << compound_ratio.n_types << endl;
+      cerr << "Error: Atom type = " << atom_type << " > n_types = " << compound_ratio.n_types << endl;
       exit(ATOM_TYPE_ERROR);
     }
 
@@ -798,7 +797,7 @@ void readFile(vector <Atom>& atoms, const string& datafile, const ratio& compoun
 
   if (ntotal != N)
   {
-    cout << "Error reading atoms: ntotal = " << ntotal << " != N = " << N << endl;
+    cerr << "Error reading atoms: ntotal = " << ntotal << " != N = " << N << endl;
     exit(ATOM_COUNT_ERROR);
   }
 }
@@ -848,7 +847,7 @@ map <int, string> determineElementRatios(const string& molecule_name, ratio& com
         }
         else
         {
-          cout << "Error inserting element " << molecule_name.substr(i-1, 2);
+          cerr << "Error inserting element " << molecule_name.substr(i-1, 2);
         }
       }
       else
@@ -887,7 +886,7 @@ map <int, string> determineElementRatios(const string& molecule_name, ratio& com
             }
             else
             {
-              cout << "Error inserting element " << molecule_name.substr(i, 1);
+              cerr << "Error inserting element " << molecule_name.substr(i, 1);
             }
           }
           else
@@ -994,7 +993,7 @@ int main(int argc, char **argv)
       vacancies = false;
       if (type.size() > 3)
       {
-        cout << "Error: please specify which output files you want as m|s|v\n";
+        cerr << "Error: please specify which output files you want as m|s|v\n";
         return OUTPUT_SPECIFICATION_ERROR;
       }
       else
@@ -1088,7 +1087,7 @@ int main(int argc, char **argv)
   }
   catch (cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

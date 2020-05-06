@@ -328,7 +328,7 @@ void printInputFileHelp() {
 template <typename T>
 void checkFileStream(T& stream, const string& file) {
   if (stream.fail()) {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -344,7 +344,7 @@ double anInt(double x) {
 
 double dotp(const vector <double>& v1, const vector <double>& v2) {
   if (v1.size() != 3 || v2.size() != 3) {
-    cout << "Error: vector size incorrect - should have three elements!\n";
+    cerr << "Error: vector size incorrect - should have three elements!\n";
     exit(VECTOR_SIZE_ERROR);
   }
 
@@ -357,7 +357,7 @@ vector <double> getAxisData(istream& fin) {
   getline(fin, str);
   stringstream ss(str);
   if (!(ss >> axis[0] >> axis[1] >> axis[2])) {
-    cout << "Error reading axis: " << str << "\n";
+    cerr << "Error reading axis: " << str << "\n";
     exit(AXIS_READ_ERROR);
   }
   return axis;
@@ -372,7 +372,7 @@ void parseInputFile(inputData& input, const string& input_file) {
   getline(fin, str);
   stringstream ss(str);
   if (!(ss >> input.n_files >> input.theta >> input.n_types >> input.r_cut >> input.fi_cut >> input.a0 >> input.crystal_structure)) {
-    cout << "Error reading the input file. Did you forget a value?";
+    cerr << "Error reading the input file. Did you forget a value?";
     printInputFileHelp();
     exit(INPUT_FORMAT_ERROR);
   }
@@ -478,7 +478,7 @@ vector <Atom> getAtomData(ifstream& fin, const inputData& input, const boxData& 
     data.clear();
 
     if (type > input.n_types) {
-      cout << "Error: unexpected atom type.\n"
+      cerr << "Error: unexpected atom type.\n"
            << "n_types = " << input.n_types << " < this atom's type = " << type << "\n";
       exit(ATOM_TYPE_ERROR);
     }
@@ -499,7 +499,7 @@ vector <Atom> getAtomData(ifstream& fin, const inputData& input, const boxData& 
   fin.close();
 
   if (n_atoms_read != atoms.size()) {
-    cout << "Error: number of atoms read does not match the number of atoms in the simulation.\n"
+    cerr << "Error: number of atoms read does not match the number of atoms in the simulation.\n"
          << "N = " << atoms.size() << " != n_atoms_read = " << atoms.size() << "\n";
     exit(ATOM_COUNT_ERROR);
   }
@@ -731,7 +731,7 @@ vector <double> janssensSymmetryParameter(vector <Atom>& atoms,
   vector <double> distances;
 
   if (input.fi_cut <= 0 || input.fi_cut >= 1.0) {
-    cout << "Error: the Janssens method requires an orientation parameter cutoff in the range 0 < fi_cut < 1\n";
+    cerr << "Error: the Janssens method requires an orientation parameter cutoff in the range 0 < fi_cut < 1\n";
     exit(BOUNDS_ERROR);
   }
 
@@ -930,7 +930,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms,
 
   int num_allowed_atoms = accumulate(allowed_atoms.begin(), allowed_atoms.end(), 0);
   if (num_allowed_atoms != n_atoms_written) {
-    cout << "Error: number of atoms written does not match number of atoms specified to be written\n"
+    cerr << "Error: number of atoms written does not match number of atoms specified to be written\n"
          << "num_allowed_atoms = " << num_allowed_atoms << " != n_atoms_written = " << n_atoms_written << "\n";
     exit(ATOM_COUNT_ERROR);
   }
@@ -1015,7 +1015,7 @@ void processData(const inputData& input) {
       fout_data << (*it).substr(0, (*it).find(".dat")) << " ";
     }
     else {
-      cout << "Error: Unknown file type\n";
+      cerr << "Error: Unknown file type\n";
       exit(FILE_FORMAT_ERROR);
     }
 
@@ -1077,7 +1077,7 @@ void processData(const inputData& input) {
       if (atoms[i].getMark() == 1) {++n_grain_1;}
       else if (atoms[i].getMark() == 2) {++n_grain_2;}
       else {
-        cout << "Error: Unrecognized grain assignment.\n";
+        cerr << "Error: Unrecognized grain assignment.\n";
         exit(BOUNDS_ERROR);
       }
     }
@@ -1108,7 +1108,7 @@ vector <int> getAtomIdsList(const string& file) {
     stringstream ss(str);
     int tmp;
     if (!(ss >> tmp)) {
-      cout << "Error reading atom IDs.\n";
+      cerr << "Error reading atom IDs.\n";
       exit(FILE_FORMAT_ERROR);
     }
     else {id_list.push_back(tmp);}
@@ -1148,7 +1148,7 @@ int main(int argc, char** argv)
         ("e,every", "Option to specify how frequently interface files should be written. 1 specifies every file, 0 specifies none, any other integer specifies than every n files should be written. First and last interface files are always written if n != 0.", cxxopts::value<unsigned int>(input.print_files_every)->default_value("1"), "n")
         ("i,ignore", "Ignore atoms of a specific type (number) during neighbor list creation - each type must be specified separately", cxxopts::value<vector <int> >(), "atom_type")
         ("g,algorithm", "The algorithm for assigning atoms to grains. u - Ulomek, z - Zhang, j - Janssens, t - Trautt", cxxopts::value<char>(input.algorithm)->default_value("u"))
-        ("c,citations", "Show the citations for the different algorithms", cxxopts::value<bool>()->default_value("false"))
+        ("c,citations", "Show the citations for the different algorithms and exit", cxxopts::value<bool>()->default_value("false"))
         ("q,quiet", "Suppress warnings", cxxopts::value<bool>(show_warnings)->implicit_value("false"))
         ("atom-ids", "Only output the results for the specified IDs from the file (containing a list of atom ids)", cxxopts::value<string>(), "file")
         ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>(input.nn_filebase)->default_value("nearest_neighbors_*.txt"), "file")
@@ -1157,14 +1157,15 @@ int main(int argc, char** argv)
     options.parse_positional({"file"});
     auto result = options.parse(argc, argv);
 
+    if (result.count("citations")) {
+      printAlgorithmCitations();
+      return EXIT_SUCCESS;
+    }
+
     if (result.count("help") || result.count("file") == 0) {
       cout << options.help();
       printInputFileHelp();
       return EXIT_SUCCESS;
-    }
-
-    if (result.count("citations")) {
-      printAlgorithmCitations();
     }
 
     if (result.count("ignore")) {
@@ -1189,7 +1190,7 @@ int main(int argc, char** argv)
     }
   }
   catch (const cxxopts::OptionException& e) {
-    cout << "Error parsing options: " << e.what() << "\n";
+    cerr << "Error parsing options: " << e.what() << "\n";
     return OPTION_PARSING_ERROR;
   }
 

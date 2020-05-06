@@ -27,7 +27,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
     {
       if (boundary_type != 's')
       {
-        cout << "Error: Please specify either (c)ylinder or (s)phere for the boundary type.\n";
+        cerr << "Error: Please specify either (c)ylinder or (s)phere for the boundary type.\n";
         return INPUT_FORMAT_ERROR;
       }
       else {is_sphere = true;}
@@ -112,7 +112,7 @@ int main(int argc, char** argv)
     {
       if (!(result.count("Lz")))
       {
-        cout << "Error: cylindrical grain boundary energy calculations requires the grain thickness parameter.\n";
+        cerr << "Error: cylindrical grain boundary energy calculations requires the grain thickness parameter.\n";
         return INPUT_FORMAT_ERROR;
       }
     }
@@ -129,7 +129,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

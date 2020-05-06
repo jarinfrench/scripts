@@ -35,7 +35,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -87,17 +87,17 @@ vector <fit> setPotentials(const string& database_file)
              >> temp.max_T >> temp.x3 >> temp.x2 >> temp.x1 >> temp.y3 >> temp.y2
              >> temp.y1 >> temp.xy >> temp.xy2 >> temp.x2y >> temp.z0))
     {
-      cout << "Error: Corrupted database file.\n";
+      cerr << "Error: Corrupted database file.\n";
       exit(FILE_FORMAT_ERROR);
     }
     if (temp.max_T <= temp.min_T)
     {
-      cout << "Error: Corrupted database file: T_max = " << temp.max_T << " <= T_min = " << temp.min_T << ".\n";
+      cerr << "Error: Corrupted database file: T_max = " << temp.max_T << " <= T_min = " << temp.min_T << ".\n";
       exit(FILE_FORMAT_ERROR);
     }
     if (temp.max_conc < temp.min_conc)
     {
-      cout << "Error: Corrupted database file: conc_max = " << temp.max_conc << " <= conc_min = " << temp.min_conc << ".\n";
+      cerr << "Error: Corrupted database file: conc_max = " << temp.max_conc << " <= conc_min = " << temp.min_conc << ".\n";
       exit(FILE_FORMAT_ERROR);
     }
     fits.push_back(temp);
@@ -111,7 +111,7 @@ void listPotentials(const vector <fit>& fits)
   cout << "There are " << fits.size() << " fits:\n";
   for (unsigned int i = 0; i < fits.size(); ++i)
   {
-    cout << "  " << i + 1 << " - " << fits[i].name << endl;
+    cout << "  " << i + 1 << " - " << fits[i].name << "\n";
   }
 }
 
@@ -149,7 +149,7 @@ double latticeParam(const double T, const double conc, const fit& lattice_fit)
   return conc_poly + T_poly + cross_terms + z0;
 }
 
-void parseInput(const string& filename)
+void parseInput(const string& filename, const fit& lattice_fit)
 {
   string str;
   ifstream fin(filename.c_str());
@@ -174,7 +174,8 @@ void parseInput(const string& filename)
        << "\n\tConcentration of solute: " << input.concentration
        << "\n\tCylinder thickness: " << input.height
        << "\n\t0 K lattice parameter: " << input.a0
-       << "\n\tCrystal structure: " << input.structure << endl;
+       << "\n\tCrystal structure: " << input.structure
+       << "\n\tFitted to: " << lattice_fit.name << "\n";
 }
 
 void calculateGrainArea(const fit& lattice_fit, const string& output_file)
@@ -204,18 +205,18 @@ void calculateGrainArea(const fit& lattice_fit, const string& output_file)
 
   fout << fixed;
 
-  fout << setprecision(0) << t0 * 0.002 << " " << setprecision(2) << N1_0 * structure_factor << " " << N2_0 * structure_factor << endl;
+  fout << setprecision(0) << t0 * 0.002 << " " << setprecision(2) << N1_0 * structure_factor << " " << N2_0 * structure_factor << "\n";
   while (fin >> t1 >> N1_next >> N2_next)
   {
     if (t1 < t0)
     {
-      cout << "Error: data file corrupted.  t0 = " << t0 << " >= t1 = " << t1 << endl;
+      cerr << "Error: data file corrupted.  t0 = " << t0 << " >= t1 = " << t1 << "\n";
       exit(FILE_FORMAT_ERROR);
     }
 
     fout << setprecision(0) << t1 * 0.002 << " " << setprecision(2)
          << N1_next * structure_factor << " "
-         << N2_next * structure_factor << endl;
+         << N2_next * structure_factor << "\n";
   }
 
   fin.close();
@@ -259,7 +260,7 @@ int main(int argc, char **argv)
 
     if (result.count("help") || result.count("file") == 0)
     {
-      cout << options.help() << endl << endl;
+      cout << options.help() << "\n" << "\n";
       showInputFileHelp();
       return EXIT_SUCCESS;
     }
@@ -295,13 +296,13 @@ int main(int argc, char **argv)
 
     if (result.count("file"))
     {
-      parseInput(input_file);
+      parseInput(input_file, lattice_fit);
       calculateGrainArea(lattice_fit, output_file);
     }
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << "\n";
     return OPTION_PARSING_ERROR;
   }
 

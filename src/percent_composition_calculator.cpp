@@ -57,7 +57,7 @@ vector <double> promptForNumbers(const string& percent_type, const vector <strin
 
   if (abs(1.0 - accumulate(nums.begin(), nums.end(), 0.0)) > 1.0e-8)
   {
-    cout << "Error: total " << percent_type << " percent must be equal to 1!\n";
+    cerr << "Error: total " << percent_type << " percent must be equal to 1!\n";
     exit(INPUT_FORMAT_ERROR);
   }
 
@@ -75,7 +75,7 @@ void convertToAtomic(const vector <string>& elements)
 
   double denominator = accumulate(terms.begin(), terms.end(), 0.0);
 
-  if (abs(denominator) < 1.0e-8) {cout << "Error: Division by zero!\n"; exit(DIVIDE_BY_ZERO);}
+  if (abs(denominator) < 1.0e-8) {cerr << "Error: Division by zero!\n"; exit(DIVIDE_BY_ZERO);}
 
   for (size_t i = 0; i < terms.size(); ++i)
   {
@@ -94,7 +94,7 @@ void convertToWeight(const vector <string>& elements)
 
   double denominator = accumulate(terms.begin(), terms.end(), 0.0);
 
-  if (abs(denominator) < 1.0e-8) {cout << "Error: Division by zero!\n"; exit(DIVIDE_BY_ZERO);}
+  if (abs(denominator) < 1.0e-8) {cerr << "Error: Division by zero!\n"; exit(DIVIDE_BY_ZERO);}
 
   for (size_t i = 0; i < terms.size(); ++i)
   {
@@ -149,7 +149,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << "\n";
+    cerr << "Error parsing options: " << e.what() << "\n";
     return OPTION_PARSING_ERROR;
   }
 

@@ -15,7 +15,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -34,7 +34,7 @@ vector <int> getAtomIds(const string& file)
     int tmp;
     if (!(ss >> tmp))
     {
-      cout << "Error reading atom_ids file.\n";
+      cerr << "Error reading atom_ids file.\n";
       fin.close();
       exit(FILE_FORMAT_ERROR);
     }
@@ -88,7 +88,7 @@ void makeZonedData(const vector<int>& atom_ids, const vector<string>& grain_file
     getline(fin, str);
     if (str.find("VARIABLES") == string::npos)
     {
-      cout << "Error reading file " << grain_files[i] << endl;
+      cerr << "Error reading file " << grain_files[i] << endl;
       fout.close();
       fin.close();
       exit(FILE_FORMAT_ERROR);
@@ -175,7 +175,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

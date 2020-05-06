@@ -18,7 +18,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -92,7 +92,7 @@ bool processFile(const string& file, vector <Atom>& atoms)
           charge = 0.0; // assumed we did not find charge
           if (!(ss >> atom_id >> atom_type >> x >> y >> z >> xu >> yu >> zu))
           {
-            cout << "Error: data corrupted.  Expected id type x y z xu yu zu\n"
+            cerr << "Error: data corrupted.  Expected id type x y z xu yu zu\n"
                  << "Line: " << str;
             exit(FILE_FORMAT_ERROR);
           }
@@ -107,7 +107,7 @@ bool processFile(const string& file, vector <Atom>& atoms)
           charge = 0.0; // assumed we did not find charge
           if (!(ss >> atom_id >> atom_type >> x >> y >> z))
           {
-            cout << "Error: data corrupted.  Expected id type x y z\n"
+            cerr << "Error: data corrupted.  Expected id type x y z\n"
                  << "Line: " << str;
             exit(FILE_FORMAT_ERROR);
           }
@@ -171,7 +171,7 @@ bool processFile(const string& file, vector <Atom>& atoms)
 
   if (n_read != atoms.size())
   {
-    cout << "Error reading file.  n_read = " << n_read << " != atoms.size() = " << atoms.size() << endl;
+    cerr << "Error reading file.  n_read = " << n_read << " != atoms.size() = " << atoms.size() << endl;
     exit(ATOM_COUNT_ERROR);
   }
 
@@ -288,7 +288,7 @@ int main(int argc, char** argv)
 
     if (result.count("reference") && result.count("compared") && result.count("input"))
     {
-      cout << "Error: either use an input file, or a command line list, not both.\n";
+      cerr << "Error: either use an input file, or a command line list, not both.\n";
       return OPTION_PARSING_ERROR;
     }
 
@@ -308,7 +308,7 @@ int main(int argc, char** argv)
 
       if (compared_atoms.size() != reference_atoms.size())
       {
-        cout << "Error reading atom data.  reference_atoms.size() = " << reference_atoms.size() << " != compared_atoms.size() = " << compared_atoms.size() << endl;
+        cerr << "Error reading atom data.  reference_atoms.size() = " << reference_atoms.size() << " != compared_atoms.size() = " << compared_atoms.size() << endl;
         return VECTOR_SIZE_ERROR;
       }
 
@@ -324,7 +324,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

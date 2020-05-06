@@ -32,7 +32,7 @@ vector <double> compareFiles(vector <Atom> & reference_atoms, string current_fil
 
   if (fin2.fail())
   {
-    cout << "Error opening file: \"" << current_file << "\"\n";
+    cerr << "Error opening file: \"" << current_file << "\"\n";
     exit(1);
   }
 
@@ -78,7 +78,7 @@ vector <double> compareFiles(vector <Atom> & reference_atoms, string current_fil
 
   if (reference_atoms.size() != N2)
   {
-    cout << "Error: number of atoms between data files do not match. N1 = " << reference_atoms.size() << " != N2 = " << N2 << "\n";
+    cerr << "Error: number of atoms between data files do not match. N1 = " << reference_atoms.size() << " != N2 = " << N2 << "\n";
     exit(2);
   }
 
@@ -117,7 +117,7 @@ vector <double> compareFiles(vector <Atom> & reference_atoms, string current_fil
 
   if (n_atoms_read2 != N2)
   {
-    cout << "Error reading current atoms. n_atoms_read = " << n_atoms_read2 << " != N = " << N2 << endl;
+    cerr << "Error reading current atoms. n_atoms_read = " << n_atoms_read2 << " != N = " << N2 << endl;
     exit(3);
   }
 
@@ -182,14 +182,14 @@ int main(int argc, char **argv)
     fin_input.open(input_filename.c_str());
     if (fin_input.fail())
     {
-      cout << "Error opening file: \"" << input_filename << "\"\n";
+      cerr << "Error opening file: \"" << input_filename << "\"\n";
       return 1;
     }
 
     fout.open("msd_data.csv");
     if (fout.fail())
     {
-      cout << "Error opening up output file \"msd_data.csv\"\n";
+      cerr << "Error opening up output file \"msd_data.csv\"\n";
       return 1;
     }
 
@@ -200,7 +200,7 @@ int main(int argc, char **argv)
   ifstream fin1(reference.c_str());
   if (fin1.fail())
   {
-    cout << "Error opening file: \"" << reference << "\"\n";
+    cerr << "Error opening file: \"" << reference << "\"\n";
     return 1;
   }
 
@@ -265,7 +265,7 @@ int main(int argc, char **argv)
 
   if (n_atoms_read1 != N1)
   {
-    cout << "Error reading reference atoms. n_atoms_read = " << n_atoms_read1 << " != N = " << N1 << endl;
+    cerr << "Error reading reference atoms. n_atoms_read = " << n_atoms_read1 << " != N = " << N1 << endl;
     return 3;
   }
 

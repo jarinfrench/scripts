@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <glob.h> // glob(), globfree()
+#include <alphanum.hpp>
 
 #include "atom.h"
 #include "error_code_defines.h"
@@ -44,7 +45,7 @@ struct Header {
 template <typename T>
 void checkFileStream(T& stream, const string& file) {
   if (stream.fail()) {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -266,7 +267,7 @@ vector <Atom> getAtomData(ifstream& fin, Header& header) {
           if (type > header.n_types) {header.n_types = type;}
         } else if (header.file_type.compare("dat") == 0) {
           if (type > header.n_types) {
-            cout << "Error: incorrect number of atom types.\n"
+            cerr << "Error: incorrect number of atom types.\n"
                  << "This atom type: " << type << " specified atom types: " << header.n_types << "\n";
             exit(ATOM_TYPE_ERROR);
           }
@@ -301,7 +302,7 @@ vector <Atom> getAtomData(ifstream& fin, Header& header) {
   }
 
   if (n_atoms_read != atoms.size()) {
-    cout << "Error reading file: number of atoms read versus number of atoms assigned do not match:\n"
+    cerr << "Error reading file: number of atoms read versus number of atoms assigned do not match:\n"
          << n_atoms_read << " != " << atoms.size() << "\n";
   }
   return atoms;
@@ -719,7 +720,6 @@ void clusterAnalysis(vector <Atom>& atoms, const Header& header,
     }
   }
 
-
   // generate a neighbor list with atoms that are only within the desired cutoff distance from each other
   vector <vector <int> > iatom = generateCellLinkedList(atoms, first_nn_distances[structure] * a0, header.Lx, header.Ly, header.Lz, cluster_types);
   vector <set <Atom> > clusters;
@@ -786,8 +786,8 @@ void clusterAnalysis(vector <Atom>& atoms, const Header& header,
   } else {
     test.close();
     fout.open("cluster_size_distribution.txt", std::ios_base::app);
+    fout << "\n\n# File " << header.filename << "\n";
   }
-  fout << "\n\n# File " << header.filename << "\n";
   for (map <int, int>::iterator it = cluster_size_counts.begin(); it != cluster_size_counts.end(); ++it) {
     fout << it->first << " " << it->second << "\n";
   }
@@ -828,13 +828,13 @@ void clusterBatchMode(const string& cluster_args) {
   ss.clear();
   ss.str(tmp[i++]); // Uses the last number (that failed the first if condition) - presumably a double -and then increments the counter
   if (!(ss >> a0)) {
-    cout << "Error converting argument " << i - 1 << " (" << tmp[i - 1] << ") to double\n";
+    cerr << "Error converting argument " << i - 1 << " (" << tmp[i - 1] << ") to double\n";
     exit(OPTION_PARSING_ERROR);
   }
 
   structure = tmp[i++]; // store the structure
   if (structure.compare("fcc") != 0 && structure.compare("bcc") != 0 && structure.compare("sc") != 0) {
-    cout << "Error: structure must be one of either fcc, bcc, or sc. You entered " << tmp[i -1] << "\n";
+    cerr << "Error: structure must be one of either fcc, bcc, or sc. You entered " << tmp[i -1] << "\n";
     exit(OPTION_PARSING_ERROR);
   }
 
@@ -849,7 +849,10 @@ void clusterBatchMode(const string& cluster_args) {
     } else { ++i;}
   }
 
+  sort(files.begin(), files.end(), doj::alphanum_less<string>());
+
   for (i = 0; i < files.size(); ++i) {
+    cout << "File " << files[i] << ": ";
     pair <vector <Atom>, Header> tmp = readFile(files[i]);
     atoms = tmp.first;
     header = tmp.second;
@@ -957,7 +960,7 @@ int main(int argc, char** argv) {
     }
   }
   catch (const cxxopts::OptionException& e) {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

@@ -70,7 +70,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -282,7 +282,7 @@ vector <string> getReferenceData(const string& file, vector <Atom>& reference)
 
   if (!(input.tracked_atoms.empty()) && num_tracked != reference.size())
   {
-    cout << "Error tracking specific atoms.\n";
+    cerr << "Error tracking specific atoms.\n";
     exit(ATOM_COUNT_ERROR);
   }
   fin.close();
@@ -468,7 +468,7 @@ int main(int argc, char **argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

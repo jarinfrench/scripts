@@ -49,7 +49,7 @@ vector <double> determineTiltParameters(const double& Lx, const double& Ly,
 
   if (sin_g.real() < 1E-8 && sin_g.imag() < 1E-8)
   {
-    cout << "Error: z cannot be coplanar with the xy plane!  Gamma must be > 0 and < 180\n";
+    cerr << "Error: z cannot be coplanar with the xy plane!  Gamma must be > 0 and < 180\n";
   }
   else
   {
@@ -77,7 +77,7 @@ vector <double> determineTiltParameters(const double& Lx, const double& Ly,
 
   if (xy.imag() > 1E-8 || xz.imag() > 1E-8 || yz.imag() > 1E-8)
   {
-    cout << "Error: imaginary value determined.\n";
+    cerr << "Error: imaginary value determined.\n";
     exit(IMAGINARY_TILT_ERROR);
   }
   else
@@ -95,7 +95,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -108,7 +108,7 @@ string determineElement(const string& file)
 
   if (element_pos_start == string::npos)
   {
-    cout << "Error determining element(s).  Make sure the filename is in the format\n"
+    cerr << "Error determining element(s).  Make sure the filename is in the format\n"
          << "\t\"LAMMPS_<element(s)>_N<number_of_atoms>[_<extra_info>].dat\"\n"
          << "Note that elements should be properly capitalized, i.e. table salt would be NaCl.\n";
     exit(FILE_FORMAT_ERROR);
@@ -226,7 +226,7 @@ void convertFile(const string& file, const bool show_charge, const bool no_eleme
 
   if (n_atoms != N)
   {
-    cout << "Error counting atoms: n_atoms = " << n_atoms << " != N = " << N << endl;
+    cerr << "Error counting atoms: n_atoms = " << n_atoms << " != N = " << N << endl;
     exit(ATOM_COUNT_ERROR);
   }
 
@@ -308,7 +308,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

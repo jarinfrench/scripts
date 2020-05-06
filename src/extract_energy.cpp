@@ -22,7 +22,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -36,7 +36,7 @@ double extractAngleFromInfile(const string& file)
 
   if (degree_pos == string::npos)
   {
-    cout << "Error: filename must contain the the angle in the format \"*_<angle>degree*\" in order to be processed correctly.\n";
+    cerr << "Error: filename must contain the the angle in the format \"*_<angle>degree*\" in order to be processed correctly.\n";
     exit(FILE_NAME_ERROR);
   }
   size_t angle_pos = file.rfind("_", degree_pos) + 1;
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

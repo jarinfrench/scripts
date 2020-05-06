@@ -90,7 +90,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -340,7 +340,7 @@ void generateVoronoiIC(vector <Field>& etas, const vector <Position>& centroids)
 {
   if (centroids.size() != etas.size())
   {
-    cout << "Error: number of centroids must match the number of grains.\n";
+    cerr << "Error: number of centroids must match the number of grains.\n";
     exit(INPUT_FORMAT_ERROR);
   }
   else
@@ -607,7 +607,7 @@ vector <JunctionNeighbors> findMultiJunctionNeighbors(const vector <MultiJunctio
       }
       else
       {
-        cout << "ERROR: Junction not found " << j << ".\n";
+        cerr << "Error: Junction not found " << j << ".\n";
         exit(JUNCTION_NOT_FOUND);
       }
     }

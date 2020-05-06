@@ -109,7 +109,7 @@ struct inputData
         if (i + 1 >= molecule.size()) {elements.insert(molecule.substr(i,1));}
         else if (islower(molecule[i + 1])) {elements.insert(molecule.substr(i, 2));}
         else if (isupper(molecule[i + 1]) || isdigit(molecule[i + 1])) {elements.insert(molecule.substr(i, 1));}
-        else {cout << "ERROR!\n";}
+        else {cerr << "Error!\n";}
       }
     }
     n_types = elements.size();
@@ -166,7 +166,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -227,7 +227,7 @@ void determineElementRatios(inputData& input)
           if (isdigit(input.molecule[i + 2])) {input.element_ratios[element] = findElementSubscript(input.molecule, i + 2);}
           else {input.element_ratios[element] = 1;} // second character after current is not a number
           if (input.number_to_element.insert(pair<int,string>(elem_num, element)).second) {++elem_num;}
-          else {cout << "Error inserting element " << element << "\n";}
+          else {cerr << "Error inserting element " << element << "\n";}
         }
         else
         {
@@ -244,7 +244,7 @@ void determineElementRatios(inputData& input)
           if (isdigit(input.molecule[i + 1])) {input.element_ratios[element] = findElementSubscript(input.molecule, i + 1);}
           else {input.element_ratios[element] = 1;}
           if (input.number_to_element.insert(pair<int,string>(elem_num, element)).second) {++elem_num;}
-          else {cout << "Error inserting element " << element << "\n";}
+          else {cerr << "Error inserting element " << element << "\n";}
         }
         else
         {
@@ -257,7 +257,7 @@ void determineElementRatios(inputData& input)
 
   if (input.n_types != input.number_to_element.size())
   {
-    cout << "Error determining element types. Input file n_types = " << input.n_types
+    cerr << "Error determining element types. Input file n_types = " << input.n_types
          << " != found elements = " << input.number_to_element.size() << "\n";
     exit(ELEMENT_COUNT_ERROR);
   }
@@ -352,7 +352,7 @@ vector <Atom> readDataFile(inputData& input)
 
     if (type > input.n_types)
     {
-      cout << "Error: Atom type = " << type << " is greater than the number of types specified = "
+      cerr << "Error: Atom type = " << type << " is greater than the number of types specified = "
            << input.n_types << "\n";
       exit(ATOM_TYPE_ERROR);
     }
@@ -364,7 +364,7 @@ vector <Atom> readDataFile(inputData& input)
 
   if (n_total != N)
   {
-    cout << "Error: n_total = " << n_total << " != N = " << N << "\n";
+    cerr << "Error: n_total = " << n_total << " != N = " << N << "\n";
     exit(ATOM_COUNT_ERROR);
   }
 
@@ -641,7 +641,7 @@ int removeAtoms(vector <Atom>& atoms, const vector <vector <int> >& iatom, const
     {
       if (input.element_ratios.at(input.number_to_element.at(j + 1)) * n_removed[i] != input.element_ratios.at(input.number_to_element.at(i + 1)) * n_removed[j])
       {
-        cout << "Error: the element ratio has not been kept.\n"
+        cerr << "Error: the element ratio has not been kept.\n"
              << input.element_ratios.at(input.number_to_element.at(j + 1)) << "*" << n_removed[i] << " != "
              << input.element_ratios.at(input.number_to_element.at(i + 1)) << "*" << n_removed[j] << "\n";
         exit(ATOM_COUNT_ERROR);
@@ -743,7 +743,7 @@ void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const 
 
   if (n_total != atoms.size() - n_removed)
   {
-    cout << "Error: The final number of removed atoms is not balanced.\n"
+    cerr << "Error: The final number of removed atoms is not balanced.\n"
          << "n_total = " << n_total << " != N - n_removed = "
          << atoms.size() - n_removed << "\n";
     exit(ATOM_COUNT_ERROR);
@@ -896,7 +896,7 @@ vector <inputData> parseInputFile(const string& input_file)
           }
         }
 
-        if (tmp >= 1) {cout << "Error: Cutoff value too large: r_cut = " << tmp << ">= 1\n"; exit(INPUT_FORMAT_ERROR);}
+        if (tmp >= 1) {cerr << "Error: Cutoff value too large: r_cut = " << tmp << ">= 1\n"; exit(INPUT_FORMAT_ERROR);}
         if (input.crystal_structure.compare("fcc") == 0) {multiplier = first_nn_distances["fcc"];}
         else if (input.crystal_structure.compare("bcc") == 0) {multiplier = first_nn_distances["bcc"];}
         else if (input.crystal_structure.compare("sc") == 0) {multiplier = first_nn_distances["sc"];}
@@ -909,7 +909,7 @@ vector <inputData> parseInputFile(const string& input_file)
             else if (input.element_ratios[input.number_to_element[i]] == 2) {multiplier = first_nn_distances["sc"] / 2.0;} // tetrahedral sites
             else
             {
-              cout << "Error determining nearest neighbor multiplier.\n";
+              cerr << "Error determining nearest neighbor multiplier.\n";
               exit(CRYSTAL_STRUCTURE_ERROR);
             }
           }
@@ -933,7 +933,7 @@ vector <inputData> parseInputFile(const string& input_file)
     }
     if (!good_stream)
     {
-      cout << "Error processing line \"" << str << "\"\n\n";
+      cerr << "Error processing line \"" << str << "\"\n\n";
       if (!printedInputHelp)
       {
         printInputFileHelp();
@@ -992,7 +992,7 @@ int main (int argc, char **argv)
 
       if (outputs.size() > 3)
       {
-        cout << "Error: specify the desired outputs as a combination of m|o|r\n";
+        cerr << "Error: specify the desired outputs as a combination of m|o|r\n";
         return OUTPUT_SPECIFICATION_ERROR;
       }
       else
@@ -1020,7 +1020,7 @@ int main (int argc, char **argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << "\n";
+    cerr << "Error parsing options: " << e.what() << "\n";
     return OPTION_PARSING_ERROR;
   }
 

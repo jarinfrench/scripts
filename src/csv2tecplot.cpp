@@ -13,7 +13,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -72,7 +72,7 @@ int main(int argc, char** argv)
     {
       if (infile.substr(infile.length() - 3) != "csv")
       {
-        cout << "Error: please enter a file of type CSV (ending in .csv).\n";
+        cerr << "Error: please enter a file of type CSV (ending in .csv).\n";
         return FILE_FORMAT_ERROR;
       }
 
@@ -81,7 +81,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

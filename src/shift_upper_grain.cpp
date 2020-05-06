@@ -66,7 +66,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -136,7 +136,7 @@ pair <int, int> getAtomData(const string& filename, vector <Atom>& atoms)
     ++n_total;
     if (type > ntypes)
     {
-      cout << "Error: Atom type = " << type << " is greater than the number of types = " << ntypes << endl;
+      cerr << "Error: Atom type = " << type << " is greater than the number of types = " << ntypes << endl;
       exit(ATOM_TYPE_ERROR);
     }
 
@@ -147,7 +147,7 @@ pair <int, int> getAtomData(const string& filename, vector <Atom>& atoms)
 
   if (n_total != N)
   {
-    cout << "Error: n_total = " << n_total << " != N = " << N << endl;
+    cerr << "Error: n_total = " << n_total << " != N = " << N << endl;
     exit(ATOM_COUNT_ERROR);
   }
 
@@ -252,7 +252,7 @@ void createShiftedBoundaries(const string& filename, const vector <double>& shif
 
         if (shifted_atoms[i].getType() > ntypes)
         {
-          cout << "Error: atom type is greater than expected. atom_type = "
+          cerr << "Error: atom type is greater than expected. atom_type = "
                << shifted_atoms[i].getType() << " > ntypes = " << ntypes << endl;
           exit(ATOM_TYPE_ERROR);
         }
@@ -273,7 +273,7 @@ void createShiftedBoundaries(const string& filename, const vector <double>& shif
 
         if (shifted_atoms[i].getWrapped()[0] < box.xlow || shifted_atoms[i].getWrapped()[0] > box.xhigh)
         {
-          cout << "Error: atom " << ntotal << " is outside the bounds set by xlow ("
+          cerr << "Error: atom " << ntotal << " is outside the bounds set by xlow ("
                << box.xlow << ") and xhigh (" << box.xhigh << "): "
                << shifted_atoms[i].getWrapped()[0] << endl;
           exit(BOUNDS_ERROR);
@@ -281,7 +281,7 @@ void createShiftedBoundaries(const string& filename, const vector <double>& shif
 
         if (shifted_atoms[i].getWrapped()[1] < box.ylow || shifted_atoms[i].getWrapped()[1] > box.yhigh)
         {
-          cout << "Error: atom " << ntotal << " is outside the bounds set by ylow ("
+          cerr << "Error: atom " << ntotal << " is outside the bounds set by ylow ("
                << box.ylow << ") and yhigh (" << box.yhigh << "): "
                << shifted_atoms[i].getWrapped()[1] << endl;
           exit(BOUNDS_ERROR);
@@ -289,7 +289,7 @@ void createShiftedBoundaries(const string& filename, const vector <double>& shif
 
         if (shifted_atoms[i].getWrapped()[2] < box.zlow || shifted_atoms[i].getWrapped()[2] > box.zhigh + (iz * shifts[2]))
         {
-          cout << "Error: atom " << ntotal << " is outside the bounds set by zlow ("
+          cerr << "Error: atom " << ntotal << " is outside the bounds set by zlow ("
                << box.zlow << ") and zhigh (" << box.zhigh << "): "
                << shifted_atoms[i].getWrapped()[2] << endl;
           exit(BOUNDS_ERROR);
@@ -361,13 +361,13 @@ int main(int argc, char** argv)
 
     if (result.count("z-shift") && !result.count("z-max"))
     {
-      cout << "Error: both the z shift and the max number of shifts in z must be specified.\n";
+      cerr << "Error: both the z shift and the max number of shifts in z must be specified.\n";
       return INPUT_FORMAT_ERROR;
     }
 
     if (!result.count("z-shift") && result.count("z-max"))
     {
-      cout << "Error: both the z shift and the max number of shifts in z must be specified.\n";
+      cerr << "Error: both the z shift and the max number of shifts in z must be specified.\n";
       return INPUT_FORMAT_ERROR;
     }
 
@@ -387,7 +387,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << endl;
+    cerr << "Error parsing options: " << e.what() << endl;
     return OPTION_PARSING_ERROR;
   }
 

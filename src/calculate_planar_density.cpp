@@ -27,7 +27,7 @@ void checkFileStream(T& stream, const string& file)
 {
   if (stream.fail())
   {
-    cout << "Error opening file \"" << file << "\"\n";
+    cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -60,7 +60,7 @@ double calculateDeterminant(const vector <vector <double> >& m)
 {
   if (m.size() != 3 || m[0].size() != 3 || m[1].size() != 3 || m[2].size() != 3)
   {
-    cout << "Error: only calculating the determinant of a 3x3 matrix!\n";
+    cerr << "Error: only calculating the determinant of a 3x3 matrix!\n";
     exit(ERROR_CODE_NOT_DEFINED);
   }
 
@@ -77,7 +77,7 @@ pair <int, int> decimal2Fraction (const double& target)
 {
   if (target >= 1.0)
   {
-    cout << "Error: passed in target is >= 1.0: target = " << target << "\n";
+    cerr << "Error: passed in target is >= 1.0: target = " << target << "\n";
     exit(INPUT_FORMAT_ERROR);
   }
 
@@ -138,7 +138,7 @@ inputData parseInputFile(const string& file, const unsigned int& verbosity)
 
   if (!(fin >> input.unit_cell_file >> input.a >> input.b >> input.c >> input.alpha >> input.beta >> input.gamma))
   {
-    cout << "Error: not enough input values.\n";
+    cerr << "Error: not enough input values.\n";
     printInputFileHelp();
   }
 
@@ -177,7 +177,7 @@ vector <Position> parseUnitCellFile(const string& file, const unsigned int& verb
     stringstream ss(str);
     if (!(ss >> x >> y >> z))
     {
-      cout << "Error: Not enough elements in " << file << " for line \""
+      cerr << "Error: Not enough elements in " << file << " for line \""
            << str << "\"\n"
            << "Each line must contain the x, y, and z position of the atoms in the unit cell.\n";
       exit(FILE_FORMAT_ERROR);
@@ -185,7 +185,7 @@ vector <Position> parseUnitCellFile(const string& file, const unsigned int& verb
     if (!(ss >> dummy)) {unit_cell_positions.push_back(Position(x, y, z));}
     else
     {
-      cout << "Error: Too many elements in " << file << " for line \""
+      cerr << "Error: Too many elements in " << file << " for line \""
            << str << "\"\n";
       exit(FILE_FORMAT_ERROR);
     }
@@ -404,7 +404,7 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e)
   {
-    cout << "Error parsing options: " << e.what() << "\n";
+    cerr << "Error parsing options: " << e.what() << "\n";
     return OPTION_PARSING_ERROR;
   }
 
