@@ -1,9 +1,9 @@
 # This file contains all of the functions that I have found useful over time.
 # A short description of each function precedes the definition.
-from __future__ import division,print_function # makes division and printing easier
+# from __future__ import division,print_function # makes division and printing easier
 from math import sin, cos, pi, sqrt, atan2
 from itertools import takewhile,repeat
-from numpy import array, linalg
+import numpy as np
 import sys, os
 
 class bcolors:
@@ -57,9 +57,9 @@ def rad2deg(x):
 # This function displays a matrix in an easy-to-see format.  This will display
 # a matrix of any size and dimension
 def displayMat(m):
-    for i in range(0, len(m)):
-        for j in range(0,len(m[i])):
-            print("%2.6f\t"%(m[i][j]),end="")
+    for i in range(len(m)):
+        for j in range(len(m[i])):
+            print(f"{(m[i][j]):.6f}",end="")
         print("\n")
     print("\n")
     return
@@ -100,7 +100,7 @@ def countFileLines(filename):
 # This function converts an axis-angle representation to a quaternion representation
 # Assumes that the misorientation is in radians.  Axis must be a 3D vector (list)
 def axis2quat(axis, angle):
-    axis = axis / linalg.norm(axis)
+    axis = axis / np.linalg.norm(axis)
     return [cos(angle / 2.0), axis[0] * sin(angle / 2.0), axis[1] * sin(angle / 2.0), axis[2] * sin(angle / 2.0)]
 
 # This function converts a quaternion to a matrix representation.
@@ -110,7 +110,7 @@ def quat2mat(q):
     e2 = q[2];
     e3 = q[3];
 
-    m = array([[e0^2+e1^2-e2^2-e3^2, 2*(e1*e2-e0*e3)     , 2*(e1*e3+e0*e2)],
+    m = np.array([[e0^2+e1^2-e2^2-e3^2, 2*(e1*e2-e0*e3)     , 2*(e1*e3+e0*e2)],
                [2*(e1*e2+e0*e3)    , e0^2-e1^2+e2^2-e3^2 , 2*(e2*e3-e0*e1)],
                [2*(e1*e3-e0*e2)    , 2*(e2*e3+e0*e1)     , e0^2-e1^2-e2^2+e3^2]])
 
@@ -157,18 +157,18 @@ def calcRotMat(_z1,_x,_z2):
 # Calculates the Bunge Orientation matrix using the Rodrigues Rotation Formula
 # axis must be a 3D vector (of type list), and the misorientation must in radians!
 def calcRotMatRRF(axis, misorientation):
-    K = array([[0, -axis[2], axis[1]],[axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
+    K = np.array([[0, -axis[2], axis[1]],[axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
     theta = [-_misorientation / 2, _misorientation / 2]
-    R1 = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[0]) * K + (1 - cos(theta[0])) * K.dot(K)
-    R2 = array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[1]) * K + (1 - cos(theta[1])) * K.dot(K)
+    R1 = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[0]) * K + (1 - cos(theta[0])) * K.dot(K)
+    R2 = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]) + sin(theta[1]) * K + (1 - cos(theta[1])) * K.dot(K)
 
     return R1, R2
 
 # Checks that the three vectors passed in are mutually orthogonal
 def checkOrthogonality(x, y, z):
-    x = array(x)
-    y = array(y)
-    z = array(z)
+    x = np.array(x)
+    y = np.array(y)
+    z = np.array(z)
     if (x.dot(y) < 1e-15 and x.dot(z) < 1e-15 and y.dot(x) < 1e-15):
         return True
     else:
@@ -184,7 +184,7 @@ def checkScalarInput(input):
         return True # Therefore input is a scalar
 
 def normalize(vector):
-    return vector / linalg.norm(vector)
+    return vector / np.linalg.norm(vector)
 
 def promptForContinue():
     while True:
@@ -221,6 +221,8 @@ def flatten(data_list):
         return data_list
     if isinstance(data_list[0], list):
         return flatten(data_list[0]) + flatten(data_list[1:])
+    elif isinstance(data_list, np.ndarray):
+        return np.ndarray.flatten(data_list)
     return data_list[:1] + flatten(data_list[1:])
 
 # simple way to return either the length of a list, or the "length" of a single number
@@ -243,3 +245,7 @@ def find(lst, elem):
         if x == elem:
             return i
     return None
+
+# splits the passed in list 'seq' into chunks of size 'size'
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))

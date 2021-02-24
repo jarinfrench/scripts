@@ -2,7 +2,7 @@
 
 # This script will generate the rotation matrix for the given misorientation axis
 # Input:
-#    _rotation_axis     This specifies the axis around which the grains are rotated
+#    _rotation_axis     This specifies the axis around which the grains are
 #                       rotated. (type: int (100), list ([1, 0, 0]) or string ('100'))
 #
 #                       boundary normal to be determined. (type: string) TODO: determine if a mixed boundary is possible

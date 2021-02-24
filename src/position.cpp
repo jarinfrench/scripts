@@ -1,4 +1,5 @@
 #include "position.h"
+#include <cmath>
 
 // Default constructor sets position to the origin
 Position::Position() : x(0), y(0), z(0) {}
@@ -22,6 +23,15 @@ Position::Position(std::vector <double> pos) {
   this->z = pos[2];
 }
 
+double Position::distance(const Position& p) {
+  Position pos;
+  pos.setX(this->x - p.getX());
+  pos.setY(this->y - p.getY());
+  pos.setZ(this->z - p.getZ());
+  
+  return std::sqrt(pos[0] * pos[0] + pos[1] * pos[1] + pos[2] * pos[2]);
+}
+
 Position& Position::operator+=(const Position& rhs) {
   this->x += rhs.getX();
   this->y += rhs.getY();
@@ -33,6 +43,20 @@ Position& Position::operator-=(const Position& rhs) {
   this->x -= rhs.getX();
   this->y -= rhs.getY();
   this->z -= rhs.getZ();
+  return *this;
+}
+
+Position& Position::operator*=(const double& rhs) {
+  this->x *= rhs;
+  this->y *= rhs;
+  this->z *= rhs;
+  return *this;
+}
+
+Position& Position::operator/=(const double& rhs) {
+  this->x /= rhs;
+  this->y /= rhs;
+  this->z /= rhs;
   return *this;
 }
 

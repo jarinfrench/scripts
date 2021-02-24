@@ -4,18 +4,6 @@ from sys import argv, exit
 import os
 import argparse
 
-def check_range(val):
-    try:
-        value = float(val)
-    except ValueError as err:
-        raise argparse.ArgumentTypeError(str(err))
-
-    if value < 0 or value > 3300:
-        message = "Temperature out of fitted range. Expected 0 <= T <= 3300, got value = {}".format(value)
-        raise argparse.ArgumentTypeError(message)
-
-    return value
-
 def printFits(fits):
     print("There are {l} fits:".format(l = len(fits)))
     for i,fit in enumerate(fits):

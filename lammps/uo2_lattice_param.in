@@ -1,0 +1,66 @@
+units         metal
+atom_style    charge
+timestep      0.002
+dimension     3
+boundary      p p p
+
+lattice fcc 5.454
+
+region whole block 0.0 10.0 0.0 10.0 0.0 5.0 units lattice
+region 1 block 0.0 10.0 0.0 10.0 0.0 5.0 units lattice
+
+create_box 2 whole
+
+create_atoms 1 region 1
+
+lattice custom 5.454 basis 0.25 0.25 0.25 &
+  basis 0.25 0.25 0.75 &
+  basis 0.25 0.75 0.25 &
+  basis 0.25 0.75 0.75 &
+  basis 0.75 0.25 0.25 &
+  basis 0.75 0.25 0.75 &
+  basis 0.75 0.75 0.25 &
+  basis 0.75 0.75 0.75
+
+create_atoms 2 region 1
+
+mass 1 238.0289
+mass 2 15.9994
+
+group uranium type 1
+group oxygen type 2
+
+set group uranium charge +2.4
+set group oxygen  charge -1.2
+
+kspace_style pppm 1.0e-5
+
+pair_style hybrid/overlay buck/coul/long 11.0 morse 11.0
+
+pair_coeff 1 1 buck/coul/long 294.63998712541093 0.327022 0.0 11.0
+pair_coeff 1 2 buck/coul/long 693.64876989599281 0.327022 0.0 11.0
+pair_coeff 2 2 buck/coul/long 1633.0051486644522 0.327022 3.948788013 11.0
+pair_coeff 1 2 morse 0.57718803139609665 1.65 2.369 11.0
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp press pe pxx pyy pzz pxy pxz pyz lx ly lz
+thermo_modify flush yes
+thermo 100
+
+variable LLX equal (xhi-xlo)
+variable LLY equal (yhi-ylo)
+variable LLZ equal (zhi-zlo)
+
+print "LX=${LLX}, LY=${LLY}, LZ=${LLZ}"
+
+print "Temperature is set at ${T1}"
+print "The seed for velocity distribution is ${SEED}"
+velocity all create ${T1} ${SEED} mom yes dist gaussian loop all
+
+fix npt_thermostat all npt temp ${T1} ${T1} 0.2 iso 0.0 0.0 0.2 drag 0.20
+
+dump atompos all custom 1000 dump.pos.*.dat id type x y z vx vy vz
+
+run 50000

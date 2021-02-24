@@ -1,6 +1,5 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
-from __future__ import division, print_function
 import matplotlib.pyplot as plt
 from sys import argv, exit
 from os.path import basename, splitext
@@ -16,6 +15,10 @@ parser.add_argument('--add-origin', action = 'store_true', help = "Adds the poin
 parser.add_argument('--no-legend', action = 'store_true', help = "Flag to not put a legend on the plot")
 parser.add_argument('-p', '--plot-type', choices = ['s','l'], default = 's', help = "(s)catter plot or (l)ine plot")
 parser.add_argument('-d','--delimiter', default = ',', help = "The delimiter between data values (default: \',\')")
+parser.add_argument('-m', '--minimum', action = 'store_true', help = "Print the minimum data value of the plot")
+parser.add_argument('-M', '--maximum', action = 'store_true', help = "Print the maximum data value of the plot")
+parser.add_argument('-x', '--abscissa', type = int, help = "The column used for the x axis", default = 0)
+parser.add_argument('-y', '--ordinate', type = int, help = "The column used for the y axis", default = 1)
 args = parser.parse_args()
 
 if not args.x_label:
@@ -49,7 +52,10 @@ plot_style = ['bo', 'go', 'ro', 'co', 'mo', 'yo', 'ko',
               'b|', 'g|', 'r|', 'c|', 'm|', 'y|', 'k|',
               'b_', 'g_', 'r_', 'c_', 'm_', 'y_', 'k_']
 x_max = 0.0
-x_min = 0.0
+x_min = 1.0e20
+data_mins = []
+data_maxs = []
+data = []
 for i in range(len(args.files)):
     if args.add_origin:
         x_data = [0.0]
@@ -60,19 +66,21 @@ for i in range(len(args.files)):
     fin = open(args.files[i])
     reader = csv.reader(fin, delimiter = args.delimiter)
 
-    for data in reader:
-        if not (data) or data[0].startswith("#"):
+    for j,line in enumerate(reader):
+        vals = line[0].split()
+        if not (vals) or vals[0].startswith("#"):
             continue
-        elif len(data) > 2:
-            print("Too many values in line {}: {}".format(reader.line_num, data))
-            exit(2)
         else:
-            x_data.append(float(data[0]))
-            y_data.append(float(data[1]))
+            if len(vals) == 1:
+                x_data.append(j)
+                y_data.append(float(vals[0]))
+            else:
+                x_data.append(float(vals[args.abscissa]))
+                y_data.append(float(vals[args.ordinate]))
+
 
     # Sort the data
-    xy1 = zip(x_data, y_data)
-    xy1.sort()
+    xy1 = sorted(zip(x_data, y_data))
     x_data = [x for x,y in xy1]
     y_data = [y for x,y in xy1]
 
@@ -83,9 +91,20 @@ for i in range(len(args.files)):
         plot_style[i] += '-'
     plt.plot(x_data, y_data, plot_style[i], label=splitext(basename(args.files[i]))[0])
 
+    if args.maximum:
+        data_maxs.append(max(xy1, key = lambda item: item[1]))
+    if args.minimum:
+        data_mins.append(min(xy1, key = lambda item: item[1]))
+
+if args.maximum:
+    for i,item in enumerate(data_maxs):
+        print(f"Max value for {args.files[i]}: {item}")
+if args.minimum:
+    for i,item in enumerate(data_mins):
+        print(f"Min value for {args.files[i]}: {item}")
+
 plt.xlabel(args.x_label)
 plt.ylabel(args.y_label)
-#plt.ylabel(r"Energy (J/m$^2$)")
 plt.xlim(x_min, x_max)
 plt.title(args.title)
 if not args.no_legend:

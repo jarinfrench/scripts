@@ -1,0 +1,16 @@
+# for UMo, we pass in the structure = bcc, and a0 = 3.52 (or 3.542, depending on
+# the potential) to the driver script.
+# We now need to substitute the Mo atoms into the pure structure
+# Note that an additional parameter, fraction, must be passed in via command line
+
+if "$(!is_defined(variable,fraction))" then &
+    "print 'Needs "fraction" variable passed via command line!'" &
+    "quit 1"
+set group all type/fraction 2 ${fraction} ${SEED}
+
+group uranium type 1
+group molybdenum type 2
+
+pair_style adp
+
+pair_coeff * * /home/jarinf/LAMMPS/lammps/potentials/U_Mo.alloy.corrected.adp.txt U Mo

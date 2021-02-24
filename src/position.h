@@ -28,12 +28,20 @@ public:
   void setY(double y) {this->y = y;}
   void setZ(double z) {this->z = z;}
 
+  double distance(const Position& p); // distance between this point and another.
+
   void print2D(std::ostream& stream) {stream << "(" << this->x << "," << this->y << ")";}
   void print2DSpace(std::ostream& stream) {stream << this->x << " " << this->y;}
   void print3DSpace(std::ostream& stream) {stream << this->x << " " << this->y << " " << this->z;}
 
-  Position& operator+=(const Position& rhs);
-  Position& operator-=(const Position& rhs);
+  // Member operator overloads - defined in the .cpp file
+  // NOTE: Because the base type of each Point member is a double, all data types
+  // are implicitly converted to doubles, thus the only operator overloads that
+  // are required are the ones for doubles.
+  Position& operator += (const Position& rhs);
+  Position& operator -= (const Position& rhs);
+  Position& operator *= (const double& rhs);
+  Position& operator /= (const double& rhs);
   double& operator[](int index);
 };
 
@@ -62,20 +70,16 @@ inline double operator * (const Position& lhs, const Position& rhs) {
   return (lhs.getX() * rhs.getX() + lhs.getY() * rhs.getY() + lhs.getZ() * rhs.getZ());
 }
 
-template <typename T>
-inline Position operator * (const Position& lhs, const T& rhs) {
-  static_assert(std::is_arithmetic<T>::value, "Cannot multiply non-numeric values");
+inline Position operator * (const Position& lhs, const double& rhs) {
   return Position(lhs.getX() * rhs, lhs.getY() * rhs, lhs.getZ() * rhs);
 }
 
-template <typename T>
-inline Position operator * (const T& lhs, const Position& rhs) {
-  static_assert(std::is_arithmetic<T>::value, "Cannot multiply non-numeric values");
+inline Position operator * (const double& lhs, const Position& rhs) {
   return rhs * lhs;
 }
 
-inline Position operator * (const Position& lhs, const int& rhs) {
-  return Position(lhs.getX() * rhs, lhs.getY() * rhs, lhs.getZ() * rhs);
+inline Position operator / (const Position& lhs, const double& rhs) {
+  return (Position(lhs.getX() / rhs, lhs.getY() / rhs, lhs.getZ() / rhs));
 }
 
 #endif // POSITION_H

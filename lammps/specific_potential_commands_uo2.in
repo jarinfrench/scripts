@@ -1,0 +1,30 @@
+# for uo2, we pass in the structure = fcc, and a0 = 5.454 to the driver script
+# We now need to add the O atoms, and generate the appropriate commands
+lattice custom 5.454 basis 0.25 0.25 0.25 &
+  basis 0.25 0.25 0.75 &
+  basis 0.25 0.75 0.25 &
+  basis 0.25 0.75 0.75 &
+  basis 0.75 0.25 0.25 &
+  basis 0.75 0.25 0.75 &
+  basis 0.75 0.75 0.25 &
+  basis 0.75 0.75 0.75
+
+create_atoms 2 region 1
+
+mass 1 238.0289
+mass 2 15.9994
+
+group uranium type 1
+group oxygen type 2
+
+set group uranium charge +2.4
+set group oxygen  charge -1.2
+
+kspace_style pppm 1.0e-5
+
+pair_style hybrid/overlay buck/coul/long 11.0 morse 11.0
+
+pair_coeff 1 1 buck/coul/long 294.63998712541093 0.327022 0.0 11.0
+pair_coeff 1 2 buck/coul/long 693.64876989599281 0.327022 0.0 11.0
+pair_coeff 2 2 buck/coul/long 1633.0051486644522 0.327022 3.948788013 11.0
+pair_coeff 1 2 morse 0.57718803139609665 1.65 2.369 11.0

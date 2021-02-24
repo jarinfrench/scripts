@@ -556,7 +556,7 @@ vector <Atom> generateImpurities(vector <Atom>& atoms, const vector <string>& co
     {
       if (impurity_details.atom_id[i] - 1 > atoms.size())
       {
-        cout << "Atom id " << impurity_details.atom_id[i] << " is larger than number of atoms\n";
+        cerr << "Atom id " << impurity_details.atom_id[i] << " is larger than number of atoms\n";
         exit(BOUNDS_ERROR);
       }
       atoms[impurity_details.atom_id[i] - 1].setMark(1);

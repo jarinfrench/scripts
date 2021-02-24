@@ -122,13 +122,15 @@ cd .tmp
 ProgressBarInit
 iter=1
 total=${num_args}
+num_frames=()
 for _gif in $@
 do
   # explode the gif into it's individual frames
   gif2anim -c ../${_gif}.gif
 
   # resize and title each one.
-  for frame in `ls ${_gif}_[0-9][0-9][0-9].gif`
+  num_frames[${#num_frames[@]}]=$(ls ${_gif}_[0-9][0-9][0-9].gif | wc -l)
+  for frame in $(ls ${_gif}_[0-9][0-9][0-9].gif)
   do
     basename="${frame%.*}"
     new_name="${basename}_small.gif"
@@ -141,10 +143,26 @@ do
   ProgressBar ${iter} ${total} "Frame Splitting"
   ((iter++))
 done
+if [[ "${#num_frames[@]}" -gt 0 ]] && [[ $(printf "%s\000" "${num_frames[@]}" | LC_ALL=C sort -z -u | grep -z -c .) -eq 1 ]]; then
+  num_frames=${num_frames[0]}
+else
+  echo ""
+  echo "Warning! Number of frames not consistent between gifs! Using minimum number of frames."
+  min=${num_frames[0]}
+  idx=0
+  for val in ${num_frames[@]}; do
+    echo "Frames in gif ${idx}: ${val}"
+    ((idx++))
+    (( val < min )) && min=${val}
+  done
+  num_frames=${min}
+fi
 
 ProgressBarInit
 iter=1
-total=$(((${#append_plus[@]}+${#append_minus[@]})*10))
+# take the number of strings in append_plus, added to the number of strings in append_minus
+# and multiply by the number of frames.
+total=$(((${#append_plus[@]}+${#append_minus[@]})*${num_frames}))
 for pair in "${append_plus[@]}"
 do
   str_arr=(${pair})
@@ -157,7 +175,7 @@ do
     new_name="comb${index1}${index2}" # assumes that index2 will always be a number if index1 is a number
   fi
 
-  for frame in `seq -f '%03g' 1 10`
+  for frame in $(seq -f '%03g' 1 ${num_frames})
   do
     if ! [[ ${index1} =~ ${re} ]]; then # not a number, i.e. comb12
       if ! [[ ${index2} =~ ${re} ]]; then # not a number, i.e. comb34
@@ -183,7 +201,7 @@ do
   # Note that for the -append option, index1 will _always_ be non-numeric
   new_name="${index1}${index2//[!1-9]/}"
 
-  for frame in `seq -f '%03g' 1 10`
+  for frame in $(seq -f '%03g' 1 10)
   do
     if ! [[ ${index2} =~ ${re} ]]; then # not a number, i.e. comb34
       convert ${index1}_${frame}.gif ${index2}_${frame}.gif -append ${new_name}_${frame}.gif

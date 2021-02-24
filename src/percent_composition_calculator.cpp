@@ -44,7 +44,7 @@ void printAtomicWeights(const vector <string>& elements)
 vector <double> promptForNumbers(const string& percent_type, const vector <string>& elements)
 {
   vector <double> nums (elements.size(), 0.0);
-  for (size_t i = 0; i < elements.size(); ++i)
+  for (size_t i = 0; i < elements.size() - 1; ++i)
   {
     cout << "Enter the " << percent_type << " percent of element " << elements[i] << " : ";
     cin  >> nums[i];
@@ -54,6 +54,13 @@ vector <double> promptForNumbers(const string& percent_type, const vector <strin
       cin  >> nums[i];
     }
   }
+
+  nums[elements.size() - 1] = 1 - accumulate(nums.begin(), nums.end() - 1, 0.0);
+  if (nums.back() < 0) {
+    cerr << "Error: cannot have negative concentration (" << elements.back() << " = " << nums.back() << ")\n";
+    exit(INPUT_FORMAT_ERROR);
+  }
+  cout << "Assumed the " << percent_type << " percent of element " << elements.back() << " was " << nums.back() << "\n";
 
   if (abs(1.0 - accumulate(nums.begin(), nums.end(), 0.0)) > 1.0e-8)
   {

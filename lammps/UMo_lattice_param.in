@@ -1,0 +1,46 @@
+units         metal
+atom_style    atomic
+timestep      0.002
+dimension     3
+boundary      p p p
+
+lattice bcc 3.52 #for adp.  For ternary_eam, it's 3.542
+
+region whole block 0.0 10.0 0.0 10.0 0.0 5.0 units lattice
+region 1 block 0.0 10.0 0.0 10.0 0.0 5.0 units lattice
+
+create_box 2 whole
+
+create_atoms 1 region 1
+
+set group all type/fraction 2 ${fraction} ${SEED}
+
+group uranium type 1
+group molybdenum type 2
+
+pair_style adp
+
+pair_coeff * * /home/jarinf/LAMMPS/lammps/potentials/U_Mo.alloy.corrected.adp.txt U Mo
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp press pe pxx pyy pzz pxy pxz pyz lx ly lz
+thermo_modify flush yes
+thermo 100
+
+variable LLX equal (xhi-xlo)
+variable LLY equal (yhi-ylo)
+variable LLZ equal (zhi-zlo)
+
+print "LX=${LLX}, LY=${LLY}, LZ=${LLZ}"
+
+print "Temperature is set at ${T1}"
+print "The seed for velocity distribution and random Mo atoms is ${SEED}"
+velocity all create ${T1} ${SEED} mom yes dist gaussian loop all
+
+fix npt_thermostat all npt temp ${T1} ${T1} 0.2 iso 0.0 0.0 0.2 drag 0.20
+
+dump atompos all custom 1000 T${T1}.pos.*.dump id type x y z vx vy vz
+
+run 50000

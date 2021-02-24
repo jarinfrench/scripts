@@ -311,7 +311,7 @@ void generateICHex(vector <Field>& etas)
   unsigned int sqrt_num_centroids = sqrt(N_ETA);
   if (sqrt_num_centroids != sqrt(N_ETA))
   {
-    cout << "Number of centroids must be a perfect square.\n";
+    cerr << "Number of centroids must be a perfect square.\n";
     exit(INPUT_FORMAT_ERROR);
   }
 
@@ -899,7 +899,7 @@ double getMatrixValue(const vector <vector <double> >& mat, const vector <Field>
   if (bott == 0)
   {
     return mat[0][0];
-    // cout << "Matrix value is NaN, unable to continue.\n";
+    // cerr << "Matrix value is NaN, unable to continue.\n";
     // exit(BOUNDS_ERROR);
   }
   return top / bott;

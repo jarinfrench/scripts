@@ -46,7 +46,10 @@ std::ostream& operator << (std::ostream& os, const Atom& atom) {
      << "\n  x: " << atom.getWrapped()[0] << "(" << atom.getUnwrapped()[0] << ")"
      << "\n  y: " << atom.getWrapped()[1] << "(" << atom.getUnwrapped()[1] << ")"
      << "\n  z: " << atom.getWrapped()[2] << "(" << atom.getUnwrapped()[2] << ")"
-     << "\n  mark: " << atom.getMark() << std::endl;
+     << "\n  mark: " << atom.getMark() << "\n";
+  for (size_t i = 0; i < atom.getExtraInfo().size(); ++i) {
+    os << "  " << atom.getExtraInfoNames()[i] << ": " << atom.getExtraInfo()[i] << "\n";
+  }
 
   return os;
 }

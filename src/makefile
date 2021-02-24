@@ -31,22 +31,22 @@ BIN =../bin
 # -Z outputs a zero byte (NULL character) instead of the character that normally follows the file name
 # -l prints the name of each input file that does have a match
 OMPFILES := $(shell $(GREP) -lr "\#include <omp.h>" *.cpp)
-ATOMFILES := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp)
-UTILFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="phase_field.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"")
-POSITIONFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" | xargs -0 grep -lr "\#include \"position.h\"")
+ATOMFILES := $(shell $(GREP) -lr --exclude="atom.cpp" --exclude="verifyNewFile.cpp" "\#include \"atom.h\"" *.cpp)
+UTILFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" --exclude="phase_field.cpp" --exclude="Box.cpp" --exclude="LAMMPSDataFileReader.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"")
+POSITIONFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" --exclude="Box.cpp" | xargs -0 grep -lr "\#include \"position.h\"")
 
-ATOMPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed "s/.cpp//g")
-ATOMDBGPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" "\#include \"atom.h\"" *.cpp | sed 's/.cpp/_dbg /g')
-UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="phase_field.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
-UTILSDBG := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="phase_field.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
-POSITIONPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp//g')
-POSITIONDBGPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
+ATOMPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" --exclude="verifyNewFile.cpp" "\#include \"atom.h\"" *.cpp | sed "s/.cpp//g")
+ATOMDBGPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" --exclude="verifyNewFile.cpp" "\#include \"atom.h\"" *.cpp | sed 's/.cpp/_dbg /g')
+UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" --exclude="phase_field.cpp" --exclude="Box.cpp" --exclude="LAMMPSDataFileReader.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
+UTILSDBG := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" --exclude="phase_field.cpp" --exclude="Box.cpp" --exclude="LAMMPSDataFileReader.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
+POSITIONPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp//g')
+POSITIONDBGPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
 ALLEXECUTABLES = $(ATOMPROGS) $(ATOMDBGPROGS) $(UTILS) $(UTILSDBG) $(POSITIONPROGS) $(POSITIONDBGPROGS)
 
 ERRORCODES = error_code_defines.h
 
 all: FLAGS = $(CLIB) $(NODBGFLAGS)
-all: atom.o position.o atom_builds utils position_builds phase_field
+all: atom.o position.o atom_builds utils position_builds phase_field Box.o verifyNewFile.o LAMMPSDataFileReader.o
 
 debug: FLAGS = $(CLIB) $(DBGFLAGS)
 debug: atom_builds_dbg utils_dbg position_builds_dbg phase_field_dbg
@@ -60,29 +60,44 @@ phase_field_dbg: TARGETS = position.o
 phase_field_dbg: $(addprefix $(BIN)/, phase_field_dbg) position.o
 
 # The extra line for each rule allows a different value to be passed to the pattern-matched rule.
-atom_builds: TARGETS=atom.o position.o
+atom_builds: TARGETS=atom.o position.o verifyNewFile.o
 atom_builds: $(addprefix $(BIN)/, $(ATOMPROGS)) atom.o
 
-utils: TARGETS=
+utils: TARGETS=verifyNewFile.o
 utils: $(addprefix $(BIN)/, $(UTILS))
 
-position_builds: TARGETS=position.o
+position_builds: TARGETS=position.o verifyNewFile.o
 position_builds: $(addprefix $(BIN)/, $(POSITIONPROGS)) position.o
 
-atom_builds_dbg: TARGETS=atom.o position.o
+atom_builds_dbg: TARGETS=atom.o position.o verifyNewFile.o
 atom_builds_dbg: $(addprefix $(BIN)/, $(ATOMDBGPROGS)) atom.o position.o
 
-utils_dbg: TARGETS=
+utils_dbg: TARGETS=verifyNewFile.o
 utils_dbg: $(addprefix $(BIN)/, $(UTILSDBG))
 
-position_builds_dbg: TARGETS=position.o
+position_builds_dbg: TARGETS=position.o verifyNewFile.o
 position_builds_dbg: $(addprefix $(BIN)/, $(POSITIONDBGPROGS)) position.o
 
 atom.o : atom.h atom.cpp
-	$(CC) -O3 $(STDLIB) $(CLIB) -c atom.cpp $(ADDITIONAL_LDFLAGS)
+	$(CC) -O3 $(CXXFLAGS) $(STDLIB) $(CLIB) -c atom.cpp $(ADDITIONAL_LDFLAGS)
 
 position.o : position.h position.cpp
-	$(CC) -O3 $(STDLIB) $(CLIB) -c position.cpp $(ADDITIONAL_LDFLAGS)
+	$(CC) -O3 $(CXXFLAGS) $(STDLIB) $(CLIB) -c position.cpp $(ADDITIONAL_LDFLAGS)
+
+verifyNewFile.o : verifyNewFile.h verifyNewFile.cpp
+	$(CC) -O3 $(CXXFLAGS) $(STDLIB) $(CLIB) -c verifyNewFile.cpp $(ADDITIONAL_LDFLAGS)
+
+Box.o : Box.h Box.cpp
+	$(CC) -O3 $(CXXFLAGS) $(STDLIB) $(CLIB) -c Box.cpp $(ADDITIONAL_LDFLAGS)
+
+LAMMPSDataFileReader.o : LAMMPSDataFileReader.h LAMMPSDataFileReader.cpp
+	$(CC) -O3 $(CXXFLAGS) $(STDLIB) $(CLIB) -c LAMMPSDataFileReader.cpp $(ADDITIONAL_LDFLAGS)
+
+$(BIN)/convert2coreshell : $$(addsuffix .cpp, $$(subst _dbg,,$$(@F))) atom.o position.o verifyNewFile.o Box.o $$(ERRORCODES)
+	$(CC) $(strip $(FLAGS)) $(addprefix $(BIN)/, $(@F)) $(CXXFLAGS) $(addsuffix .cpp, $(subst _dbg,,$(@F))) atom.o position.o verifyNewFile.o Box.o $(ADDITIONAL_LDFLAGS)
+
+$(BIN)/convert2coreshell_dbg : $$(addsuffix .cpp, $$(subst _dbg,,$$(@F))) atom.o position.o verifyNewFile.o Box.o $$(ERRORCODES)
+	$(CC) $(strip $(FLAGS)) $(addprefix $(BIN)/, $(@F)) $(CXXFLAGS) $(addsuffix .cpp, $(subst _dbg,,$(@F))) atom.o position.o verifyNewFile.o Box.o $(ADDITIONAL_LDFLAGS)
 
 # Explanation of this rule:
 # the % sign is simply what caused this rule to be used.
@@ -92,7 +107,7 @@ position.o : position.h position.cpp
 # the replacement string, and the third argument ($(@F) in this case) is the string
 # to perform the replacement on.
 $(BIN)/% : $$(addsuffix .cpp, $$(subst _dbg,,$$(@F))) $$(TARGETS) $$(ERRORCODES)
-	$(CC) $(strip $(FLAGS)) $(addprefix $(BIN)/, $(@F)) $(addsuffix .cpp, $(subst _dbg,,$(@F))) $(TARGETS) $(ADDITIONAL_LDFLAGS)
+	$(CC) $(strip $(FLAGS)) $(addprefix $(BIN)/, $(@F)) $(CXXFLAGS) $(addsuffix .cpp, $(subst _dbg,,$(@F))) $(TARGETS) $(ADDITIONAL_LDFLAGS)
 
 # ls -I '*.*' lists all files that do NOT match the pattern '*.*' - all of the
 # executables created from this makefile.  BEWARE CHANGING FORMATS FOR OTHER FILE TYPES

@@ -128,7 +128,7 @@ pair <int, int> getAtomData(const string& filename, vector <Atom>& atoms)
       case 5: charge = 0.0;
               x = data[2]; y = data[3]; z = data[4];
               break;
-      default: cout << "Unrecognized file format.  Expected format: id type charge* x y z. * --> optional.\n";
+      default: cerr << "Unrecognized file format.  Expected format: id type charge* x y z. * --> optional.\n";
                exit(FILE_FORMAT_ERROR);
     }
 

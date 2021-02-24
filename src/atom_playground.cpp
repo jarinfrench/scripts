@@ -8,11 +8,12 @@
 #include <map>
 #include <set>
 #include <glob.h> // glob(), globfree()
-#include <alphanum.hpp>
+#include <cmath>
 
 #include "atom.h"
 #include "error_code_defines.h"
 
+#include "alphanum.hpp"
 #include <cxxopts.hpp>
 
 #define NO_CLUSTER_FOUND 10000000
@@ -135,13 +136,17 @@ double anInt(double x) {
 }
 
 void showCommandList() {
-  cout << "\nr,read        Specify a new file to analyze\n"
-       << "H,header      Show the header information\n"
-       << "s,select      Select atom by various criteria\n"
-       << "p,print       Print selected atom info\n"
-       << "c,cluster     Perform a cluster analysis of the snapshot\n"
-       << "q,quit,exit   Exit the software\n"
-       << "h,help        Show this list of accepted commands\n\n";
+  // TODO: implement a way to shortcut each command - r, re, rea, read for read, etc. for each command (no ambiguity, e.g. if two commands start with the same letter, it needs to go to the second letter, etc.)
+  // May need to use the iomanip library to make this cleaner
+  cout << "\nr,read            Specify a new file to analyze\n"
+       << "h,header          Show the header information\n"
+       << "s,select          Select atom by various criteria\n"
+       << "p,print           Print selected atom info\n"
+       << "c,cluster         Perform a cluster analysis of the snapshot\n"
+       << "co, concentration Examine concentration as a function of bin size\n"
+       // << "m,misorientation  Estimate the misorientation between two grains"
+       << "q,quit,exit       Exit the software\n"
+       << "?,help            Show this list of accepted commands\n\n";
 }
 
 void welcome() {
@@ -198,7 +203,7 @@ Header getHeaderData(const string& data_type, ifstream& fin) {
   } else if (data_type.compare("dat") == 0) {
     getline(fin, str); // first (comment) line
     if (str.find("[") == string::npos || str.find("]") == string::npos) {
-      cout << "Unable to identify data types.  The first line in the file should\n"
+      cerr << "Unable to identify data types.  The first line in the file should\n"
            << "have one set of [] with the data types listed inside, separated by spaces.\n";
       exit(FILE_FORMAT_ERROR);
     }
@@ -858,8 +863,178 @@ void clusterBatchMode(const string& cluster_args) {
     header = tmp.second;
     clusterAnalysis(atoms, header, cluster_types, structure, a0);
   }
-
 }
+
+string getConcentrationAnalysisType() {
+  string result = "";
+  string tmp = "";
+
+  cin.ignore();
+
+  while (tmp != "r" && tmp != "x" && tmp != "y" && tmp != "z") {
+      cout << "Enter r for radial bins, or x, y, or z for cartesian bins: ";
+      getline(cin, tmp);
+  }
+
+  result += tmp;
+
+  stringstream ss;
+  int nbins = 0;
+
+  ss << tmp;
+  ss >> nbins;
+  while (nbins < 1 || ss.fail()) {
+      ss.clear();
+      ss.str(string());
+      cout << "Enter the number of bins to use: ";
+      getline(cin, tmp);
+      if (tmp.find(".") != string::npos) {continue;}
+      if (tmp.find("-") != string::npos) {continue;}
+      ss << tmp;
+      ss >> nbins;
+  }
+  result += ss.str();
+
+  return result;
+}
+
+void concentrationAnalysis(vector <Atom>& atoms, const Header& header, string bin_type = "None", int nbins = -1, string output = "concentration_analysis.txt") {
+  struct Bin {
+    map <unsigned int, unsigned int> type_count;
+    unsigned int total = 0;
+  };
+  vector <Bin> histogram;
+  double binsize;
+  unsigned int bin;
+
+  if (bin_type.compare("None") == 0 && nbins == -1) {
+    string analysis = getConcentrationAnalysisType();
+    stringstream ss (analysis.substr(1));
+    ss >> nbins;
+    bin_type = analysis[0];
+  }
+
+  histogram.resize(nbins);
+
+  if (bin_type[0] == 'r') {
+    double radius = min(header.Lx, header.Ly) / 2.0;
+    double rsq = radius * radius;
+    binsize = radius / nbins;
+    int num_ignored = 0;
+    if (binsize < 1) {
+      cout << "Too many bins - bin size too small. Changing binsize to minimum of 1 Angstrom\n";
+      binsize = 1;
+      nbins = floor(radius);
+    }
+    Position center(header.Lx, header.Ly, header.Lz); center /= 2.0;
+    for (size_t i = 0; i < atoms.size(); ++i) {
+      Position p = atoms[i].getWrapped() - center;
+      double radial_distance = p[0] * p[0] + p[1] * p[1];
+      if (radial_distance > rsq) {++num_ignored; continue;}
+      else {
+        bin = floor(radial_distance / rsq * nbins);
+        ++histogram[bin].type_count[atoms[i].getType()];
+        ++histogram[bin].total;
+      }
+    }
+
+    cout << num_ignored << " atoms ignored in this analysis\n";
+  } else {
+    if (bin_type[0] == 'x') {
+      binsize = header.Lx / nbins;
+    } else if (bin_type[0] == 'y') {
+      binsize = header.Ly / nbins;
+    } else {
+      binsize = header.Lz / nbins;
+    }
+    if (binsize < 1) {
+      cout << "Too many bins - bin size too small. Changing binsize to minimum of 1 Angstrom\n";
+      binsize = 1;
+    }
+
+    for (size_t i = 0; i < atoms.size(); ++i) {
+      if (bin_type[0] == 'x') {bin = floor(atoms[i].getWrapped()[0] / binsize);}
+      else if (bin_type[0] == 'y') {bin = floor(atoms[i].getWrapped()[1] / binsize);}
+      else {bin = floor(atoms[i].getWrapped()[2] / binsize);}
+
+      ++histogram[bin].type_count[atoms[i].getType()];
+      ++histogram[bin].total;
+    }
+  }
+
+  ofstream fout(output.c_str());
+  checkFileStream(fout, output);
+  fout << "#bin ";
+  for (size_t i = 0; i < header.n_types; ++i) {fout << "type" << i + 1 << "count ";}
+  fout << "total\n";
+  fout << "# bin size = " << binsize << "\n";
+  for (size_t i = 0; i < histogram.size(); ++i) {
+    fout << i + 1 << " ";
+    for (size_t j = 1; j <= header.n_types; ++j) { // we start at 1 because we are using a map of the actual type numbers
+      fout << histogram[i].type_count[j] << " ";
+    }
+    fout << histogram[i].total << "\n";
+  }
+
+  fout.close();
+}
+
+void concentrationAnalysisBatchMode(const string& concentration_args) {
+  vector <string> args;
+  vector <string> files;
+  string str, output;
+  int nbins;
+
+  stringstream ss(concentration_args);
+
+  while (ss >> str) {args.push_back(str);}
+
+  // the double indexing is required to convert from string to char
+  if (args[0][0] != 'r' && args[0][0] != 'x' && args[0][0] != 'y' && args[0][0] != 'z') {
+    cerr << "Unknown binning type '" << args[0] << ".' One of r|x|y|z must be specified.\n";
+    exit(OPTION_PARSING_ERROR);
+  }
+
+  if (args[1].find("-") != string::npos || args[1].find(".") != string::npos) {
+    cerr << "Number of bins must be a positive integer\n";
+    exit(OPTION_PARSING_ERROR);
+  } else {
+    ss.clear();
+    ss.str(args[1]);
+    if (!(ss >> nbins)) {
+      cerr << "Error reading number of bins.\n";
+    }
+  }
+
+  files.assign(args.begin() + 2, args.end()); // all the other arguments are the files.
+  vector <string> expanded_files;
+  size_t files_size_initial = files.size();
+  for (size_t i = 0; i < files_size_initial;) {
+    if (files[i].find("*") != string::npos) {
+      expanded_files = expandGlob(files[i]);
+      files.insert(files.end(), expanded_files.begin(), expanded_files.end());
+      files.erase(files.begin() + i);
+    } else { ++i;}
+  }
+
+  sort(files.begin(), files.end(), doj::alphanum_less<string>());
+
+  for (size_t i = 0; i < files.size(); ++i) {
+    cout << "File " << files[i] << ": ";
+    pair <vector <Atom>, Header> tmp = readFile(files[i]);
+    vector <Atom> atoms = tmp.first;
+    Header header = tmp.second;
+    output = files[i].substr(0, files[i].find(".")) + "_concentration_analysis.txt";
+    concentrationAnalysis(atoms, header, args[0], nbins, output);
+  }
+}
+// void misorientationAnalysis() {
+//   // Probably will need the find_grains output to properly analyze the data...
+//   // At this point, I think I need to rewrite the other files as classes, and then
+//   // include them here to make things more intuitive.
+//   cerr << "Misorientation analysis not implemented yet.\n";
+//   return;
+// }
 
 void playground(string filename = "None") {
   bool leave_playground = false;
@@ -879,14 +1054,14 @@ void playground(string filename = "None") {
 
     if (command.compare("quit") == 0 || command.compare("exit") == 0 || command.compare("q") == 0) {
       leave_playground = true;
-    } else if (command.compare("help") == 0 || command.compare("h") == 0) {
+    } else if (command.compare("help") == 0 || command.compare("?") == 0) {
       showCommandList();
     } else if (command.compare("read") == 0 || command.compare("r") == 0) {
       filename = getFileName();
       pair <vector <Atom>, Header> tmp = readFile(filename);
       atoms = tmp.first;
       header = tmp.second;
-    } else if (command.compare("header") == 0 || command.compare("H") == 0) {
+    } else if (command.compare("header") == 0 || command.compare("h") == 0) {
       if (atoms.size() == 0) {
         cout << "No atomic information has been read yet!  Specify a file to read with r or read.\n";
       }
@@ -900,6 +1075,10 @@ void playground(string filename = "None") {
       printSelectedAtomInfo(selected_atoms, header);
     } else if (command.compare("cluster") == 0 || command.compare("c") == 0) {
       clusterAnalysis(atoms, header);
+    } else if (command.compare("concentration") == 0 || command.compare("co") == 0) {
+      concentrationAnalysis(atoms, header);
+    // } else if (command.compare("misorientation") == 0 || command.compare("m") == 0) {
+    //   misorientationAnalysis();
     } else {
       cout << "Unrecognized command!\n";
     }
@@ -908,7 +1087,7 @@ void playground(string filename = "None") {
 
 int main(int argc, char** argv) {
   string file;
-  string cluster_args;
+  string cluster_args, concentration_args;
 /*  wchar_t *program = Py_DecodeLocale(argv[0], NULL);
   if (program == NULL) {
     cerr << "Error: cannot decode argv[0]\n";
@@ -928,6 +1107,7 @@ int main(int argc, char** argv) {
       .add_options()
         ("f,file", "Data file to play with", cxxopts::value<string>(file), "data_file")
         ("c,cluster", "Batch mode for cluster analysis", cxxopts::value<string>(cluster_args), "\"atom_type(s) a0 structure file(s)\"")
+        ("u,concentration", "Batch mode for concentration analysis", cxxopts::value<string>(concentration_args), "\"r|x|y|z nbins file(s)\"")
         ("h,help", "Show the help");
 
     options.parse_positional({"file"});
@@ -943,11 +1123,26 @@ int main(int argc, char** argv) {
       int num_args = 0;
       while (ss >> dummy) {++num_args;}
       if (num_args < 4) {
-        cout << "Cluster batch mode requires a space separated string of at least four arguments:\n"
+        cerr << "Cluster batch mode requires a space separated string of at least four arguments:\n"
              << "atom_type(s) a0 structure file(s)\n";
-        exit(OPTION_PARSING_ERROR);
+        return OPTION_PARSING_ERROR;
       } else {
         clusterBatchMode(cluster_args);
+      }
+      return EXIT_SUCCESS;
+    }
+
+    if (result.count("concentration")) {
+      stringstream ss(concentration_args);
+      string dummy;
+      int num_args = 0;
+      while (ss >> dummy) {++num_args;}
+      if (num_args < 3) {
+        cerr << "Concentration batch mode requires a space separated string of at least three arguments:\n"
+             << "r|x|y|z nbins file(s)\n";
+        return OPTION_PARSING_ERROR;
+      } else {
+        concentrationAnalysisBatchMode(concentration_args);
       }
       return EXIT_SUCCESS;
     }

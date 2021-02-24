@@ -13,6 +13,7 @@
 #include "atom.h"
 #include "position.h"
 #include "error_code_defines.h"
+#include "verifyNewFile.h"
 
 using namespace std;
 
@@ -56,7 +57,7 @@ double calculateAxisMagnitude(const vector <double>& axis) {
 vector <double> normalize(const vector <double>& axis) {
   vector <double> result (3, 0.0);
   if (axis.size() != 3) {
-    cout << "Vector size is incorrect (" << axis.size() << " != 3). Cannot normalize.\n";
+    cerr << "Vector size is incorrect (" << axis.size() << " != 3). Cannot normalize.\n";
     exit(VECTOR_SIZE_ERROR);
   }
 
@@ -201,6 +202,7 @@ struct inputData {
       }
     }
 
+    // This code is adapted from LAMMPS fix_eco_force.cpp.
     double b1_vol = 0.5 / PI *
               (basis_1[0][0] * (basis_1[1][1] * basis_1[2][2] - basis_1[1][2] * basis_1[2][1]) +
               (basis_1[0][1] * (basis_1[1][2] * basis_1[2][0] - basis_1[1][0] * basis_1[2][2])) +
@@ -230,8 +232,8 @@ struct inputData {
     reciprocal_2[2][1] = (basis_2[0][2] * basis_2[1][0] - basis_2[0][0] * basis_2[1][2]) / b2_vol;
     reciprocal_2[2][2] = (basis_2[0][0] * basis_2[1][1] - basis_2[0][1] * basis_2[1][0]) / b2_vol;
 
-    double layer = 4; // Not sure where this comes from
     double dijx, dijy, dijz, dikx, diky, dikz, rsqij, rsqik, scalarprod, wij, wik;
+    int layer = 4; // Not sure where this comes from
     double cut_sq = r_cut * r_cut * a0 * a0;
     int neigh = 0;
 
@@ -472,7 +474,7 @@ vector <Atom> getAtomData(ifstream& fin, const inputData& input, const boxData& 
               x = data[2]; y = data[3]; z = data[4];
               xu = 0.0; yu = 0.0; zu = 0.0;
               break;
-      default: cout << "Unrecognized data format. Expected format: id type charge* x y u (xu yu zu)* (*Optional).\n";
+      default: cerr << "Unrecognized data format. Expected format: id type charge* x y u (xu yu zu)* (*Optional).\n";
                exit(FILE_FORMAT_ERROR);
     }
     data.clear();
@@ -869,19 +871,18 @@ vector <double> ulomekSymmetryParameter(vector <Atom>& atoms,
 
         rsqik = (dikx * dikx + diky * diky + dikz * dikz) / cutsq;
         wik = rsqik * (rsqik - 2) + 1;
-        for (int alpha = 0; alpha < 6; ++alpha)
-        {
+        for (int alpha = 0; alpha < 6; ++alpha) {
           scalarprod = Q[alpha][0] * (dikx - dijx) + Q[alpha][1] * (diky - dijy) + Q[alpha][2] * (dikz - dijz);
           symm[i] += kappa[alpha] * wij * wik * cos(scalarprod);
-        }
-      }
-    }
+        } // alpha
+      } // atom ll
+    } // atom l
     symm[i] /= input.scalenorm;
   }
 
   // Note that an adjustment parameter can assign atoms to a grain boundary, rather than to a grain
   for (size_t i = 0; i < symm.size(); ++i) {
-    if (symm[i] > 0) {atoms[i].setMark(1);}
+    if (symm[i] > input.fi_cut) {atoms[i].setMark(1);}
     else {atoms[i].setMark(2);}
   }
   return symm;
@@ -947,10 +948,15 @@ void processData(const inputData& input) {
   vector <vector <int> > iatom; // cell-linked list
   vector <double> symm; // the orientation factors
 
-  ofstream fout_data(input.outfile.c_str());
-  checkFileStream(fout_data, input.outfile);
+  VerifyNewFile verify1(input.outfile);
+  ofstream fout_data(verify1.validNewFile().c_str());
+  checkFileStream(fout_data, verify1.validNewFile());
 
   fout_data << "# Data consists of: [timestep/file, atoms in grain 1, atoms in grain 2]\n";
+
+  // VerifyNewFile verify2("misorientation_data.txt");
+  // ofstream fout_misorientation(verify2.validNewFile().c_str());
+  // checkFileStream(fout_misorientation, verify2.validNewFile());
 
   int aa = 1;
   for (vector <string>::const_iterator it = input.files.begin(); it != input.files.end(); ++it) {
@@ -1067,7 +1073,7 @@ void processData(const inputData& input) {
     else if (input.algorithm == 'u') {symm = ulomekSymmetryParameter(atoms, iatom, allowed_atoms, input, box);}
     else if (input.algorithm == 't') {symm = trauttSymmetryParameter(atoms, iatom, allowed_atoms, input, box);}
     else {
-      cout << "Unknown orientation parameter algorithm. Exiting...\n";
+      cerr << "Unknown orientation parameter algorithm. Exiting...\n";
       exit(ERROR_CODE_NOT_DEFINED);
     }
 
@@ -1144,7 +1150,7 @@ int main(int argc, char** argv)
       .allow_unrecognised_options()
       .add_options()
         ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
-        ("o,output", "Output file", cxxopts::value<string>(input.outfile)->default_value("data.txt"), "file")
+        ("o,output", "Output file. Uniqueness is assured.", cxxopts::value<string>(input.outfile)->default_value("data.txt"), "file")
         ("e,every", "Option to specify how frequently interface files should be written. 1 specifies every file, 0 specifies none, any other integer specifies than every n files should be written. First and last interface files are always written if n != 0.", cxxopts::value<unsigned int>(input.print_files_every)->default_value("1"), "n")
         ("i,ignore", "Ignore atoms of a specific type (number) during neighbor list creation - each type must be specified separately", cxxopts::value<vector <int> >(), "atom_type")
         ("g,algorithm", "The algorithm for assigning atoms to grains. u - Ulomek, z - Zhang, j - Janssens, t - Trautt", cxxopts::value<char>(input.algorithm)->default_value("u"))

@@ -96,7 +96,7 @@ double extractMinEnergyFromFile(const string& file)
 
   if (energies.size() == 0)
   {
-    cout << "Did not find any energies to return in file " << file << "\n\n";
+    cerr << "Did not find any energies to return in file " << file << "\n\n";
     exit(FILE_FORMAT_ERROR);
   }
 
