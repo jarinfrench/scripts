@@ -17,3 +17,4 @@ completed.data
 undo.data
 sync_hook.log
 .netrwhist
+.atom/*

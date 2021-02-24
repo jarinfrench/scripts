@@ -10,9 +10,9 @@ compound_regex = r"_(?P<compound>(?:[A-Z](?:[a-z])?(?:[1-9])*)+)"
 axis_regex = r"_(?P<axis>[0-9][0-9][0-9])"
 size_regex = r"_(?P<size>[1-9][0-9]*x[1-9][0-9]*x[1-9][0-9]*)"
 potential_regex = r"_p(?P<potential>(?:[A-Z][a-z]*)+)"
-angle_regex = r"(?:_(?P<angle>[0-9]+(?:\.[0-9]+)?)degree)?"
-radius_regex = r"(?:_r(?P<radius>[1-9][0-9]*)A)?"
-concentration_regex = r"(?:_c(?P<concentration>0\.[0-9]+)(?P<type>wt|at)%(?P<solute>[A-Z][a-z]))?"
+angle_regex = r"(?:_(?P<angle>[0-9]+(?:\.[0-9]+)?)degree)"
+radius_regex = r"(?:_r(?P<radius>[1-9][0-9]*)A)"
+concentration_regex = r"(?:_c(?P<concentration>0\.[0-9]+)(?P<type>wt|at)%(?P<solute>[A-Z][a-z]))"
 extra_regex = r"(?:_(?P<extra>[a-zA-Z0-9_.-]*))?\.(?P<extension>dat|lmp)$"
 compound_re = re.compile(compound_regex)
 axis_re = re.compile(axis_regex)
@@ -22,7 +22,7 @@ r_re = re.compile(radius_regex)
 pot_re = re.compile(potential_regex)
 u_re = re.compile(concentration_regex)
 extra_re = re.compile(extra_regex)
-filename_regex = r"LAMMPS" + compound_regex + axis_regex + size_regex + potential_regex + angle_regex + radius_regex + concentration_regex + extra_regex
+filename_regex = r"LAMMPS" + compound_regex + axis_regex + size_regex + potential_regex + angle_regex + "?" + radius_regex + "?" + concentration_regex + "?" + extra_regex
 filename_re = re.compile(filename_regex)
 
 parser = argparse.ArgumentParser(usage = '%(prog)s [-h] [options]', description = "Validates the format of the LAMMPS data file name given to it. Offers suggestions if it fails.")

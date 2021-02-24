@@ -61,7 +61,7 @@ struct inputData {
   // strictly from input file
   string data_file, output_basename, molecule, crystal_structure, parsed_basename;
   double r_grain = 0, theta = 0, a0 = 0;
-  map <pair <int, int>, double> rcut;
+  map <pair <int, int>, double> rcut, rcut_percent;
 
   // calculated from input
   double r_grain_sq = 0, costheta = 0, sintheta = 0, r_cut_max = 0, r_cut_max_sq = 0;
@@ -131,7 +131,7 @@ struct inputData {
     ss >> radius_replace;
 
     // process the cutoff replacement string
-    cutoff_replace = to_string2(r_cut_max, 3);
+    cutoff_replace = to_string2(rcut_percent[make_pair(1, 1)], 2);
 
     // process the lattice parameter replacement string
     lattice_replace = to_string2(a0, 3);
@@ -152,25 +152,25 @@ struct inputData {
       found = parsed_basename.find(base, found + data_file_base.size()); // This takes care of the infinite loop if the special character sequence is in the original file name
     }
 
-    found = output_basename.find(radius);
+    found = parsed_basename.find(radius);
     while (found != string::npos) {
       parsed_basename.replace(found, radius.size(), radius_replace);
       found = parsed_basename.find(radius, found + radius_replace.size());
     }
 
-    found = output_basename.find(cutoff);
+    found = parsed_basename.find(cutoff);
     while (found != string::npos) {
       parsed_basename.replace(found, cutoff.size(), cutoff_replace);
       found = parsed_basename.find(cutoff, found + cutoff_replace.size());
     }
 
-    found = output_basename.find(s_a0);
+    found = parsed_basename.find(s_a0);
     while (found != string::npos) {
       parsed_basename.replace(found, s_a0.size(), lattice_replace);
       found = parsed_basename.find(s_a0, found + lattice_replace.size());
     }
 
-    found = output_basename.find(angle);
+    found = parsed_basename.find(angle);
     while (found != string::npos) {
       parsed_basename.replace(found, angle.size(), angle_replace);
       found = parsed_basename.find(angle, found + angle_replace.size());
@@ -351,6 +351,7 @@ vector <Atom> readDataFile(inputData& input) {
 
   input.box.calculateBoxLengths();
   input.calculateRGrainSq();
+  input.parseBaseName();
 
   fin.ignore();
   getline(fin, str); // read the extra stuff
@@ -755,9 +756,9 @@ void rotateAndRemove(vector <Atom>& atoms, inputData& input, const unsigned int&
   stringstream ss;
   if (!no_index) {ss << "_" << index;}
   ss << ".dat";
-  marked_filename = input.output_basename + "_marked" + ss.str();
-  rotated_filename = input.output_basename + "_rotated" + ss.str();
-  removed_filename = input.output_basename + "_removed" + ss.str();
+  marked_filename = input.parsed_basename + "_marked" + ss.str();
+  rotated_filename = input.parsed_basename + "_rotated" + ss.str();
+  removed_filename = input.parsed_basename + "_removed" + ss.str();
 
   if (input.theta > 1.0e-8) {rotateAtoms(input, atoms);}
   iatom = generateCellLinkedList(input, atoms);
@@ -855,7 +856,6 @@ vector <inputData> parseInputFile(const string& input_file) {
     input.calculateRGrainSq();
     input.calculateTrig();
     input.calculateNumElements();
-    input.parseBaseName();
     determineElementRatios(input);
     int combinations = ((input.n_types + 1) * input.n_types) / 2;
     double first_cutoff;
@@ -897,10 +897,12 @@ vector <inputData> parseInputFile(const string& input_file) {
 
         if (single_cutoff) {
           double val = first_cutoff * multiplier * input.a0;
+          input.rcut_percent.insert(make_pair(make_pair(i,j),first_cutoff));
           input.rcut.insert(make_pair(make_pair(i,j), val));
           input.rcut_sq.insert(make_pair(make_pair(i,j), val * val));
         } else {
           double val = tmp * multiplier * input.a0;
+          input.rcut_percent.insert(make_pair(make_pair(i,j),tmp));
           input.rcut.insert(make_pair(make_pair(i,j),val));
           input.rcut_sq.insert(make_pair(make_pair(i,j), val * val));
           if (val > input.r_cut_max) {input.r_cut_max = val;}
