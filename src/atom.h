@@ -67,7 +67,7 @@ public:
   // void setZu(double z) {this->zu = z;}
   void setUnwrapped(Position pos) {this->unwrapped = pos;}
   void setMark(int mark) {this->mark = mark;}
-  void setExtraInfo(unsigned int, double);
+  void setExtraInfo(double, unsigned int);
   void setExtraInfo(std::vector <double>);
   void setExtraInfoSize(unsigned int);
   void setExtraInfoNames(unsigned int, std::string);

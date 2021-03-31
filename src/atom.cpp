@@ -12,9 +12,13 @@ Atom::Atom(int id, int type, double charge, Position p) {
   mark = 0;
 }
 
-void Atom::setExtraInfo(unsigned int index, double val) {
-  if (index > this->extra_info.size()) {
-    setExtraInfoSize(index);
+void Atom::setExtraInfo(double val, unsigned int index = -1) {
+  if (index == -1) {
+    this->extra_info.push_back(val);
+    return;
+  }
+  if (index + 1 > this->extra_info.size()) {
+    setExtraInfoSize(index + 1);
   }
   this->extra_info[index] = val;
 }
