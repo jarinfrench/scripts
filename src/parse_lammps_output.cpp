@@ -123,10 +123,10 @@ void parseFile(const string& input_file, const string& output_file,
   bool time_step_found = false;
   bool unit_style_set = false;
   bool labels_written = false;
+  bool post_run = false;
 
   while (getline(fin, str))
   {
-
     // box length
     if (str.find(default_indicators[0]) != string::npos && !box_size_found)
     {
@@ -145,59 +145,30 @@ void parseFile(const string& input_file, const string& output_file,
     }
 
     // Number of atoms.
-    if (str.find(default_indicators[1]) != string::npos && !n_atoms_found)
-    { // Found "reading atoms ..."
-      ss.clear();
-      getline(fin, str);
-      ss.str(str);
-      ss >> N >> str2;
-      n_atoms_found = true;
-
-      fout << "\"N =\"" << separator << N << endl;
-      continue;
-    }
-    else if (str.find(default_indicators[1]) != string::npos && n_atoms_found)
-    {
-      ss.clear();
-      getline(fin, str);
-      ss.str(str);
+    if (str.find(default_indicators[1]) != string::npos ||
+        str.find(default_indicators[2]) != string::npos) {
+      bool read = str.find(default_indicators[1]) != string::npos; // read atoms (true), or created atoms (false)
       int tmp;
-      ss >> tmp >> str2;
-
-      if (tmp != N)
-      {
-        fout << "\"N =\"" << separator << tmp << endl;
-      }
-      continue;
-    }
-
-    if (str.find(default_indicators[2]) != string::npos && !n_atoms_found)
-    { // found "Created"
       ss.clear();
+      if (read) {getline(fin, str);}
       ss.str(str);
-      ss >> str2 >> N >> str2;
-      n_atoms_found = true;
-
-      fout << "\"N =\"" << separator << N << endl; // TODO: Make sure this only occurs once!
-      continue;
-    }
-    else if (str.find(default_indicators[2]) != string::npos && n_atoms_found)
-    {
-      ss.clear();
-      ss.str(str);
-      int tmp;
-      ss >> str2 >> tmp >> str2;
-
-      if (tmp != N)
-      {
-        fout << "\"N =\"" << separator << N << endl;
+      if (read) {ss >> tmp >> str2;}
+      else {ss >> str2 >> tmp >> str2;}
+      if (!n_atoms_found) {
+        n_atoms_found = true;
+        N = tmp;
+      } else {
+        if (!post_run) {N += tmp;}
+        else {N = tmp;}
       }
-      continue;
+
     }
 
     // Unit style
     if (str.find(default_indicators[6]) != string::npos && !unit_style_set)
     {
+      post_run = false;
+      fout << "\"N =\"" << separator << N << endl; // output the number of atoms
       ss.clear();
       ss.str(str);
       ss >> str2 >> str2 >> str2 >> unit_style;

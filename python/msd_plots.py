@@ -4,6 +4,7 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import sys, pwlf # PieceWise Linear Fitting
+import csv
 
 from GPyOpt.methods import BayesianOptimization
 
@@ -85,6 +86,12 @@ xyz_plt.text(0.05, 0.65, f"$D_x$ = {x_D:.2e} $\AA^2/ps$\n$D_y$ = {y_D:.2e}\n$D_z
              f"$D_{{xy}}$ = {xy_D:.2e}\n$D_{{xz}}$ = {xz_D:.2e}\n$D_{{yz}}$ = {yz_D:.2e}\n"
              f"$D_{{xyz}}$ = {xyz_D:.2e}", ha = 'left', transform = xyz_plt.transAxes)
 
+xyz_plt.text(0.50, 0.05, f"Fit ends at time t = {min_break:.0f} ps", ha = 'left', transform = xyz_plt.transAxes)
+
+with open("diffusion_data.csv", 'w') as f:
+    csvfile = csv.writer(f, delimiter=' ', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
+    csvfile.writerow(["#Time_Stop", "Dx", "Dy", "Dz", "Dxy", "Dxz", "Dyz", "Dxyz"])
+    csvfile.writerow([min_break, x_D, y_D, z_D, xy_D, xz_D, yz_D, xyz_D])
 
 x_plt.set_title("X")
 y_plt.set_title("Y")

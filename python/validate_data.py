@@ -8,7 +8,7 @@ import argparse
 parser = argparse.ArgumentParser(usage = '%(prog)s [-h] [options]', description = "Validates simulation output against input and the current directory")
 parser.add_argument('infile', help = "The LAMMPS command file (e.g. *.in or in.*)")
 parser.add_argument('--logname', default = "log.lammps", help = "The name of the LAMMPS log file. Default: log.lammps")
-parser.add_argument('--subfile', nargs = '+', default = "lmp.slurm", help = "The name(s) of the submission script used. Default: lmp.slurm")
+parser.add_argument('--subfile', type = str, nargs = '+', default = "lmp.slurm", help = "The name(s) of the submission script(s) used. Default: lmp.slurm")
 args = parser.parse_args()
 
 checkmark = Fore.GREEN + Style.BRIGHT + u'\u2713' + Style.RESET_ALL
@@ -219,7 +219,7 @@ if __name__ == "__main__":
 
     if not successful_run:
         print(f"{fancy_x} {os.getcwd()}")
-        print("No submission scripts found that match " + ", ".join([i for i in args.subfile]))
+        print("No submission scripts found that match " + ", ".join(i for i in args.subfile))
         sys.exit(0)
     if structure_match and temperature_match:
         print(f"{checkmark} {os.getcwd()}")

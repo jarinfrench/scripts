@@ -25,7 +25,7 @@ parser = argparse.ArgumentParser(usage = '%(prog)s temperature concentration pot
 parser.add_argument('T', type = float, help = "Desired temperature")
 parser.add_argument('c', type = float, help = "Desired concentration")
 parser.add_argument('p', type = int, help = "The desired potential to use")
-parser.add_argument('--database', help = "Database file location", default = os.environ['HOME']+'/projects/scripts/lattice_params_2.db')
+parser.add_argument('--database', help = "Database file location", default = os.environ['HOME']+'/projects/scripts/lattice_params.db')
 
 args = parser.parse_args()
 

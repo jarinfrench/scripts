@@ -50,6 +50,8 @@ std::ostream& operator << (std::ostream&, const Position&);
 std::istream& operator >> (std::istream&, Position&);
 bool operator==(const Position& lhs, const Position& rhs);
 bool operator!=(const Position& lhs, const Position& rhs);
+bool operator<(const Position& lhs, const Position& rhs);
+bool operator>(const Position& lhs, const Position& rhs);
 
 // inline non member operator overloads - must be defined in the .h file
 inline Position operator - (const Position& rhs) {
@@ -82,4 +84,6 @@ inline Position operator / (const Position& lhs, const double& rhs) {
   return (Position(lhs.getX() / rhs, lhs.getY() / rhs, lhs.getZ() / rhs));
 }
 
+double distance3D(const Position& lhs, const Position& rhs);
+double distance2D(const Position& lhs, const Position& rhs);
 #endif // POSITION_H

@@ -24,6 +24,7 @@ fzf - a fuzzy finder - see https://github.com/junegunn/fzf
 rename  - https://github.com/jhotmann/node-rename-cli - rename many files at once
 mdlt - https://github.com/metadelta/mdlt - command line scientific calculator
 qalculate - https://github.com/Qalculate/libqalculate
+miller
 
 Not installed, but considered
 borg (homebrew enabled) - not currently maintained, and thus does not work.
@@ -96,3 +97,6 @@ loop: A loop command in bash - see https://github.com/Miserlou/Loop
 
 parallel: Execute parallel jobs in bash - see http://www.gnu.org/software/parallel/
   Usage: see http://www.gnu.org/software/parallel/parallel_cheat.pdf
+
+miller: 'Miller is like awk, sed, cut, join, and sort for data formats such as CSV, TSV, tabular JSON and positionally-indexed'
+  Usage: see https://github.com/johnkerl/miller

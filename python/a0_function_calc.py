@@ -92,6 +92,7 @@ else:
     # data format:    fraction,    Temp,        ax,          ay,          az,                           solid(1) or liquid(0)
     data = np.array([(float(i[0]), float(i[1]), float(i[2]), float(i[3]), float(i[4])) for i in data if int(i[5]) == 1])
 
+max_T = np.max(np.max(data,1),0)
 data = data[np.argsort(data[:,0])] # sort by the first column
 avg_data = []
 
@@ -102,10 +103,12 @@ for chunk in mine.chunker(data, args.runs):
     else:
         avg_data.append(np.append(d[0:5], [np.mean(chunk[:,2:5]), stats.stdev(mine.flatten(chunk[:,2:5]))/np.sqrt(args.runs * 3)]))
 
+print(f"Maximum temperature is {max_T}")
+
 if args.temperature_only:
     x_data = np.array([i[0] for i in avg_data]) # temperature
     y_data = np.array([i[4] for i in avg_data]) # average lattice parameter
-    err    = np.array([i[5] for i in avg_data]) # standard deviation / sqrt(n)
+    err    = np.array([i[5] if not i[5] == 0 else 1 for i in avg_data]) # standard deviation / sqrt(n)
     guess  = (args.a0, 0, 1, 1) # lattice_parameter, linear slope, parabolic slope, cubic slope
     params, pcov = optimize.curve_fit(func2D, x_data, y_data, guess, err)
     print("z0 = {}\ny1 = {}\ny2 = {}\ny3 = {}".format(*params)) # gives in order: 'z' intercept, linear coefficient, parabolic, and cubic coefficient
@@ -117,7 +120,7 @@ else:
     x_data = np.array([i[0] for i in avg_data]) # fraction
     y_data = np.array([i[1] for i in avg_data]) # temperature
     z_data = np.array([i[5] for i in avg_data]) # average lattice parameter
-    err    = np.array([i[6] for i in avg_data]) # standard deviation / sqrt(n)
+    err    = np.array([i[6] if not i[6] == 0 else 1 for i in avg_data]) # standard deviation / sqrt(n)
     # lattice_parameter, linear fraction slope, linear temperature slope,
     # parabolic fraction slope, parabolic temperature slope
     # cubic fraction slope, cubic temperature slope, fraction*temperature slope

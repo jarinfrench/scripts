@@ -318,22 +318,25 @@ if not args.no_average:
     else:
         args.no_average = True
 
-while not args.no_combination:
+while not args.no_combination and not args.one_dataset:
     combine = input("Would you like to combine any subsets? (y|n): ")
     if len(combine) == 1 and combine in ['y', 'n']:
         break
     else:
         print("Please enter y or n)")
 if not args.no_combination:
-    if combine == 'y':
-        sets_to_combine = input("Please enter the subsets to combine using a space separated list or slicing notation: ").split()
-        for i in range(len(sets_to_combine)):
-            if ':' in sets_to_combine[i]:
-                tmp = sets_to_combine[i].split(':')
-                tmp = [j for j in range(int(tmp[0]) - 1, int(tmp[1]))]
-                sets_to_combine[i:i+1] = tmp
-            else:
-                sets_to_combine[i] = int(sets_to_combine[i]) - 1
+    if args.one_dataset or combine == 'y':
+        if args.one_dataset:
+            sets_to_combine = [i for i in range(data_set_counter)]
+        else:
+            sets_to_combine = input("Please enter the subsets to combine using a space separated list or slicing notation: ").split()
+            for i in range(len(sets_to_combine)):
+                if ':' in sets_to_combine[i]:
+                    tmp = sets_to_combine[i].split(':')
+                    tmp = [j for j in range(int(tmp[0]) - 1, int(tmp[1]))]
+                    sets_to_combine[i:i+1] = tmp
+                else:
+                    sets_to_combine[i] = int(sets_to_combine[i]) - 1
         sets_to_combine.sort()
         combined_data_set_index = sets_to_combine[0] + 1
         if not args.no_average:

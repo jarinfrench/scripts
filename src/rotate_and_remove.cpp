@@ -113,8 +113,10 @@ struct inputData {
     string cutoff_replace;
     string lattice_replace;
     string angle_replace;
+    string recommended;
 
     // process the data_file replacement string
+    // First check to see if the user added the file extension - this is ignored
     size_t found = data_file.find(".dat");
     if (found == string::npos) {
       found = data_file.find(".lmp");
@@ -123,29 +125,53 @@ struct inputData {
       } else {
         data_file_base = data_file.substr(0, found);
       }
+    } else {
+      data_file_base = data_file.substr(0, found);
     }
 
     // process the radius replacement string
     stringstream ss;
-    ss << (int)(sqrt(r_grain_sq)); // typecast the grain radius to an int for easy printing
+    ss << "r" << (int)(sqrt(r_grain_sq)) << "A"; // typecast the grain radius to an int for easy printing
     ss >> radius_replace;
+    ss.clear();
+    ss.str("");
 
     // process the cutoff replacement string
-    cutoff_replace = to_string2(rcut_percent[make_pair(1, 1)], 2);
+    ss << "rcut" << to_string2(rcut_percent[make_pair(1,1)], 2);
+    ss >> cutoff_replace;
+    ss.clear();
+    ss.str("");
 
     // process the lattice parameter replacement string
-    lattice_replace = to_string2(a0, 3);
+    ss << "l" << to_string2(a0,3);
+    ss >> lattice_replace;
+    ss.clear();
+    ss.str("");
 
     // process the angle replacement string
-    angle_replace = to_string2(theta, 2);
+    ss << to_string2(theta,2) << "degree";
+    ss >> angle_replace;
+    ss.clear();
+    ss.str("");
+
+    // Generate the recommended file name
+    ss << data_file_base << "_" << angle_replace << "_" << cutoff_replace << "_" << lattice_replace << "_" << radius_replace;
+    ss >> recommended;
 
     string base = "(%b)";
     string radius = "(%rg)";
     string cutoff = "(%r)";
     string s_a0 = "(%a)";
     string angle = "(%d)";
+    string recommend = "RECOMMEND";
 
     parsed_basename = output_basename;
+    found = parsed_basename.find(recommend);
+    if (found != string::npos) {
+      parsed_basename.replace(found, recommend.size(), recommended);
+      return; // We can return early here because the recommended string is used, not a user-defined string which needs additional processing
+    }
+
     found = parsed_basename.find(base);
     while (found != string::npos) {
       parsed_basename.replace(found, base.size(), data_file_base);
@@ -259,10 +285,11 @@ void printInputFileHelp() {
        << "   allowed distance between nearest neighbor atoms.\n\n"
        << "The following character sequences will change the file name as follows:\n"
        << "  (%b)                 - replaced with the basename of the input file\n"
-       << "  (%rg)                - replaced with the radius of the grain\n"
-       << "  (%r)                 - replaced with the cutoff value\n"
-       << "  (%a)                 - replaced with the lattice parameter\n"
-       << "  (%d)                 - replaced with the misorientation angle\n\n"
+       << "  (%rg)                - replaced with the radius of the grain as r(radius)A\n"
+       << "  (%r)                 - replaced with the cutoff value as rcut(value)\n"
+       << "  (%a)                 - replaced with the lattice parameter as l(value)\n"
+       << "  (%d)                 - replaced with the misorientation angle as (value)degree\n"
+       << "  RECOMMEND            - replaced with the recommended file naming scheme\n\n"
        << "The number of cutoff radii is dependent on the number of atom\n"
        << "interactions. For example, if there are two atom types, there are the two\n"
        << "same-element interactions, as well as the interaction between the two\n"
@@ -328,6 +355,7 @@ double findSmallestDimension(const boxData& box) {
 vector <Atom> readDataFile(inputData& input) {
   string str; // junk string variable
   int N, n_types, n_total = 0; // number of atoms, number of atom types, number of atoms read
+  int n_bonds, n_bond_types;
   vector <Atom> atoms;
   int atom_id, type;
   double charge, x, y, z;
@@ -339,7 +367,17 @@ vector <Atom> readDataFile(inputData& input) {
   transform(str.begin(), str.end(), str.begin(), ::tolower);
   if (str.find("charge") != string::npos) {input.has_charge = true;}
   fin >> N >> str;
-  fin >> n_types >> str >> str;
+  fin.ignore();
+  getline(fin, str);
+  stringstream ss(str);
+  if (str.find("bonds") != string::npos) {
+    ss >> n_bonds >> str;
+    fin >> n_types >> str >> str;
+    fin >> n_bond_types >> str >> str;
+  } else {
+    ss >> n_types >> str >> str;
+  }
+  fin.ignore();
   if (n_types != input.n_types) {
     cout << "WARNING: Atom types calculated vs atom types in data file do not match.\n"
          << "Calculated = " << input.n_types << " != data file = " << n_types << "\n";
@@ -707,7 +745,7 @@ void writeRemovedFile(const string& filename, const vector <Atom>& atoms, const 
   checkFileStream(fout, filename);
   fout << fixed;
 
-  fout << "Molecule: " << input.molecule << ", Rotation angle: " << input.theta << ", cutoffs: ";
+  fout << "# Molecule: " << input.molecule << ", Rotation angle: " << input.theta << ", cutoffs: ";
   for (size_t i = 1; i <= input.n_types; ++i) {
     for (size_t j = i; j <= input.n_types; ++j) {
       fout << i << "-" << j << ": " << input.rcut.at(make_pair(i,j)) << " ";

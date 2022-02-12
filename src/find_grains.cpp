@@ -1,12 +1,14 @@
 #include <iostream>
+#include <cstdlib> // for getenv
 #include <fstream>
 #include <string>
 #include <sstream>
 #include <map>
 #include <vector>
+#include <sys/stat.h> // for stat
 #include <cmath> // for sin, cos
 #include <numeric> // for iota
-#include <algorithm> // for min
+#include <algorithm> // for min, max_element, fill
 
 #include <cxxopts.hpp>
 
@@ -45,6 +47,7 @@ static const map <string, vector <vector <double>> > basis_vectors = {
     {{-0.5, 0.5, 0.5}, {0.5, -0.5, 0.5}, {0.5, 0.5, -0.5}}
   }
 };
+static map <int, vector <Position> > rotated_1nn;
 
 bool neighborComparison(pair <int, double> a, pair <int, double> b) {
   return a.second < b.second;
@@ -76,6 +79,7 @@ struct inputData {
   vector <double> new_x_axis {0.0,0.0,0.0}, new_y_axis{0.0,0.0,0.0}, new_z_axis{0.0,0.0,0.0};
   vector <double> old_x_axis {0.0,0.0,0.0}, old_y_axis{0.0,0.0,0.0}, old_z_axis{0.0,0.0,0.0};
   vector <string> files; // the data files to examine
+  string r_axis; // the string representation of the orientation matrix, given as zzz
 
   // from the command line
   vector <int> ignored_atoms, atom_ids_list;
@@ -307,6 +311,15 @@ struct boxData {
   }
 };
 
+struct dataIndices {
+  int id = -1;
+  int type = -1;
+  int x = -1;
+  int y = -1;
+  int z = -1;
+  int q = -1; // charge
+} data_indices;
+
 void printInputFileHelp() {
   cout << "\n\nThe first line of the input file must contain the following items in order:\n"
        << "  1. The number of files to be processed.\n"
@@ -353,6 +366,11 @@ double dotp(const vector <double>& v1, const vector <double>& v2) {
   return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
+inline bool exists (const string& file) {
+  struct stat buffer;
+  return (stat (file.c_str(), &buffer) == 0);
+}
+
 vector <double> getAxisData(istream& fin) {
   string str;
   vector <double> axis (3, 0.0);
@@ -363,6 +381,100 @@ vector <double> getAxisData(istream& fin) {
     exit(AXIS_READ_ERROR);
   }
   return axis;
+}
+
+void initializeRotatedPerfectNeighborList(const string& structure, const vector <Position>& perfect_neighbors, const string& r_axis, const double& a0) {
+  string path, str;
+  int theta;
+  double x, y, z;
+  bool rebuild_cache = false;
+
+  if (const char* db_dir = getenv("TRAUTT_DB_DIR")) {
+    path = string(db_dir) + "/" + structure + "_" + r_axis + "_rotated_1nn.db";
+  } else {
+    path = "./" + structure + "_" + r_axis + "_rotated_1nn.db";
+  }
+
+  if (exists(path)) {
+    ifstream fin(path.c_str());
+    checkFileStream(fin, path);
+    int line_no = 0;
+
+    while (getline(fin, str)) {
+      ++line_no;
+      int num = 0;
+      vector <Position> ps;
+      stringstream ss(str);
+      ss >> theta;
+      while (ss >> x >> y >> z) {
+        ++num;
+        ps.push_back(Position(x * a0, y * a0, z * a0));
+      }
+
+      switch (num) {
+        case 12: if (structure.compare("fcc") != 0) {
+            cerr << "Database corrupted at line " << line_no << "\n";
+            rebuild_cache = true;
+          }
+          break;
+        case 8: if (structure.compare("bcc") != 0) {
+            cerr << "Database corrupted at line " << line_no << "\n";
+            rebuild_cache = true;
+          }
+          break;
+        case 6: if (structure.compare("sc") != 0) {
+            cerr << "Database corrupted at line " << line_no << "\n";
+            rebuild_cache = true;
+          }
+          break;
+        default: cerr << "Database corrupted at line " << line_no << "\n";
+          rebuild_cache = true;
+      }
+      rotated_1nn[theta] = ps;
+    }
+    fin.close();
+  } else {rebuild_cache = true;}
+
+  for (unsigned int i = 0; i < 90; ++i) {
+    if (rebuild_cache) {break;} // no need to go through this if we already know we will rebuild
+    if (rotated_1nn.find(i) == rotated_1nn.end()) {
+      rebuild_cache = true;
+      break;
+    }
+  }
+
+  if (rebuild_cache) {
+    // generate the rotation matrix, multiply it onto the 1nn positions, save and write the result
+    ofstream fout(path.c_str());
+    checkFileStream(fout, path);
+    double costheta, sintheta, degrees = PI / 180.0, xtmp, ytmp;
+    rotated_1nn.clear(); // empty the map since we're rebuilding
+
+    // The non-rotated case
+    fout << 0;
+    for (const auto& pos: perfect_neighbors) {
+      fout << " " <<  pos.getX() << " " << pos.getY() << " " << pos.getZ();
+    }
+    fout << "\n";
+
+    for (unsigned int i = 0; i < 90; ++i) {
+      vector <Position> positions;
+      costheta = cos(i * degrees);
+      sintheta = sin(i * degrees);
+
+      fout << i; // angle;
+      for (const auto& pos: perfect_neighbors) {
+        xtmp = pos.getX() * costheta - pos.getY() * sintheta;
+        ytmp = pos.getX() * sintheta + pos.getY() * costheta;
+        positions.push_back(Position(xtmp * a0, ytmp * a0, pos.getZ() * a0));
+
+        fout << " " << xtmp << " " << ytmp << " " << pos.getZ(); // positions. z position does not change when rotating about the z axis.
+      }
+      fout << "\n";
+      rotated_1nn[i] = positions;
+    }
+  }
+
 }
 
 void parseInputFile(inputData& input, const string& input_file) {
@@ -394,6 +506,11 @@ void parseInputFile(inputData& input, const string& input_file) {
   input.new_x_axis = getAxisData(fin);
   input.new_y_axis = getAxisData(fin);
   input.new_z_axis = getAxisData(fin);
+
+  // store the integer values of the rotation axis into a string
+  stringstream r_axis;
+  r_axis << (int)(input.new_z_axis[0]) << (int)(input.new_z_axis[1]) << (int)(input.new_z_axis[2]);
+  r_axis >> input.r_axis;
 
   cout << "Input parameters:"
        << "\n  n_files = " << input.n_files
@@ -442,41 +559,21 @@ vector <Atom> getAtomData(ifstream& fin, const inputData& input, const boxData& 
   vector <double> data; // holds the number of elements
   vector <Atom> atoms; // the set of atoms
   int atom_id, type; // id number and type of the atom
-  double charge, x, y, z, xu, yu, zu; // charge, and wrapped/unwrapped positions of atom
+  double charge, x, y, z; // charge, and wrapped position of atom
 
   while (getline(fin, str)) {
     stringstream ss(str);
     double dummy;
     while (ss >> dummy) {data.push_back(dummy);} // counts the number of elements
 
-    atom_id = (int)(data[0]);
-    type = (int)(data[1]);
-    switch (data.size()) {
-      // atom has charge, and both wrapped and unwrapped coordinates
-      case 9: charge = data[2];
-              x = data[3]; y = data[4]; z = data[5];
-              xu = data[6]; yu = data[7]; zu = data[8];
-              has_charge = true;
-              break;
-      // atom does not have charge, but has both wrapped and unwrapped coordinates
-      case 8: charge = 0.0;
-              x = data[2]; y = data[3]; z = data[4];
-              xu = data[5]; yu = data[6]; zu = data[7];
-              break;
-      // atom has charge, and only wrapped coordinates
-      case 6: charge = data[2];
-              x = data[3]; y = data[4]; z = data[5];
-              xu = 0.0; yu = 0.0; zu = 0.0;
-              has_charge = true;
-              break;
-      // atom does not have charge, and only wrapped coordinates
-      case 5: charge = 0.0;
-              x = data[2]; y = data[3]; z = data[4];
-              xu = 0.0; yu = 0.0; zu = 0.0;
-              break;
-      default: cerr << "Unrecognized data format. Expected format: id type charge* x y u (xu yu zu)* (*Optional).\n";
-               exit(FILE_FORMAT_ERROR);
-    }
+    atom_id = (int)(data[data_indices.id]);
+    type = (int)(data[data_indices.type]);
+    x = data[data_indices.x];
+    y = data[data_indices.y];
+    z = data[data_indices.z];
+    if (has_charge) {charge = data[data_indices.q];}
+    else {charge = 0.0;}
+
     data.clear();
 
     if (type > input.n_types) {
@@ -494,8 +591,6 @@ vector <Atom> getAtomData(ifstream& fin, const inputData& input, const boxData& 
     Position p(x,y,z);
     if (atom_id > atoms.size()) {atoms.resize(atom_id, Atom());}
     atoms[atom_id - 1] = Atom(atom_id, type, charge, p);
-    p = Position(xu,yu,zu);
-    atoms[atom_id - 1].setUnwrapped(p); // we do not do anything with the unwrapped coordinates
     ++n_atoms_read;
   }
   fin.close();
@@ -890,11 +985,56 @@ vector <double> ulomekSymmetryParameter(vector <Atom>& atoms,
 
 vector <double> trauttSymmetryParameter(vector <Atom>& atoms,
                                         const vector <vector <int> >& iatom,
-                                        const vector <bool> allowe_atoms,
+                                        const vector <bool> allowed_atoms,
                                         const inputData& input,
                                         const boxData& box) {
   vector <double> symm (atoms.size(), 0.0);
-  cout << "Trautt symmetry parameter not yet implemented.\n";
+  Position pref, pdiff, numerator; // position of reference atom, differences in position, top part of exponential in eq. 33
+  unsigned int id;
+  vector <double> symm_test(rotated_1nn.size(), 0.0);
+  double a0_sq = input.a0 * input.a0;
+  map <int, int> histogram; // key is the misorientation, value is the count
+  VerifyNewFile verify("trautt_histogram.txt");
+  // see Trautt & Mishin, Acta Mat 60 (2012) 2407-2424 equation (33)
+
+  for (size_t i = 0; i < atoms.size(); ++i) {
+    if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
+    if (!allowed_atoms[i]) {continue;}
+
+    fill(symm_test.begin(), symm_test.end(), 0.0); // reset the values of symm_test
+    pref = atoms[i].getWrapped();
+
+    for (int l = 1; l <= iatom[0][i]; ++l) { // for each neighbor atom
+      id = iatom[l][i];
+      pdiff = pref - atoms[id].getWrapped(); // this is r_{ijk} in equation (33)
+      pdiff[0] = pdiff[0] - anInt(pdiff[0] / box.Lx) * box.Lx; // PBCs
+      pdiff[1] = pdiff[1] - anInt(pdiff[1] / box.Ly) * box.Ly;
+      pdiff[2] = pdiff[2] - anInt(pdiff[2] / box.Lz) * box.Lz;
+
+      for (size_t j = 0; j < rotated_1nn.size(); ++j) { // for each angle
+        for (size_t k = 0; k < rotated_1nn[j].size(); ++k) { // for each perfect neighbor position
+          numerator = pdiff - rotated_1nn[j][k];
+          for (size_t m = 0; m < 3; ++m) {
+            symm_test[j] += exp(-(numerator[m] * numerator[m]) / a0_sq);
+          }
+        }
+      }
+    }
+    auto max_it = max_element(symm_test.begin(), symm_test.end());
+    // cout << *max_it << " at index " << max_it - symm_test.begin() << "\n";
+    ++histogram[max_it - symm_test.begin()];
+    atoms[i].setMark(max_it - symm_test.begin());
+    symm[i] = *max_it;
+  }
+
+  ofstream fout(verify.validNewFile().c_str());
+  checkFileStream(fout, verify.validNewFile());
+
+  for (auto& item: histogram) {
+    if (item.second == 0) {continue;}
+    fout << item.first << " " << item.second << "\n";
+  }
+
   return symm;
 }
 
@@ -909,7 +1049,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms,
   // This writes things in a Tecplot-readable file format
   fout << "VARIABLES = \"Atom ID\", \"Atom Type\", ";
   if (has_charge) {fout << "\"Atom Charge\", ";}
-  fout << "\"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\",\"Xu\", \"Yu\", \"Zu\"\n";
+  fout << "\"X\", \"Y\", \"Z\", \"Grain Number\", \"Orientation Parameter\"\n";
 
   for (size_t i = 0; i < atoms.size(); ++i) {
     if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
@@ -923,8 +1063,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms,
          << (atoms[i].getWrapped()[1] + box.ylow) << " "
          << (atoms[i].getWrapped()[2] + box.zlow)<< " "
          << atoms[i].getMark() << " "
-         << symm[i] << " " << atoms[i].getUnwrapped()[0] << " " << atoms[i].getUnwrapped()[1]
-         << " " << atoms[i].getUnwrapped()[2] << "\n";
+         << symm[i] << "\n";
     ++n_atoms_written;
   }
   fout.close();
@@ -959,6 +1098,8 @@ void processData(const inputData& input) {
   // checkFileStream(fout_misorientation, verify2.validNewFile());
 
   int aa = 1;
+  int x_index = -1, y_index = -1, z_index = -1; // indices for the x, y, and z positions of the atoms
+  int id_index = -1, type_index = -1, charge_index = -1; // indices for the atom id, type, and charge
   for (vector <string>::const_iterator it = input.files.begin(); it != input.files.end(); ++it) {
     box.reset();
     n_grain_1 = 0;
@@ -995,12 +1136,57 @@ void processData(const inputData& input) {
       fin.ignore();
 
       getline(fin, str); // Gets ITEM: ATOMS <data types>
+      string data_types = str.substr(str.find("ATOMS") + 6);
+      stringstream ss(data_types);
+      string tmp;
+      int idx = 0, xu_index = -1, yu_index = -1, zu_index = -1;
+      while (ss >> tmp) {
+        if (tmp.compare("id") == 0) {id_index = idx;}
+        else if (tmp.compare("type") == 0) {type_index = idx;}
+        else if (tmp.compare("q") == 0) {charge_index = idx;}
+        else if (tmp.compare("x") == 0) {x_index = idx;}
+        else if (tmp.compare("y") == 0) {y_index = idx;}
+        else if (tmp.compare("z") == 0) {z_index = idx;}
+        else if (tmp.compare("xu") == 0) {xu_index = idx;}
+        else if (tmp.compare("yu") == 0) {yu_index = idx;}
+        else if (tmp.compare("zu") == 0) {zu_index = idx;}
+        ++idx;
+      }
+      // Use unwrapped positions if regular positions are not available
+      if (x_index == -1) {
+        if (xu_index == -1) {cout << "Error finding x position index"; exit(INPUT_FORMAT_ERROR);}
+        else {x_index = xu_index;}
+      }
+      if (y_index == -1) {
+        if (yu_index == -1) {cout << "Error finding y position index"; exit(INPUT_FORMAT_ERROR);}
+        else {y_index = yu_index;}
+      }
+      if (z_index == -1) {
+        if (zu_index == -1) {cout << "Error finding z position index"; exit(INPUT_FORMAT_ERROR);}
+        else {y_index = yu_index;}
+      }
       filename2 = (*it).substr(0,(*it).find(".dump")) + "_interface.dat";
 
       fout_data << timestep << " ";
     }
     else if ((*it).find(".dat") != string::npos) {
-      getline(fin, str); // gets comment line
+      getline(fin, str); // gets comment line TODO: This is where I need to parse what data values are included
+      string data_types = str.substr(str.find("[") + 1, str.find("]") - str.find("[") - 1);
+      stringstream ss(data_types);
+      string tmp;
+      int idx = 0;
+      while (ss >> tmp) {
+        if (tmp.compare("ID") == 0 || tmp.compare("id") == 0) {id_index = idx;}
+        else if (tmp.compare("type") == 0) {type_index = idx;}
+        else if (tmp.compare("charge") == 0 || tmp.compare("q") == 0) {charge_index = idx;}
+        else if (tmp.compare("x") == 0) {x_index = idx;}
+        else if (tmp.compare("y") == 0) {y_index = idx;}
+        else if (tmp.compare("z") == 0) {z_index = idx;}
+        ++idx;
+      }
+      if (x_index == -1) {cout << "Error finding x position index"; exit(INPUT_FORMAT_ERROR);}
+      if (y_index == -1) {cout << "Error finding y position index"; exit(INPUT_FORMAT_ERROR);}
+      if (z_index == -1) {cout << "Error finding z position index"; exit(INPUT_FORMAT_ERROR);}
       fin >> N >> str; // number of atoms
       fin >> str >> str >> str; // atom types n_types - specified in the input file
       fin >> box.xlow >> box.xhigh >> str >> str
@@ -1024,7 +1210,13 @@ void processData(const inputData& input) {
       cerr << "Error: Unknown file type\n";
       exit(FILE_FORMAT_ERROR);
     }
-
+    data_indices.id = id_index;
+    data_indices.type = type_index;
+    data_indices.q = charge_index;
+    data_indices.x = x_index;
+    data_indices.y = y_index;
+    data_indices.z = z_index;
+    if (data_indices.q != -1) {has_charge = true;}
     box.calculateBoxLengths();
 
     allowed_atoms.resize(N,false);
@@ -1071,13 +1263,17 @@ void processData(const inputData& input) {
     if (input.algorithm == 'j') {symm = janssensSymmetryParameter(atoms, iatom, allowed_atoms, input, box);}
     else if (input.algorithm == 'z') {symm = zhangSymmetryParameter(atoms, iatom, allowed_atoms, input, box);}
     else if (input.algorithm == 'u') {symm = ulomekSymmetryParameter(atoms, iatom, allowed_atoms, input, box);}
-    else if (input.algorithm == 't') {symm = trauttSymmetryParameter(atoms, iatom, allowed_atoms, input, box);}
+    else if (input.algorithm == 't') {
+      initializeRotatedPerfectNeighborList(input.crystal_structure, input.perfect_matrix_neighbors, input.r_axis, input.a0);
+      symm = trauttSymmetryParameter(atoms, iatom, allowed_atoms, input, box);
+    }
     else {
       cerr << "Unknown orientation parameter algorithm. Exiting...\n";
       exit(ERROR_CODE_NOT_DEFINED);
     }
 
     for (size_t i = 0; i < atoms.size(); ++i) {
+      if (input.algorithm == 't') {break;}
       if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
       if (!allowed_atoms[i]) {continue;}
       if (atoms[i].getMark() == 1) {++n_grain_1;}

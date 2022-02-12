@@ -43,13 +43,13 @@ public:
   bool validate() const;
 
   template <typename T>
-  void writeBounds(T& stream) {
+  void writeBounds(T& stream) const {
     stream << xlo << " " << xhi << " xlo xhi\n"
            << ylo << " " << yhi << " ylo yhi\n"
            << zlo << " " << zhi << " zlo zhi";
 
     if (has_tilt) {
-      stream << "\n" << xy << " " << xz << " " << yz << " xy xz yz"; 
+      stream << "\n" << xy << " " << xz << " " << yz << " xy xz yz";
     }
   }
 };

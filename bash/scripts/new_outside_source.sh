@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
 # dir2check=/home/jarinf/Pictures/Research_images/Outside_sources
-dir2check="/media/jarinf/Research2/Images/Outside_sources"
+dir2check="/media/jarinf/Research1/Images/Outside_sources"
 image_regex='^(jpe?g|png|[g|t]iff?|bmp|eps)$'
 
 # Note that the directory read in is the absolute directory

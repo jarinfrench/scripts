@@ -1,6 +1,6 @@
 save ARG1."_commands.plt"
 set terminal push
-set terminal png ARG2
+set terminal png
 set output ARG1
 
 replot

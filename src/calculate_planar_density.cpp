@@ -314,8 +314,10 @@ void calculatePlanarDensities(const inputData& input,
     }
   }
 
-  map <pair <int, int>, vector <string> >::const_iterator map_vec_it = unique_m_q_pairs_vector.begin();
-  for (map <pair <int, int>, int>::const_iterator it = unique_m_q_pairs_count.begin(); it != unique_m_q_pairs_count.end(); ++it)
+  // map <pair <int, int>, vector <string> >::const_iterator map_vec_it = unique_m_q_pairs_vector.begin();
+  auto map_vec_it = unique_m_q_pairs_vector.cbegin();
+  // for (map <pair <int, int>, int>::const_iterator it = unique_m_q_pairs_count.begin(); it != unique_m_q_pairs_count.end(); ++it)
+  for (auto it = unique_m_q_pairs_count.cbegin(); it != unique_m_q_pairs_count.cend(); ++it)
   {
     if ((it->first).first == 0) {cout << "m/q = 0  ";}
     else {cout << "m/q = " << (it->first).first << "/" << (it->first).second;}
@@ -331,7 +333,8 @@ void calculatePlanarDensities(const inputData& input,
   cout << "\n";
 
   map_vec_it = unique_m_q_pairs_vector.begin();
-  for (map <pair <int, int>, int>::const_iterator it = unique_m_q_pairs_count.begin(); it != unique_m_q_pairs_count.end(); ++it)
+  // for (map <pair <int, int>, int>::const_iterator it = unique_m_q_pairs_count.begin(); it != unique_m_q_pairs_count.end(); ++it)
+  for (auto it = unique_m_q_pairs_count.cbegin(); it != unique_m_q_pairs_count.cend(); ++it)
   {
     cout << "\u03C1^("; // lowercase rho
     if ((it->first).first == 0) {cout << "0";}

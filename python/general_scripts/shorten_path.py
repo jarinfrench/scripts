@@ -30,7 +30,7 @@ else:
     elif "/".join(cwd[0:3]) == f"/media/{user}":
         result = "m~"
         if len(cwd) > 3:
-
+            dir_num = cwd[3].lstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvqxyz./,_!@#$%^&*()-=+:;'\"<>? ") # strips away all letters and characters from the left, leaving only numbers
             if len(cwd[3].split()) > 1: # More than one word in this directory
                 result += cwd[3].split()[0][0:3].upper()
             else: # just one word
@@ -39,6 +39,7 @@ else:
                         break
                     else:
                         result += char.upper()
+            result += dir_num
             cwd = cwd[4:] # truncate the beginning part of the path
         else:
             cwd = [""]

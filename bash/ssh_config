@@ -6,7 +6,7 @@ Host falcon1 falcon2 quark bechler flogin1 flogin2 sawtooth1 sawtooth2 lemhi1 le
   ServerAliveCountMax 2
 
 # General Purpose ARC Machines
-Host cascades1 cascades2 newriver1 newriver2 dragonstooth1 huckleberry1
+Host cascades1 cascades2 newriver1 newriver2 dragonstooth1 huckleberry1 tinkercliffs1 tinkercliffs2
   User jarinf
   HostName %h.arc.vt.edu
   IdentityFile ~/.ssh/id_rsa.pub

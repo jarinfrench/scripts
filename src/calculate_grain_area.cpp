@@ -143,7 +143,7 @@ void parseInput(const string& filename, const fit& lattice_fit) {
     showInputFileHelp();
   }
 
-  if (input.concentration > 1) {
+  if (input.concentration >= 1) {
     cout << "Assuming concentration given in percent, converting to fraction: " << input.concentration << " --> " << input.concentration / 100.0 << "\n";
     input.concentration /= 100.0;
   }

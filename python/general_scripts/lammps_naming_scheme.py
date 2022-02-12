@@ -5,6 +5,7 @@ import argparse
 from colorama import Fore, Back, Style
 from sys import exit
 from os import rename
+from os.path import exists
 
 compound_regex = r"_(?P<compound>(?:[A-Z](?:[a-z])?(?:[1-9])*)+)"
 axis_regex = r"_(?P<axis>[0-9][0-9][0-9])"
@@ -22,11 +23,12 @@ r_re = re.compile(radius_regex)
 pot_re = re.compile(potential_regex)
 u_re = re.compile(concentration_regex)
 extra_re = re.compile(extra_regex)
-filename_regex = r"LAMMPS" + compound_regex + axis_regex + size_regex + potential_regex + angle_regex + "?" + radius_regex + "?" + concentration_regex + "?" + extra_regex
-filename_re = re.compile(filename_regex)
+dunder_regex = r"(\w)(_)\2{2,}(\w)"
+dunder_re = re.compile(dunder_regex)
 
 parser = argparse.ArgumentParser(usage = '%(prog)s [-h] [options]', description = "Validates the format of the LAMMPS data file name given to it. Offers suggestions if it fails.")
-parser.add_argument('file', help = "The file name to validate")
+parser.add_argument('file', nargs = '+', help = "The file name to validate")
+parser.add_argument('-y', action = "store_true", help = "Flag to accept suggested file name")
 
 args = parser.parse_args()
 
@@ -35,45 +37,47 @@ fancy_x = Fore.RED + Style.BRIGHT + u'\u2717' + Style.RESET_ALL
 
 if __name__ == "__main__":
 
-    if filename_re.findall(args.file):
-        print(f"{fancy_checkmark} {args.file}")
-        exit(0)
-
-    print(f"{fancy_x} {args.file}")
-    suggestion = []
-
-    if len(filename_re.findall(args.file)) == 0:
-        result = args.file
+    for file in args.file:
+        suggestion = []
+        result = file
         suggestion += ["LAMMPS"]
-        if not args.file.startswith("LAMMPS"):
+        if not file.startswith("LAMMPS"):
             print(f"{Fore.YELLOW}Start the filename with \"LAMMPS\"{Style.RESET_ALL}")
-            args.file = "LAMMPS_" + args.file
+            file = "LAMMPS_" + file
         result = result.replace("LAMMPS", '')
+
         # independent pieces - required
-        compound_res = compound_re.findall(args.file)
+        compound_res = compound_re.findall(file)
         result = result.replace(''.join(compound_res), '')
-        axis_res = axis_re.findall(args.file)
+        axis_res = axis_re.findall(file)
         result = result.replace(''.join(axis_res), '')
-        size_res = size_re.findall(args.file)
+        size_res = size_re.findall(file)
         result = result.replace(''.join(size_res), '')
-        pot_res = pot_re.findall(args.file)
+        pot_res = pot_re.findall(file)
         result = result.replace(''.join(["p"] + pot_res), '')
 
         # if one is here, they both should be
-        angle_res = angle_re.findall(args.file)
+        angle_res = angle_re.findall(file)
         result = result.replace(''.join(angle_res + ["degree"]), '')
-        r_res = r_re.findall(args.file)
+        r_res = r_re.findall(file)
         result = result.replace(''.join(["r"] + r_res + ["A"]), '')
 
         # optional stuff
-        u_res = u_re.findall(args.file)
+        u_res = u_re.findall(file)
         for match in u_res:
             result = result.replace(''.join(["c"] + [match[0]] + [match[1]] + ["%"] + [match[2]]), '')
-        extra_res = extra_re.search(args.file)
+        extra_res = extra_re.search(file)
         result = result.replace(''.join(extra_res.group("extension")), '')
         result = result.lstrip('_')
         result = result.rstrip('.')
-        result = [result.rstrip('_')]
+        result = result.rstrip('_')
+
+        # The regex stores the letters on either side of a series of underscores
+        # in groups 1 and 3. We use those letters here to clean up the result.
+        result = dunder_re.subf("{1}_{3}", result)
+
+        # finally, clean up all interior multiple underscores within the final string
+        result = re.sub("_{2,}", "_", result)
 
         # test the independent pieces first
         if not compound_res:
@@ -119,9 +123,24 @@ if __name__ == "__main__":
             suggestion += [''.join(result) + "." + extra_res.group("extension")]
 
         suggestion = "_".join(suggestion)
-        print(suggestion)
+        if suggestion == file:
+            print(f"{fancy_checkmark} {file}")
+        else:
+            print(f"{fancy_x} {file}")
+            print(f"Suggested file name: {Fore.YELLOW}{suggestion}{Style.RESET_ALL}")
 
-        if not any([c in suggestion for c in ['<', '>']]):
-            change_name = input(f"{Fore.GREEN}Would you like to rename the file to the suggestion shown?{Style.RESET_ALL} (Y|n): ")
-            if any([c in change_name for c in ['y', 'Y']]):
-                rename(args.file, suggestion)
+            if exists(file):
+                if not any([c in suggestion for c in ['<', '>']]):
+                    if not args.y:
+                        change_name = input(f"{Fore.GREEN}Would you like to rename the file to the suggestion shown?{Style.RESET_ALL} (Y|n): ")
+                        if any([c in change_name for c in ['y', 'Y']]):
+                            try:
+                                rename(file, suggestion)
+                            except FileNotFoundError:
+                                print(f"File {file} does not exist, cannot change the name")
+                    else:
+                        try:
+                            rename(file, suggestion)
+                            print(f"Successfully renamed {Fore.YELLOW}{file}{Style.RESET_ALL} to {Fore.GREEN}{suggestion}{Style.RESET_ALL}")
+                        except FileNotFoundError:
+                            print(f"File {file} does not exist, cannot change the name")

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -36,15 +37,13 @@ tuple <vector <Atom>, Box, Header> readData(const string& input) {
 
   getline(fin, comment); // get the comment line
   getline(fin, str); // blank line
-  fin >> N >> str; // get the number of atoms
-  fin >> n_types >> str; // get the number of atom types
-  header.N = N;
-  header.n_types = n_types;
+  fin >> header.N >> str; // get the number of atoms
+  fin >> header.n_types >> str >> str; // get the number of atom types
   fin >> x >> y >> str >> str; box.setXLow(x); box.setXHigh(y); // get the box bounds
   fin >> x >> y >> str >> str; box.setYLow(x); box.setYHigh(y);
   fin >> x >> y >> str >> str; box.setZLow(x); box.setZHigh(y);
 
-  atoms.resize(N, Atom());
+  atoms.resize(header.N, Atom());
 
   fin.ignore(); // get rid of extraneous characters in stream
   getline(fin, str); // blank line
@@ -66,30 +65,33 @@ tuple <vector <Atom>, Box, Header> readData(const string& input) {
 
 void writeData(const vector <Atom>& atoms, const Box& box, const Header& header, const string& output, const string& input) {
   int n_out = 0;
-  vector <Bond> bonds (header.n_types);
+  vector <Bond> bonds (header.N);
   ofstream fout(output.c_str());
   if (fout.fail()) {
     cerr << "Error opening file \"" << output << "\n for writing\n";
     exit(FILE_OPEN_ERROR);
   }
 
-  fout << "This file was converted to the core-shell format from file " << input << "\n\n";
+  fout << "# This file was converted to the core-shell format from file " << input << "\n\n";
   fout << header.N * 2 << " atoms\n"; // number of atoms is double (core and shell atoms)
-  fout << header.N << "bonds\n"; // number of bonds is the original number of atoms
+  fout << header.N << " bonds\n"; // number of bonds is the original number of atoms
   fout << header.n_types * 2 << " atom types\n"; // assumes each type has a core-shell interaction
   fout << header.n_types << " bond types\n\n";
 
-  //box.writeBounds(fout);
+  fout << fixed << setprecision(6);
+  box.writeBounds(fout);
   fout << "\n\nAtoms\n\n";
   for (size_t i = 0; i < atoms.size(); ++i) {
     // atom_id molecule_id(old atom id) type charge x y z
-    fout << ++n_out << " " << atoms[i].getId() << " " << atoms[i].getType()
-         << " c" << atoms[i].getType() << " " << atoms[i].getWrapped().getX()
+    fout << setprecision(0) << ++n_out << " " << atoms[i].getId() << " " << atoms[i].getType()
+         << " c" << atoms[i].getType() << " "
+         << setprecision(6) << atoms[i].getWrapped().getX()
          << " " << atoms[i].getWrapped().getY() << " "
          << atoms[i].getWrapped().getZ() << "\n";
 
-    fout << ++n_out << " " << atoms[i].getId() << " " << atoms[i].getType() + header.n_types
-         << " c" << atoms[i].getType() + header.n_types << " " << atoms[i].getWrapped().getX()
+    fout << setprecision(0) << ++n_out << " " << atoms[i].getId() << " " << atoms[i].getType() + header.n_types
+         << " c" << atoms[i].getType() + header.n_types << " "
+         << setprecision(6) << atoms[i].getWrapped().getX()
          << " " << atoms[i].getWrapped().getY() << " "
          << atoms[i].getWrapped().getZ() << "\n";
     bonds[i].id = i + 1;
@@ -101,10 +103,15 @@ void writeData(const vector <Atom>& atoms, const Box& box, const Header& header,
   fout << "\nBonds\n\n";
   for (size_t i = 0; i < bonds.size(); ++i) {
     // bond_id, bond_type, atom1, atom2
-    fout << bonds[i].id << " " << bonds[i].type << " " << bonds[i].atom1 << " " << bonds[i].atom2 << "\n";
+    fout << setprecision(0) << bonds[i].id << " " << bonds[i].type << " " << bonds[i].atom1 << " " << bonds[i].atom2 << "\n";
   }
 
   fout.close();
+
+  cout << "Charge parameters have been labelled as c1-c" << header.n_types * 2 << ".\n"
+       << "Run the following command, substituting the relevant charge parameters,\n"
+       << "to determine the number of cores/shells of each element:\n\n"
+       << "\tawk 'END{print t, \"substitutions\"} {t+=gsub(old,new)}1' old=\"c<num>\" new=\"<charge>\" " << output << "\n";
 }
 
 int main(int argc, char** argv) {
@@ -114,7 +121,7 @@ int main(int argc, char** argv) {
   try {
     cxxopts::Options options(argv[0], "Convert a file in the atomic data format to the core-shell format");
     options
-      .positional_help("file")
+      .positional_help("infile outfile")
       .show_positional_help();
 
     options
@@ -124,7 +131,7 @@ int main(int argc, char** argv) {
         ("o,output", "Output file name", cxxopts::value<string>(output)->default_value("converted_file.dat"), "file")
         ("h,help", "Show the help");
 
-    options.parse_positional({"file"});
+    options.parse_positional({"file", "output"});
     auto result = options.parse(argc, argv);
 
     if (result.count("help") || !(result.count("file"))) {

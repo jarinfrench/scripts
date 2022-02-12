@@ -4,17 +4,10 @@
 // Default constructor sets position to the origin
 Position::Position() : x(0), y(0), z(0) {}
 
-Position::Position(double x, double y) {
-  this->x = x;
-  this->y = y;
-  this->z = 0.0;
-}
+Position::Position(double x, double y) : x(x), y(y), z(0) {}
+
 // This constructor sets the position to the coordinates given
-Position::Position(double x, double y, double z) {
-  this->x = x;
-  this->y = y;
-  this->z = z;
-}
+Position::Position(double x, double y, double z) : x(x), y(y), z(z) {}
 
 Position::Position(std::vector <double> pos) {
   if (pos.size() != 3) {throw false;}
@@ -28,7 +21,7 @@ double Position::distance(const Position& p) {
   pos.setX(this->x - p.getX());
   pos.setY(this->y - p.getY());
   pos.setZ(this->z - p.getZ());
-  
+
   return std::sqrt(pos[0] * pos[0] + pos[1] * pos[1] + pos[2] * pos[2]);
 }
 
@@ -89,4 +82,32 @@ bool operator==(const Position& lhs, const Position& rhs) {
 
 bool operator!=(const Position& lhs, const Position& rhs) {
   return !(lhs == rhs);
+}
+
+bool operator<(const Position& lhs, const Position& rhs) {
+  return (lhs.getX() < rhs.getY() &&
+          lhs.getY() < rhs.getY() &&
+          lhs.getZ() < rhs.getZ());
+}
+
+bool operator>(const Position& lhs, const Position& rhs) {
+  return !(lhs < rhs || lhs == rhs);
+}
+
+double distance3D(const Position& lhs, const Position& rhs) {
+  Position result;
+  result.setX(lhs.getX() - rhs.getX());
+  result.setY(lhs.getY() - rhs.getY());
+  result.setZ(lhs.getZ() - rhs.getZ());
+
+  return sqrt(result[0] * result[0] + result[1] * result[1] + result[2] * result[2]);
+}
+
+double distance2D(const Position& lhs, const Position& rhs) {
+  Position l = lhs;
+  Position r = rhs;
+  l.setZ(0);
+  r.setZ(0);
+
+  return distance3D(l,r);
 }
