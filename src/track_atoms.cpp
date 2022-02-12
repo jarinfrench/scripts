@@ -147,9 +147,10 @@ pair <int, vector <string> > processLAMMPSInput(istream& fin) {
   fin >> box.zlow >> box.zhigh >> str >> str;
   box.calculateBoxLengths();
 
-  fin >> str;
   fin.ignore();
-  getline(fin,str);
+  getline(fin,str); // blank line before Atoms # <atom_style>
+  getline(fin,str); // Atoms # <atom_style>
+  getline(fin,str); // blank line before atoms
 
   return data;
 }
