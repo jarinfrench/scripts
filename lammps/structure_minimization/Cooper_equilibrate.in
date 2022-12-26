@@ -1,0 +1,47 @@
+units metal
+atom_style charge
+timestep 0.002
+dimension 3
+boundary p p p
+
+read_data ${data_file}
+
+mass    1 238.0289
+mass    2 15.9994
+
+variable U equal 1
+variable O equal 2
+
+group U type ${U}
+group O type ${O}
+
+set group U charge +2.2208
+set group O charge -1.1104
+
+variable LLX equal (xhi-xlo)
+variable LLY equal (yhi-ylo)
+variable LLZ equal (zhi-zlo)
+variable cutoff equal 11.0
+
+print "Lx=${LLX}, Ly=${LLY}, Lz=${LLZ}"
+kspace_style pppm 1.0e-5
+
+pair_style hybrid/overlay coul/long ${cutoff} eam/alloy
+pair_coeff * * coul/long
+pair_coeff * * eam/alloy CeThUNpPuAmCmO.eam.alloy U O
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp press pe pxx pyy pzz lx ly lz
+thermo_modify flush yes
+thermo 100
+
+min_style cg
+minimize 1.0e-15 1.0e-4 50000 5000000
+
+variable PE equal pe
+variable N equal count(U)
+variable avg_pe_per_atom equal v_PE/v_N
+
+print "${data_file} ${avg_pe_per_atom}" append system_energies.txt

@@ -129,6 +129,10 @@ pair <int, vector <string> > processLAMMPSInput(istream& fin) {
   getline(fin, str);
   size_t left_bracket = str.find("[");
   size_t right_bracket = str.find("]", left_bracket);
+  if (left_bracket == string::npos || right_bracket == string::npos) {
+    cout << "Error processing header line: atom vars not found!\n";
+    exit(FILE_FORMAT_ERROR);
+  }
   stringstream ss(str.substr(left_bracket + 1, right_bracket - left_bracket - 1));
   while (ss >> str) {
     transform(str.begin(), str.end(), str.begin(), ::tolower);

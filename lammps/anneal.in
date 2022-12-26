@@ -1,0 +1,75 @@
+# saved LAMMPS Shell history
+units metal
+dimension 3
+boundary p p p
+
+if "${p} == 1 || ${p} == 2" then &
+  "atom_style charge" &
+else &
+  "atom_style atomic"
+read_data ${path}/${base}.dat
+
+mass 1 238.0289
+mass 2 15.9994
+
+variable U equal 1
+variable O equal 2
+group U type ${U}
+group O type ${O}
+variable cutoff equal 11.0
+
+kspace_style pppm 1.0e-5
+
+# Basak == 1
+# Cooper == 2
+# UMoXe == 3
+if "${p} == 1" then &
+  "set group U charge +2.4" &
+  "set group O charge -1.2" &
+  "pair_style hybrid/overlay buck/coul/long ${cutoff} morse ${cutoff}" &
+  "pair_coeff ${U} ${U} buck/coul/long 294.63998712541093  0.327022 0.0  ${cutoff}" &
+  "pair_coeff ${U} ${O} buck/coul/long 693.64876989599281  0.327022 0.0  ${cutoff}" &
+  "pair_coeff ${O} ${O} buck/coul/long 1633.0051486644522  0.327022 3.948788013 ${cutoff}" &
+  "pair_coeff ${U} ${O} morse          0.57718803139609665 1.65     2.369 ${cutoff}" &
+elif "${p} == 2" &
+  "set group U charge +2.2208" &
+  "set group O charge -1.1104" &
+  "pair_style hybrid/overlay coul/long ${cutoff} eam/alloy" &
+  "pair_coeff * * coul/long" &
+  "pair_coeff * * eam/alloy CeThUNpPuAmCmO.eam.alloy U O" &
+else &
+  print "Make changes to the script!" &
+  quit
+
+#elif "${p} == 3" then &
+  #atom_style atomic &
+  #pair_style eam/alloy &
+  #print "Mo: ${Mo}" &
+  #print "Xe: ${Xe}" &
+  #if "${Mo} > 0 && ${Xe} > 0" then &
+    "print 'Found both Mo and Xe'" &
+    "pair_coeff * * U_Mo_Xe.2013.eam.alloy U Mo Xe" &
+  elif "${Xe} == 0 && ${Mo} > 0" &
+    "print 'Found only Mo'" &
+    "pair_coeff * * U_Mo_Xe.2013.eam.alloy U Mo" &
+  elif "${Mo} == 0 && ${Xe} > 0" &
+    "print 'Found only Xe'" &
+    "pair_coeff * * U_Mo_Xe.2013.eam.alloy U Xe" &
+  else &
+    "print 'Found no Mo or Xe'" &
+    "pair_coeff * * U_Mo_Xe.2013.eam.alloy U" 
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp press pe pxx pyy pzz
+thermo_modify flush yes
+thermo 100
+
+velocity all create 1500 ${SEED} mom yes dist gaussian loop all
+print "The seed for the velocity distribution is ${SEED}"
+
+fix nvt all nvt temp 1500 1500 0.2
+run 10000
+
+write_dump all custom ${base}_annealed.dump id type q x y z

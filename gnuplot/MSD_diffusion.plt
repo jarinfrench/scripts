@@ -18,13 +18,13 @@ set yrange [0:]
 
 d_x = system("head -n4 ".file." | tail -n2 | awk '{s=$0; getline; print $0-s}'") * dt
 
-x_using = "($1*dt):2"
-y_using = "($1*dt):3"
-z_using = "($1*dt):4"
-xy_using = "($1*dt):($2+$3)"
-xz_using = "($1*dt):($2+$4)"
-yz_using = "($1*dt):($3+$4)"
-xyz_using = "($1*dt):5"
+x_using = ($1*dt):2
+y_using = ($1*dt):3
+z_using = ($1*dt):4
+xy_using = ($1*dt):($2+$3)
+xz_using = ($1*dt):($2+$4)
+yz_using = ($1*dt):($3+$4)
+xyz_using = ($1*dt):5
 
 num_points = system("echo $(($(cat ".file." | wc -l) - 2))")
 set key top left

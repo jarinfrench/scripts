@@ -1,0 +1,55 @@
+units metal
+atom_style atomic
+dimension 3
+boundary p p p
+timestep 0.002
+
+variable a0 equal 3.542
+variable xdim equal 75
+variable ydim equal 75
+variable zdim equal 5
+variable r0 equal $(100/v_a0)
+variable mis equal 45
+
+lattice bcc ${a0} orient x 1 0 0 orient y 0 1 0 orient z 0 0 1
+region all block 0 ${xdim} 0 ${ydim} 0 ${zdim} units lattice
+create_box 1 all
+region gb cylinder z $(v_xdim/2.0) $(v_ydim/2.0) ${r0} INF INF units lattice
+region inner cylinder z $(v_xdim/2.0) $(v_ydim/2.0) $(v_r0 - (10/v_a0)) INF INF units lattice
+region outer cylinder z $(v_xdim/2.0) $(v_ydim/2.0) $(v_r0 + (10/v_a0)) INF INF units lattice side out
+create_atoms 1 box
+
+group inner region inner
+group outer region outer
+group fixed union inner outer
+group gb region gb
+
+pair_style eam/alloy
+pair_coeff * * U_Mo_Xe.2013.eam.alloy U
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+thermo_style custom step temp pe press pxx pyy pzz
+thermo_modify flush yes
+thermo 100
+min_style cg
+
+label loop
+variable index loop ${mis}
+
+fix 1 fixed setforce 0 0 0
+displace_atoms gb rotate $(v_xdim/2.0) $(v_ydim/2.0) 0 0 0 1 1 units lattice
+write_dump all custom rotated_${index}.dump id type x y z
+minimize 1.0e-15 1.0e-4 50000 5000000
+write_dump all custom rotated_minimized_${index}.dump id type x y z
+unfix 1
+velocity all create 1000.0 100 mom yes dist gaussian loop all
+fix 2 all nvt temp 1000.0 1000.0 $(100.0*dt)
+run 5000
+unfix 2
+write_dump all custom rotated_minimized_annealed_${index}.dump id type x y z
+minimize 1.0e-15 1.0e-4 50000 5000000
+write_dump all custom rotated_minimized_annealed_minimized_${index}.dump id type x y z
+
+next index
+jump SELF loop

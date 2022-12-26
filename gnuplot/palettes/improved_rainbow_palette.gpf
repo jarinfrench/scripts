@@ -1,0 +1,2 @@
+set palette model RGB defined ( 0'blue', 1 'cyan', 2 'green', 3 'yellow',
+                             4 'red', 5 'magenta')

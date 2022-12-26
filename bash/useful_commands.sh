@@ -513,3 +513,164 @@ for i in $(fd find_grains_input.txt -E dir_[0-9]); do
     )
   fi
 done
+
+
+#Useful for compressing the the impure U grain growth simulation data tp the NAS
+for i in U[0-9]*.tar.bz2; do
+  axis=$(echo "${i}" | awk -F'_' '{print $2}')
+  mis=$(echo "${i}" | awk -F'_' '{print $3}')
+  T=$(echo "${i}" | awk -F'_' '{print $4}')
+  syst=$(echo "${i}" | awk -F'_' '{print $1}')
+  rgx="U([0-9]+(.[0-9][0-9])?(Mo|Xe))([0-9].[0-9][0-9]Xe)?"
+
+  if [[ ${syst} =~ ${rgx} ]]; then
+    if [[ ${BASH_REMATCH[3]} == "Mo" ]] && [[ -z ${BASH_REMATCH[4]} ]]; then
+      sys_dir="moly_effect"
+      cMo=$(echo "${BASH_REMATCH[1]}" | cut -d "M" -f 1)
+      cXe=0
+      imp_dir="${cMo}at%"
+    elif [[ ${BASH_REMATCH[3]} == "Mo" ]] && [[ ! -z ${BASH_REMATCH[4]} ]]; then
+      sys_dir="moly_xenon_effect"
+      cMo=$(echo "${BASH_REMATCH[1]}" | cut -d "M" -f 1)
+      cXe=$(echo "${BASH_REMATCH[4]}" | cut -d "X" -f 1)
+      imp_dir="${cMo}at%Mo/${cXe}at%Xe"
+    else
+      sys_dir="xenon_effect"
+      cMo=0
+      cXe=$(echo "${BASH_REMATCH[1]}" | cut -d "X" -f 1)
+      imp_dir="${cXe}at%"
+    fi
+  else
+    echo "Regex matching failed for ${i}"
+    continue
+  fi
+
+  archive="${BASH_REMATCH[0]}_${axis}_${mis}_ternary_eam_${T}_large_r_results.tar.7z"
+  if [[ -f /nfs/home/Research/U/impurity_effect/grain_growth/${archive} ]]; then
+    continue
+  fi
+  tar -xjvf "${i}" --strip-components=3 # extract the tar.bz2 file
+  (
+  cd "U/${sys_dir}/grain_growth/gamma/${axis}/ternary_eam/${imp_dir}/${mis}/${T}/large_r" || continue
+  for j in dir_*; do
+    (
+    cd "${j}" || continue
+    if [[ -f snapshots.tar.bz2 ]] &&  [[ ! -f snapshots.7z ]]; then
+      tar -xjvf snapshots.tar.bz2 # extract the tar.bz2 file containing the dump files
+      7za snapshots.7z ./*.dump && rm snapshots.tar.bz2 ./*.dump # we don't want duplicated data in the resulting archive, so remove the old archive as well as the (now compressed) files
+    elif [[ -f snapshots.7z ]] && [[ -f snapshots.tar.bz2 ]]; then
+      rm snapshots.tar.bz2 *.dump
+    fi
+    )
+  done
+  tar -cvf - $(fd . -t f -E '*_interface.dat' -E mobility_plot.png -E '*.dump') | 7za -si "/nfs/home/Research/U/impurity_effect/grain_growth/${archive}"
+  )
+done
+
+# For plotting the velocity vs the force
+for i in {100,110,111,112}/{{20,45}degree,sigma7}/{Basak,Cooper}/T{{20..33}00,3050}/{large,medium}_r/dir_final_{1..5}; do
+  if [[ ! -d ${i} ]]; then
+    continue
+  fi
+  T=$(echo ${i} | awk -F'/' '{print $4}' | cut -c 2-)
+  rdir=$(echo ${i} | awk -F'/' '{print $5}')
+  if [[ ${rdir} == "large_r" ]]; then
+    r=100
+  elif [[ ${rdir} == "medium_r" ]]; then
+    r=75
+  else
+    echo "Unknown rdir: ${rdir}"
+    continue
+  fi
+  (
+  cd ${i}
+  if [[ ! -f "force_velocity_data.txt" ]]; then
+    continue
+  fi
+  gnuplot -e T=${T} -e "el='UO2'" -e r=${r} plot_vel_vs_force.plt
+  )
+done
+
+# For this specific case, we draw four (resized) images on top of an original image, and also draw a dashed circle
+convert -gravity center Basak_111_20degree_T2800_dir1_vector_plot.png  \( cw_arrows.png -resize 50x50 \) -geometry -330+10 -composite  \( cw_arrows.png -resize 50x50 \) -geometry +320+10 -composite  \( cw_arrows.png -resize 50x50 \) -geometry +18+315 -composite  \( cw_arrows.png -resize 50x50 \) -geometry +10-325 -composite -fill none -stroke black -gravity center -draw 'translate 450,370 stroke-dasharray 5 5 ellipse 100,100 300,300 0,360'  Basak_111_20degree_T2800_dir1_vector_plot_with_indicator.png
+
+for i in T{17..33}00/large_r/dir_{1..6}/; do
+  if [[ -d "${i}" ]] && [[ ! -f "${i}/MSD_U.dat" ]]; then
+    (
+    cd ${i}
+    extract snapshots.7z
+    python ~/projects/scripts/ovito/calculate_MSD.py && rm *.dump
+    )
+  fi
+done
+
+for msd in xy z; do
+  for j in {1..5}; do
+    for i in {20..30}00 3050; do
+      if [[ ! -d T${i}/large_r/dir_final_${j} ]];
+      then continue;
+      fi;
+      (
+      cd T${i}/large_r/dir_final_${j};
+      python ~/projects/scripts/python/calculate_diffusion.py --show ${msd} | awk '{print $5,$9}');
+    done;
+    echo " ";
+  done;
+  echo "-------------------------------------------------------";
+done
+
+for i in $(fd dir_ -t d); do
+  (
+  cd ${i}
+  if [[ ! -f "rdf_initial.txt" ]]; then
+    python ~/projects/scripts/ovito/calculate_RDF.py
+  fi
+  if [[ ! -f "cluster_results_type2_initial.txt" ]]; then
+    python ~/projects/scripts/ovito/cluster_analysis.py bcc 3.542
+  fi
+  if [[ ! -f "force_velocity_data.txt" ]]; then
+    r1="T(1[0-4][05]0)"
+    r2="(([0-9](.[025][05])?)at%(Mo|Xe)?)"
+    if [[ "${i}" =~ ${r1} ]]; then
+      T=${BASH_REMATCH[1]}
+    else
+      echo "T not found for ${i}"
+    fi
+    if [[ "${i}" =~ ${r2} ]]; then
+      c=$(echo "scale=2;${BASH_REMATCH[2]}/100" | bc)
+    else
+      echo "c not found for ${i}"
+    fi
+    if [[ -f "log.lammps" ]]; then
+      l=$(grep "orthogonal box" log.lammps | awk '{print $6,$10}' | awk -F')' '{print $2-$1}')
+    elif compgen -G "output*.txt" > /dev/null; then
+      l=$(grep "orthogonal box" log.lammps | awk '{print $6,$10}' | awk -F')' '{print $2-$1}')
+    else
+      echo "Unable to determine box size (missing log.lammps and output*.txt)"
+    fi
+    p=$(pwd | awk -F'/' '{print $7}' | sed 's/_effect//')
+    if [[ ${p} == "xenon" ]]; then
+      pnum=6
+      calculate_force_and_velocity.py ${T} ${c} ${l} 3.542 1.0 -p ${pnum} -u 2
+    elif [[ ${p} == "moly" ]] || [[ ${p} == "moly_xenon" ]]; then
+      pnum=2
+      calculate_force_and_velocity.py ${T} ${c} ${l} 3.542 1.0 -p ${pnum} -u 2
+    else
+      echo "Unrecognized potential ${p}"
+    fi
+  fi
+  if ! compgen -G "*_displacement_data.txt" > /dev/null; then
+    f=0.dump
+    s=$(ls -v *.dump | head -n "$(qalc -t "round(0.75*$(tail -n1 slope_calc.txt | awk -F':' '{print $2}'))")" | tail -n1)
+    track_atoms 0.dump --xlo 0 --xhi 1 --ylo 0 --yhi 1 --zlo 0 --zhi 1 -i 1 --print-atom-ids > tmp
+    calculate_displacement ${f} ${s} --ids-file tmp
+    rm tmp
+  fi
+  if [[ ! -f "trajectories_type2.png" ]]; then
+    python3.10 ~/projects/scripts/ovito/generate_trajectory_lines.py
+  fi
+  if [[ ! -f "diffusion_results.txt" ]]; then
+    python ~/projects/scripts/python/calculate_diffusion.py $(ls MSD_*.dat | tail -n +2) --post-growth-diff
+  fi
+  )
+done

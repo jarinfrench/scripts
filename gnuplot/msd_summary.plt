@@ -7,7 +7,7 @@ reset
 set title "MSD"
 set xlabel "Time (ps)"
 set ylabel "MSD (\305^2)"
-set yrange [0:35]
+set yrange [0:40]
 
 if (!exists("file")) {
     print "Please enter the file to plot as \`gnuplot -e \"file=\'<filename>\'\"\`"

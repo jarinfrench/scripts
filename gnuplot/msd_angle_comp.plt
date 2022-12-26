@@ -6,13 +6,13 @@ set xrange [0:2500]
 ymaxdefault = 10000000
 
 nangles = system("find . -name '20degree' -o -name '30degree' -o -name '45degree' -o -name 'sigma7' | wc -l")
-ntemps = system("find . -name 'T*' | cut -d '/' -f 3 | sort | uniq | wc -l")
-ndirs = system("find . -name 'dir_*' | cut -d '/' -f 5 | sort | uniq | wc -l")
+ntemps = system("find . -name 'T*' | cut -d '/' -f 4 | sort | uniq | wc -l")
+ndirs = system("find . -name 'dir_*' | cut -d '/' -f 6 | sort | uniq | wc -l")
 nfiles = system("find . -name 'MSD_U.dat' | wc -l")
 
 angles = system("find . -name '20degree' -o -name '30degree' -o -name '45degree' -o -name 'sigma7' | cut -d '/' -f 2 | sort")
-temps = system("find . -name 'T*' | cut -d '/' -f 3 | sort | uniq")
-dirs = system("find . -name 'dir_*' | cut -d '/' -f 5 | sort | uniq")
+temps = system("find . -name 'T*' | cut -d '/' -f 4 | sort | uniq")
+dirs = system("find . -name 'dir_*' | cut -d '/' -f 6 | sort | uniq")
 
 print "Found ".nfiles." files in ".nangles." angles and ".ntemps." temperatures over ".ndirs." runs"
 
@@ -30,7 +30,7 @@ do for [dir in dirs] {
         set yrange[0:ymaxdefault]
         ymaxrange = 0
         do for [angle in angles] {
-            file = angle."/".T."/large_r/".dir."/MSD_U.dat"
+            file = angle."/Cooper/".T."/large_r/".dir."/MSD_U.dat"
             if (!file_exists(file)) {
                 continue
             }

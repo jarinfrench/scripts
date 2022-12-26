@@ -1,0 +1,65 @@
+units metal
+atom_style atomic
+timestep 0.002
+dimension 3
+boundary p p p
+
+read_data ${file} extra/atom/types 1
+
+variable total equal count(all)
+variable seed2 equal round(random(1,1000000,${SEED}))
+variable seed3 equal round(random(1,1000000,${seed2}))
+variable Xe_percent equal ${Xe}/100
+print "The random seed for the Xe atom locations is ${seed2}"
+group U type 1
+set group U type/subset 2 $(round(v_total*0.005)) ${seed2}
+timestep 0.001
+
+group Xe type 2
+
+variable LLX equal (xhi-xlo)
+variable LLY equal (yhi-ylo)
+variable LLZ equal (zhi-zlo)
+
+print "Lx=${LLX}, Ly=${LLY}, Lz=${LLZ}"
+
+pair_style eam/alloy
+pair_coeff * * U_Mo_Xe.2013.eam.alloy U Xe
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp press pe pxx pyy pzz
+thermo_modify flush yes
+thermo 100
+
+velocity all create 1100 ${seed3} mom yes dist gaussian loop all
+fix npt all npt temp 1100 1100 0.2 aniso 0.0 0.0 0.2 drag 0.20
+
+run 10000
+
+write_dump all custom ${newfile} id type x y z 
+unfix npt
+reset_timestep 0 
+timestep 0.002
+
+velocity all create ${T} ${SEED} mom yes dist gaussian loop all
+print "The simulation temperature is set to ${T}"
+print "The random seed for initial Gaussian velocity distribution is ${SEED}"
+
+fix npt all npt temp ${T} ${T} 0.2 aniso 0.0 0.0 0.2 drag 0.20
+
+run 10000 # equilibration phase
+
+reset_timestep 0
+dump 1 all custom 10000 *.dump id type x y z
+
+compute msd all msd com yes
+compute msdU U msd com yes
+compute msdXe Xe msd com yes
+
+fix 1 all ave/time 100 1 100 c_msd[*] file MSD_all.dat
+fix 2 all ave/time 100 1 100 c_msdU[*] file MSD_U.dat
+fix 3 all ave/time 100 1 100 c_msdXe[*] file MSD_Xe.dat
+
+run ${timesteps}

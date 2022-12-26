@@ -180,8 +180,12 @@ void calculateGrainArea(const fit& lattice_fit, const string& output_file, const
 
   structure_factor = lattice_param * lattice_param * lattice_param; // a0^3
   if (input.structure.compare("sc") == 0) {structure_factor /= Lz;}
-  if (input.structure.compare("fcc") == 0) {structure_factor /= 4 * Lz;}
-  if (input.structure.compare("bcc") == 0) {structure_factor /= 2 * Lz;}
+  else if (input.structure.compare("fcc") == 0) {structure_factor /= 4 * Lz;}
+  else if (input.structure.compare("bcc") == 0) {structure_factor /= 2 * Lz;}
+  else {
+    cerr << "Error: unknown input structure: " << input.structure << "\n";
+    exit(INPUT_FORMAT_ERROR);
+  }
 
   fout << fixed;
 

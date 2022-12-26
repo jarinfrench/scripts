@@ -1,0 +1,39 @@
+units metal
+atom_style atomic
+dimension 3
+boundary p p p
+timestep 0.002
+
+atom_modify map yes
+
+read_data ${datafile} extra/atom/types 1
+
+pair_style eam/alloy
+pair_coeff * * U_Mo_Xe.2013.eam.alloy U ${imp}
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp pe press pxx pyy pzz
+thermo_modify flush yes
+thermo 1
+
+variable PE equal pe
+run 0
+
+if "${run}==1" then &
+  "print '0.000000 0.000000 0.000000 ${PE}' append U${imp}_${axis}_${mis}_seg_energies_replace.txt" &
+  "print '0.000000 0.000000 0.000000 ${PE}' append U${imp}_${axis}_${mis}_seg_energies_minimize.txt"
+
+set atom ${id} type 2
+variable xcoord equal x[${id}]
+variable ycoord equal y[${id}]
+variable zcoord equal z[${id}]
+
+run 0
+print "${xcoord} ${ycoord} ${zcoord} ${PE}" append U${imp}_${axis}_${mis}_seg_energies_replace.txt
+
+min_style cg
+minimize 1e-15 1.0e-4 50000 5000000
+
+print "${xcoord} ${ycoord} ${zcoord} ${PE}" append U${imp}_${axis}_${mis}_seg_energies_minimize.txt

@@ -1,0 +1,65 @@
+units metal
+atom_style charge
+timestep 0.002
+dimension 3
+boundary p p p
+
+read_data ${file}
+
+variable CUTOFF equal 11.0
+variable U  equal 1
+variable O  equal 2
+variable Pu equal 3
+
+group U  type ${U}
+group O  type ${O}
+group Pu type ${Pu}
+
+mass ${U}  238.0289
+mass ${O}   15.9994
+mass ${Pu} 244.0000
+
+set type ${U}  charge +2.2208
+set type ${O}  charge -1.1104
+set type ${Pu} charge +2.2208
+
+variable LLX equal (xhi-xlo)
+variable LLY equal (yhi-ylo)
+variable LLZ equal (zhi-zlo)
+
+print "Lx=${LLX}, Ly=${LLY}, Lz=${LLZ}"
+
+kspace_style pppm 1.0e-5
+pair_style hybrid/overlay coul/long ${CUTOFF} eam/alloy
+pair_coeff * * coul/long
+pair_coeff * * eam/alloy CeThUNpPuAmCmO.eam.alloy U O Pu
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp press pxx pyy pzz
+thermo_modify flush yes
+thermo 5000
+
+velocity all create ${T} ${SEED} mom yes dist gaussian loop all
+print "The simulation temperature is set to ${T}"
+print "The random seed for initial Gaussian velocity distribution is ${SEED}"
+
+fix npt all npt temp ${T} ${T} 0.2 aniso 0.0 0.0 0.2 drag 0.20
+
+run 10000 # equilibration at the desired temperature
+
+reset_timestep 0
+dump 1 all custom 20000 *.dump id type x y z
+
+compute msd all msd com yes
+compute msdU U msd com yes
+compute msdO O msd com yes
+compute msdPu Pu msd com yes
+
+fix 1 all ave/time 5000 1 5000 c_msd[*] file MSD_all.dat
+fix 2 all ave/time 5000 1 5000 c_msdU[*] file MSD_U.dat
+fix 3 all ave/time 5000 1 5000 c_msdO[*] file MSD_O.dat
+fix 4 all ave/time 5000 1 5000 c_msdPu[*] file MSD_Pu.dat
+
+run ${timesteps}

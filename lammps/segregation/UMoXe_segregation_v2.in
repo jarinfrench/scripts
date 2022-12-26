@@ -1,0 +1,35 @@
+units metal
+atom_style atomic
+dimension 3
+boundary p p p
+timestep 0.002
+
+atom_modify map yes
+
+read_data ${datafile} extra/atom/types 1
+
+pair_style eam/alloy
+pair_coeff * * U_Mo_Xe.2013.eam.alloy U ${imp}
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp pe press pxx pyy pzz
+thermo_modify flush yes
+thermo 1
+
+variable PE equal pe
+
+fix 1 all ave/time 1 $(v_timesteps/2) ${timesteps} v_PE
+fix 2 all npt temp ${T} ${T} 0.2 aniso 0.0 0.0 0.2 drag 0.20
+if "${run}==1" then &
+  "run ${timesteps}" &
+  "print '0.000000 0.000000 0.000000 $(f_1/count(all))' append U${imp}_${axis}_${mis}_seg_energies_T${T}_dt${timesteps}.txt"
+
+set atom ${id} type 2
+variable xcoord equal x[${id}]
+variable ycoord equal y[${id}]
+variable zcoord equal z[${id}]
+fix 3 all ave/time 1 $(v_timesteps/2) ${timesteps} v_xcoord v_ycoord v_zcoord
+run ${timesteps}
+print "$(f_3[1]) $(f_3[2]) $(f_3[3]) $(f_1/count(all))" append U${imp}_${axis}_${mis}_seg_energies_T${T}_dt${timesteps}.txt

@@ -1,0 +1,37 @@
+include init.mod
+include potential.mod
+
+variable e_tot equal pe
+variable init_energy equal ${e_tot}
+
+# perform an initial relaxation
+fix relax all box/relax aniso 0.0
+minimize 1e-15 1e-8 5000 500000
+
+write_dump all custom initial_min.dump id type q x y z
+unfix relax
+
+variable first_min_energy equal ${e_tot}
+
+velocity all create ${Tanneal} 100 mom yse dist gaussian loop all
+
+fix 1 all nvt temp ${Tanneal} ${Tanneal} 0.2
+
+run $(10/dt) # anneal for 10 time units
+write_dump all custom high_temp.dump id type q x y z
+
+unfix 1
+
+fix 2 all langevin ${Tanneal} 0.0 10 18257
+fix 3 all nve
+
+run $(10/dt) # damp the temperature to 0 over 10 time units
+write_dump all custom damped_temperature.dump id type q x y z
+
+unfix 2
+unfix 3
+
+fix relax all box/relax aniso 0.0
+minimize 1e-15 1e-8 5000 50000
+
+write_dump all custom final_min.dump id type q x y z

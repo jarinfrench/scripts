@@ -10,6 +10,7 @@ import sys, pwlf
 from scipy.stats import iqr
 from GPyOpt.methods import BayesianOptimization
 from sklearn.linear_model import ElasticNetCV
+from sklearn.metrics import r2_score
 
 def addInfo(file):
     with open(args.output, 'a') as f:
@@ -53,13 +54,14 @@ parser.add_argument('-r', '--fit-range', nargs = 2, type = int, default = [-1, -
 parser.add_argument('-g', '--growth', action = "store_true", help = "Flag to only show the percent growth")
 parser.add_argument('-i', '--interactive', action = "store_true", help = "Flag to do interactive calculations")
 parser.add_argument('--publish', action = "store_true", help = "Flag to remove details from the plot for use in publications")
+parser.add_argument('--simple', action = "store_true", help = "Flag to simplify the fitting procedure to the end of the simulation or once the grain size is less than 100 square angstroms (r < ~5 angstroms)")
 parser.add_argument('--add-label', help = "Adds the label to the upper left corner")
 
 args = parser.parse_args()
 clr.init()
 
 if args.publish:
-    plt.style.use('publication')
+    plt.style.use(['science', 'nature'])
 
 # First, we need to read the data
 t = []; y1 = []; y2 = [] # initialize the data arrays
@@ -72,6 +74,10 @@ with open(args.file) as f:
         t.append(float(data[0]))
         y1.append(float(data[1]))
         y2.append(float(data[2]))
+
+if len(t) <= 3 or len(y1) <= 3 or len (y2) <= 3:
+    print(f"Missing data (<= 1 data point)")
+    exit()
 
 t = np.array(t)
 y1 = np.array(y1)
@@ -104,83 +110,110 @@ else:
     if args.growth:
         sys.exit(0)
 
-# get the model
-model = pwlf.PiecewiseLinFit(t, y)
-
-model.fit(args.segments)
-if not args.force:
-    num_points_in_lines = np.zeros(model.slopes.shape[0])
-    for i,slope in enumerate(model.slopes):
-        num_points_in_lines[i] = len([idx for idx, k in enumerate(t) if k >= model.fit_breaks[i] and k <= model.fit_breaks[i+1]])
-    while [i for i in num_points_in_lines if i <= 3] or [i for i in model.slopes if i > 1]:
-        args.segments -= 1
-        if args.segments == 1:
-            args.segments += 1
-            break
-        model.fit(args.segments)
-        num_points_in_lines = np.zeros(model.slopes.shape[0])
-        for i,slope in enumerate(model.slopes):
-            num_points_in_lines[i] = len([idx for idx, k in enumerate(t) if k >= model.fit_breaks[i] and k <= model.fit_breaks[i+1]])
-slopes = model.slopes
-
-num_points_in_lines = np.zeros(model.slopes.shape[0])
-time_length = np.zeros(slopes.shape[0])
-area_length = np.zeros(slopes.shape[0])
-if not args.publish:
-    annotation = ""
-ignored = []
-if args.fit_range[0] != -1: # not the default
-    keep_start = model.fit_breaks[args.fit_range[0]]
-else:
-    keep_start = -1
-if args.fit_range[1] != -2: # not the default
-    if args.fit_range[1] >= len(model.fit_breaks):
-        print(f"Indicated fitting to endpoint {args.fit_range}, but only {len(model.fit_breaks)} total breaks. Using final endpoint.")
-        keep_end = model.fit_breaks[-1]
-    else:
-        keep_end = model.fit_breaks[args.fit_range[1]]
-
-# Check for outliers
-outlier_upper = np.percentile(model.slopes, 75) + 1.5 * iqr(model.slopes) # outliers are defined as values outside of 1.5 times the interquartile range
-outlier_lower = np.percentile(model.slopes, 25) - 1.5 * iqr(model.slopes)
-cumulative_growth = 0
-for i, slope in enumerate(slopes):
-    valid_data = [idx for idx, k in enumerate(t) if k >= model.fit_breaks[i] and k <= model.fit_breaks[i + 1]]
-    num_points_in_lines[i] = len(valid_data)
-    time_length[i] = (t[valid_data[-1]] - t[valid_data[0]]) / t[-1] * 100 # percent of total time over the specified range
-    area_length[i] = (y[valid_data[0]] - y[valid_data[-1]])   / y[0] * 100 # percent growth observed in the specified range
-    print(f"Regime {i+1}: {time_length[i]:.2f}% of total time, {area_length[i]:.2f}% grain shrinkage ({int(num_points_in_lines[i])} points), slope = {slopes[i]:.2f}")
+if args.segments == 1 or (args.simple and end_grain_size > 100):
+    model = np.polyfit(t, y, 1)
+    predict = np.poly1d(model)
+    r_sqr = r2_score(y, predict(t))
     if not args.publish:
-        annotation += rf'''$\left(\frac{{dA}}{{dt}}\right)_{{{i+1}}}^{{{int(valid_data[0])}:{int(valid_data[-1])}}} \approx$ {slope:.2f}
-''' # we force a newline here
-    if len(slopes) > 2:
-        if ((slope > outlier_upper or slope < outlier_lower) or  # current slope is an outlier
-           ((abs(slope) < args.percent * max(y) / max(t) and i > 0))  # current slope is not the first slope, and is less than the defined threshold
-           and (cumulative_growth > 95 or observed_growth > 95)): # overall growth has not reached 95% of it's total growth.
-            ignored.append(model.fit_breaks[i:i+2]) # store the start and end point of the ignored section (uses values of t)
-            cumulative_growth += area_length[i]
-            observed_growth = (y[0] - y[valid_data[-1]]) / (y[0] - y[-1])*100
+        annotation = rf'''$\left(\frac{{dA}}{{dt}}\right) \approx$ {model[0]:.2f}'''
+    keep_start = 0
+    keep_end = t[-1]
+    ignored = []
+else:
+    if args.simple:
+        last_point = next((idx for idx, obj in enumerate(y) if obj < 100), len(y) - 1)
+        model = np.polyfit(t[:last_point], y[:last_point], 1)
+        if last_point == len(y):
+            ignored = []
         else:
-            if args.fit_range[0] == -1 and keep_start == -1:
-                keep_start = model.fit_breaks[i]
-            if args.fit_range[1] == -2:
-                keep_end = model.fit_breaks[i+1]
-            cumulative_growth += area_length[i]
-            observed_growth = (y[0] - y[valid_data[-1]]) / (y[0] - y[-1])*100
+            ignored = [np.array([t[last_point + 1], t[-1]])]
+        predict = np.poly1d(model)
+        r_sqr = r2_score(y[:last_point], predict(t[:last_point]))
+        if not args.publish:
+            annotation = rf'''$\left(\frac{{dA}}{{dt}}\right) \approx$ {model[0]:.2f}'''
+        keep_start = 0
+        keep_end = t[last_point]
     else:
-        # TODO: There is a bug here that can cause keep_end to equal keep_start, leading to an error in line 196 (processed is an empty list)
-        if abs(slope) < args.percent * max(y) / max(t): # for the two-regime case, we ignore any section that has a growth rate that leads to less than 25% growth over the specified time
-            ignored.append(model.fit_breaks[i:i+2])
+        # get the model
+        model = pwlf.PiecewiseLinFit(t, y)
+
+        model.fit(args.segments)
+        if not args.force:
+            num_points_in_lines = np.zeros(model.slopes.shape[0])
+            for i,slope in enumerate(model.slopes):
+                num_points_in_lines[i] = len([idx for idx, k in enumerate(t) if k >= model.fit_breaks[i] and k <= model.fit_breaks[i+1]])
+            while [i for i in num_points_in_lines if i <= 3] or [i for i in model.slopes if i > 1]:
+                args.segments -= 1
+                if args.segments == 1:
+                    args.segments += 1
+                    break
+                model.fit(args.segments)
+                num_points_in_lines = np.zeros(model.slopes.shape[0])
+                for i,slope in enumerate(model.slopes):
+                    num_points_in_lines[i] = len([idx for idx, k in enumerate(t) if k >= model.fit_breaks[i] and k <= model.fit_breaks[i+1]])
+        slopes = model.slopes
+
+        num_points_in_lines = np.zeros(model.slopes.shape[0])
+        time_length = np.zeros(slopes.shape[0])
+        area_length = np.zeros(slopes.shape[0])
+        if not args.publish:
+            annotation = ""
+        ignored = []
+        if args.fit_range[0] != -1: # not the default
+            keep_start = model.fit_breaks[args.fit_range[0]]
         else:
-            if args.fit_range[0] == -1 and keep_start == -1:
-                keep_start = model.fit_breaks[i]
-            if args.fit_range[1] == -2:
-                keep_end = model.fit_breaks[i+1]
-            keep_end = model.fit_breaks[i+1]
+            keep_start = -1
+        if args.fit_range[1] != -2: # not the default
+            if args.fit_range[1] >= len(model.fit_breaks):
+                print(f"Indicated fitting to endpoint {args.fit_range}, but only {len(model.fit_breaks)} total breaks. Using final endpoint.")
+                keep_end = model.fit_breaks[-1]
+            else:
+                keep_end = model.fit_breaks[args.fit_range[1]]
+
+        # Check for outliers
+        outlier_upper = np.percentile(model.slopes, 75) + 1.5 * iqr(model.slopes) # outliers are defined as values outside of 1.5 times the interquartile range
+        outlier_lower = np.percentile(model.slopes, 25) - 1.5 * iqr(model.slopes)
+        cumulative_growth = 0
+        for i, slope in enumerate(slopes):
+            valid_data = [idx for idx, k in enumerate(t) if k >= model.fit_breaks[i] and k <= model.fit_breaks[i + 1]]
+            num_points_in_lines[i] = len(valid_data)
+            time_length[i] = (t[valid_data[-1]] - t[valid_data[0]]) / t[-1] * 100 # percent of total time over the specified range
+            area_length[i] = (y[valid_data[0]] - y[valid_data[-1]])   / y[0] * 100 # percent growth observed in the specified range
+            print(f"Regime {i+1}: {time_length[i]:.2f}% of total time, {area_length[i]:.2f}% grain shrinkage ({int(num_points_in_lines[i])} points), slope = {slopes[i]:.2f}")
+            if not args.publish:
+                annotation += rf'''$\left(\frac{{dA}}{{dt}}\right)_{{{i+1}}}^{{{int(valid_data[0])}:{int(valid_data[-1])}}} \approx$ {slope:.2f}
+        ''' # we force a newline here
+            if len(slopes) > 2:
+                if ((slope > outlier_upper or slope < outlier_lower) or  # current slope is an outlier
+                   ((abs(slope) < args.percent * max(y) / max(t) and i > 0))  # current slope is not the first slope, and is less than the defined threshold
+                   and (cumulative_growth > 95 or observed_growth > 95)): # overall growth has not reached 95% of it's total growth.
+                    ignored.append(model.fit_breaks[i:i+2]) # store the start and end point of the ignored section (uses values of t)
+                    cumulative_growth += area_length[i]
+                    observed_growth = (y[0] - y[valid_data[-1]]) / (y[0] - y[-1])*100
+                else:
+                    if args.fit_range[0] == -1 and keep_start == -1:
+                        keep_start = model.fit_breaks[i]
+                    if args.fit_range[1] == -2:
+                        keep_end = model.fit_breaks[i+1]
+                    cumulative_growth += area_length[i]
+                    observed_growth = (y[0] - y[valid_data[-1]]) / (y[0] - y[-1])*100
+            else:
+                # TODO: There is a bug here that can cause keep_end to equal keep_start, leading to an error where processed is an empty list
+                if abs(slope) < args.percent * max(y) / max(t): # for the two-regime case, we ignore any section that has a growth rate that leads to less than 25% growth over the specified time
+                    ignored.append(model.fit_breaks[i:i+2])
+                else:
+                    if args.fit_range[0] == -1 and keep_start == -1:
+                        keep_start = model.fit_breaks[i]
+                    if args.fit_range[1] == -2:
+                        keep_end = model.fit_breaks[i+1]
+                    keep_end = model.fit_breaks[i+1]
 
 # Need a check where I see if all the data points are ignored.
 tHat = np.linspace(min(t), max(t), num=10000)
-yHat = model.predict(tHat)
+if args.segments == 1 or args.simple:
+    yHat = predict(tHat)
+else:
+    yHat = model.predict(tHat)
 
 index_start = next((id for id,pt in enumerate(t) if pt >= keep_start))
 try:
@@ -196,7 +229,10 @@ if args.interactive:
 
 if ignored: # check for empty list
     tHat_avg_ignored = np.concatenate([np.linspace(i,j,int((j-i)/10)) for i,j in ignored]).ravel() # creates an array of the ignored values
-    yHat_avg_ignored = model.predict(tHat_avg_ignored)
+    if args.segments == 1 or args.simple:
+        yHat_avg_ignored = predict(tHat_avg_ignored)
+    else:
+        yHat_avg_ignored = model.predict(tHat_avg_ignored)
     # ax.plot(tHat_avg_ignored, yHat_avg_ignored, '-', color = "gray", alpha = 0.5, label="Excluded Data Fit") # the ignored data
 
 processed = list(zip(t[index_start:index_end], y[index_start:index_end])) # the data we are keeping
@@ -214,8 +250,9 @@ ax.plot(*zip(*processed), 'r.', label="Fitted Data") # the data
 if not args.publish:
     ax.plot(tHat, yHat, '--', color = "black", label=f"Piecewise Linear Fit ({args.segments} segments)") # all piecewise linear fits
     ax.plot(tHat_avg_kept, yHat_avg_kept, 'k-', label="Full fitted slope") # the average slope without the ignored data
-    for breakpoint in model.fit_breaks[1:-1]:
-        ax.axvline(x=breakpoint, color = 'black', alpha = 0.1, ls=':', zorder = 1)
+    if not (args.segments == 1 or args.simple):
+        for breakpoint in model.fit_breaks[1:-1]:
+            ax.axvline(x=breakpoint, color = 'black', alpha = 0.1, ls=':', zorder = 1)
 else:
     ax.plot(tHat_avg_kept, yHat_avg_kept, 'k-') # the average slope without the ignored data
 
@@ -262,6 +299,6 @@ if args.add_label:
 if not args.interactive:
     plt.savefig(args.image_name, bbox_inches = 'tight')
     with open(args.output, 'a') as f:
-        f.write(f"{args.file} dA/dt = {avg_params[0]:.2f} error = {avg_slope_err:.2f} r_sq = {avg_rsq:.4f} fit to points {index_start + 1}:{index_end + 1}\n")
+        f.write(f"{args.file} dA/dt = {avg_params[0]:.2f} error = {avg_slope_err:.2f} r_sq = {avg_rsq:.4f} fit to points {index_start + 1}:{index_end}\n")
 else:
     plt.show()

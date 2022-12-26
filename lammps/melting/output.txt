@@ -1,0 +1,21 @@
+LAMMPS (29 Oct 2020)
+  using 4 OpenMP thread(s) per MPI task
+Lattice spacing in x,y,z = 3.5200000 3.5200000 3.5200000
+Created orthogonal box = (0.0000000 0.0000000 0.0000000) to (35.200000 17.600000 17.600000)
+  2 by 1 by 2 MPI processor grid
+Created 250 atoms
+  create_atoms CPU = 0.001 seconds
+250 atoms in group liquid
+ERROR: Could not find fix group ID (src/modify.cpp:815)
+Last command: fix freeze solid setforce 0.0 0.0 0.0
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code.. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpirun detected that one or more processes exited with non-zero status, thus causing
+the job to be terminated. The first process to do so was:
+
+  Process name: [[30617,1],0]
+  Exit code:    1
+--------------------------------------------------------------------------

@@ -19,7 +19,7 @@ args = parser.parse_args()
 fits = []
 
 with open(args.database) as f:
-    for _ in range(6):
+    for _ in range(5):
         next(f)
     for line in f:
         fits.append(line.split())

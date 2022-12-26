@@ -1,0 +1,39 @@
+# saved LAMMPS Shell history
+units metal
+atom_style atomic
+dimension 3
+boundary p p p
+
+read_data LAMMPS_U${Mo}Mo_110_pTernaryEAM_${angle}degree_r100A_annealed.dat extra/atom/types 1
+variable N equal count(all)
+#set group all type/subset 2 $(round(v_N*v_Mo/100.0)) 100
+#write_dump all custom LAMMPS_U${Mo}Mo_110_pTernaryEAM_45degree_r100A.dump id type x y z
+
+group U type 1
+group Mo type 2
+variable NMo equal count(Mo)
+print "N: ${N}, NMo: ${NMo}, Percent Mo: $((v_NMo/v_N)*100)"
+
+set group U type/subset 3 $(round(v_N*0.0025)) 100
+write_dump all custom LAMMPS_U${Mo}Mo0.25Xe_110_pTernaryEAM_${angle}degree_r100A.dump id type x y z
+group Xe type 3
+variable NXe equal count(Xe)
+print "N: ${N}, NXe: ${NXe}, Percent Xe: $((v_NXe/v_N)*100)"
+set group Xe type/fraction 1 1 100
+# print "NXe: ${NXe}"
+
+set group U type/subset 3 $(round(v_N*0.0050)) 100
+write_dump all custom LAMMPS_U${Mo}Mo0.50Xe_110_pTernaryEAM_${angle}degree_r100A.dump id type x y z
+group Xe type 3
+variable NXe equal count(Xe)
+print "N: ${N}, NXe: ${NXe}, Percent Xe: $((v_NXe/v_N)*100)"
+set group Xe type/fraction 1 1 100
+# print "NXe: ${NXe}"
+
+#set group U type/subset 3 $(round(v_N*0.01)) 100
+#write_dump all custom LAMMPS_U${Mo}Mo1Xe_110_pTernaryEAM_${angle}degree_r100A.dump id type x y z
+#group Xe type 3
+# variable NXe equal count(Xe)
+# print "N: ${N}, NXe: ${NXe}, Percent Xe: $((v_NXe/v_N)*100)"
+#set group Xe type/fraction 1 1 100
+# print "NXe: ${NXe}"

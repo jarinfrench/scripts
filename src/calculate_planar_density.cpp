@@ -380,6 +380,7 @@ int main(int argc, char** argv)
     options.parse_positional({"file", "h", "k", "l"});
     auto result = options.parse(argc, argv);
     verbosity = result.count("verbose");
+    cout << "WARNING: This method of calculating planar density has been disputed by Liu et al., SN Applied Sciences 2 (2020)\n\n";
 
     if (result.count("help") || !result.count("file") || !result.count("h") || !result.count("k") || !result.count("l"))
     {

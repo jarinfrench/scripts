@@ -13,17 +13,16 @@ ProgressBarInit() {
 
 # ProgressBar function - Input is currentState($1), totalState($2) and optional processName($3)
 ProgressBar() {
-  # Process data
-  let _progress=(${1}*100/${2}*100)/100
+  _progress=$(((${1}*100/${2}*100)/100))
 
-  if [ ${_progress} -eq ${_last_progress} ]; then
+  if [ ${_progress} -eq "${_last_progress}" ]; then
     return
   fi
 
   _last_progress=${_progress}
 
-  let _done=(${_progress}*4)/10
-  let _left=40-${_done}
+  _done=$((_progress*4/10))
+  _left=$((40-_done))
 
   # Build progressbar string lengths
   _fill=$(printf "%${_done}s")
@@ -41,7 +40,7 @@ ProgressBar() {
 # Take multiple *.gif animations and stack them within a 3x3 grid.  Assumes that
 # the number of frames, the animation time, etc. are all equal, and that only
 # the frames are different between the gifs.
-# Arguments: base names of the original gifs
+# Arguments: base names of the original gifs (e.g. w/o the .gif extension)
 # See http://www.imagemagick.org/Usage/anim_mods/#append
 
 # Assume a resolution of 1920 x 1000
@@ -50,10 +49,6 @@ ProgressBar() {
 
 
 num_args=$#
-cols=3
-rows=3
-col_index=0
-row_index=0
 
 if [ "${num_args}" -lt 2 ]; then
   echo "At least two gifs must be specified."
@@ -118,19 +113,19 @@ esac
 
 # get each gif's individual frames with animation information
 mkdir .tmp
-cd .tmp
+cd .tmp || { echo "Failed to change to '.tmp'"; exit; }
 ProgressBarInit
 iter=1
 total=${num_args}
 num_frames=()
-for _gif in $@
+for _gif in "$@"
 do
   # explode the gif into it's individual frames
   gif2anim -c ../${_gif}.gif
 
   # resize and title each one.
   num_frames[${#num_frames[@]}]=$(ls ${_gif}_[0-9][0-9][0-9].gif | wc -l)
-  for frame in $(ls ${_gif}_[0-9][0-9][0-9].gif)
+  for frame in ${_gif}_[0-9][0-9][0-9].gif
   do
     basename="${frame%.*}"
     new_name="${basename}_small.gif"
@@ -150,7 +145,7 @@ else
   echo "Warning! Number of frames not consistent between gifs! Using minimum number of frames."
   min=${num_frames[0]}
   idx=0
-  for val in ${num_frames[@]}; do
+  for val in "${num_frames[@]}"; do
     echo "Frames in gif ${idx}: ${val}"
     ((idx++))
     (( val < min )) && min=${val}
@@ -201,7 +196,7 @@ do
   # Note that for the -append option, index1 will _always_ be non-numeric
   new_name="${index1}${index2//[!1-9]/}"
 
-  for frame in $(seq -f '%03g' 1 10)
+  for frame in $(seq -f '%03g' 1 ${num_frames})
   do
     if ! [[ ${index2} =~ ${re} ]]; then # not a number, i.e. comb34
       convert ${index1}_${frame}.gif ${index2}_${frame}.gif -append ${new_name}_${frame}.gif
@@ -215,8 +210,7 @@ done
 
 anim2gif -c -b ${new_name} $1.anim
 mv ${new_name}_anim.gif ../combined.gif
-
 echo ""
 # cleanup
-cd ../
+cd ../ || { echo "Failed to change to parent directory"; exit 1; }
 rm -rf .tmp

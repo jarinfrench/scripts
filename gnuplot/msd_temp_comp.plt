@@ -4,6 +4,8 @@ set encoding iso_8859_1
 set output "MSD_T_comp_plot.png"
 reset
 
+filename = "MSD_U.dat"
+
 set xrange [0:2500]
 
 if (!exists("ymax")) {
@@ -13,11 +15,11 @@ if (!exists("ymax")) {
 }
 
 ntemps = system("find . -name 'T*' | wc -l")
-ndirs = system("find . -name 'dir_*' | cut -d '/' -f 4 | sort | uniq | wc -l")
-nfiles = system("find . -name 'MSD_U.dat' | wc -l")
+ndirs = system("find . -name 'dir_*' | grep large | cut -d '/' -f 4 | sort | uniq | wc -l")
+nfiles = system("find . -name '".filename."' | grep large | wc -l")
 
 temps = system("find . -name 'T*' | cut -d '/' -f 2 | sort")
-dirs = system("find . -name 'dir_*' | cut -d '/' -f 4 | sort | uniq")
+dirs = system("find . -name 'dir_*' | grep large | cut -d '/' -f 4 | sort | uniq")
 
 print "Found ".nfiles." files in ".ntemps." temperatures over ".ndirs." runs"
 
@@ -34,7 +36,7 @@ row = 1
 col = 1
 do for [dir in dirs] {
     do for [T in temps] {
-        file = T."/large_r/".dir."/MSD_U.dat"
+        file = T."/large_r/".dir."/".filename
         if (!file_exists(file)) {
             set multiplot next
             continue
@@ -99,10 +101,10 @@ do for [i=1:ntemps] {
     set multiplot next
 }
 do for [T in temps] {
-    file = T."/large_r/dir_1/MSD_U.dat"
+    file = T."/large_r/dir_1/".filename
     if (!file_exists(file)) {
         print "Could not find MSD file in dir_1 of ".T."/large_r"
-        break
+        continue
     }
     set xtics format "%g" rotate by -45 left
     set title T offset 0,-1

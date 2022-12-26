@@ -1,0 +1,57 @@
+units metal
+atom_style charge
+dimension  3
+boundary   p p p 
+timestep   0.002
+
+atom_modify map yes 
+
+read_data ${datafile}
+
+# NOTE THE DIFFERENT ATOM TYPE VALUES HERE
+variable U equal 2
+variable O equal 1
+variable Pu equal 3
+
+mass ${U}  238.0289
+mass ${O}  15.9994
+mass ${Pu} 244.0000
+
+group uranium   type ${U}
+group oxygen    type ${O}
+group plutonium type ${Pu}
+
+variable rcut equal 11.0
+
+set group uranium   charge +2.2208
+set group oxygen    charge -1.1104
+set group plutonium charge +2.2208
+pair_style hybrid/overlay coul/long ${rcut} eam/alloy
+pair_coeff * * coul/long
+pair_coeff * * eam/alloy CeThUNpPuAmCmO.eam.alloy O U Pu
+
+kspace_style pppm 1.0e-5
+
+variable rcut equal 11.0
+
+neighbor 1.0 bin 
+neigh_modify every 1 delay 0 check yes 
+
+thermo_style custom step temp press pe lx ly lz
+thermo_modify flush yes 
+thermo 1000
+
+variable en equal pe
+variable xcoord equal x[${id}]
+variable ycoord equal y[${id}]
+variable zcoord equal z[${id}]
+
+run 0
+print "${id} ${xcoord} ${ycoord} ${zcoord} ${en}" append energies_${potential}+Pu_${axis}_${mis}_replace.txt
+#min_style cg
+#minimize 1.0e-15 1.0e-4 50000 5000000
+
+#write_dump all custom min_${fileno}_${split_fileno}_${id}.*.dump id type q x y z
+
+#print "${id} ${xcoord} ${ycoord} ${zcoord} ${en}" append energies_${potential}+Pu_${axis}_${mis}_min.txt
+

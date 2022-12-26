@@ -62,14 +62,12 @@ bool processFile(const string& file, vector <Atom>& atoms, const vector <int>& i
   unsigned int atom_id, n_read = 0;
   int atom_type, grain_num;
   bool warned = false; // user has been warned of no wrapped coordinates
-  bool dump = false; // file type is a dump file
   double charge, x, y, z, f_i, xu, yu, zu;
 
   ifstream fin(file.c_str());
   checkFileStream(fin, file);
 
-  if (file.find(".dump") != string::npos) {
-    dump = true;
+  if (file.find(".dump") != string::npos) { // dump file
     for (unsigned int i =0; i < 9; ++i) {getline(fin,str);} //ignore the first 9 lines
 
     if (str.find("xu") == string::npos || str.find("yu") == string::npos || str.find("zu") == string::npos) {
@@ -119,7 +117,136 @@ bool processFile(const string& file, vector <Atom>& atoms, const vector <int>& i
       p = Position(xu,yu,zu);
       atoms[atom_id - 1].setUnwrapped(p);
     }
-  } else {
+  } else if (file.find(".dat") != string::npos) {
+    string output_type = "";
+    string header = "";
+    getline(fin, header);
+    size_t left_bracket = header.find("[");
+    size_t right_bracket = header.find("]", left_bracket);
+    while (output_type.find("Atoms") == string::npos) {
+      getline(fin, output_type);
+    }
+
+    getline(fin, str); // blank line
+
+    if (left_bracket != string::npos && right_bracket != string::npos) {
+      string data_string = header.substr(left_bracket + 1, right_bracket - left_bracket - 1);
+      stringstream ss(data_string);
+      vector <string> vars;
+      int x_ind = -1, y_ind = -1, z_ind = -1, id_ind = -1, type_ind = -1;
+      int xu_ind = -1, yu_ind = -1, zu_ind = -1, q_ind = -1;
+      string str2;
+      while (ss >> str2) {
+        transform(str2.begin(), str2.end(), str2.begin(), ::tolower);
+        if (str2.compare("charge") == 0) {vars.push_back("q"); q_ind = vars.size() - 1;}
+        else {
+          vars.push_back(str2);
+          if (str2.compare("xu") == 0) {xu_ind = vars.size() - 1; continue;}
+          if (str2.compare("yu") == 0) {yu_ind = vars.size() - 1; continue;}
+          if (str2.compare("zu") == 0) {zu_ind = vars.size() - 1; continue;}
+          if (str2.compare("x") == 0) {x_ind = vars.size() - 1; continue;}
+          if (str2.compare("y") == 0) {y_ind = vars.size() - 1; continue;}
+          if (str2.compare("z") == 0) {z_ind = vars.size() - 1; continue;}
+          if (str2.compare("id") == 0) {id_ind = vars.size() - 1; continue;}
+          if (str2.compare("type") == 0) {type_ind = vars.size() - 1;}
+        }
+      }
+      if (xu_ind == -1 && x_ind == -1) {
+        cout << "Could not find x coordinate in data (data string: " << data_string << "). Exiting...\n";
+        exit(FILE_FORMAT_ERROR);
+      }
+      if (yu_ind == -1 && y_ind == -1) {
+        cout << "Could not find y coordinate in data (data string: " << data_string << "). Exiting...\n";
+        exit(FILE_FORMAT_ERROR);
+      }
+      if (zu_ind == -1 && z_ind == -1) {
+        cout << "Could not find z coordinate in data (data string: " << data_string << "). Exiting...\n";
+        exit(FILE_FORMAT_ERROR);
+      }
+      if (id_ind == -1) {
+        cout << "Could not find atom id in data (data string: " << data_string << "). Exiting...\n";
+        exit(FILE_FORMAT_ERROR);
+      }
+      if (type_ind == -1) {
+        cout << "Could not find type in data (data string: " << data_string << "). Exiting...\n";
+        exit(FILE_FORMAT_ERROR);
+      }
+
+      while (getline(fin, str)) {
+        vector <double> data;
+        double tmp;
+        stringstream ss(str);
+        while (ss >> tmp) {data.push_back(tmp);}
+        atom_id = (int)(data[id_ind]);
+        atom_type = (int)(data[type_ind]);
+        if (q_ind == -1) {charge = 0.0;}
+        else {charge = data[q_ind];}
+        if (atom_id > atoms.size()) {atoms.resize(atom_id, Atom());}
+        ++n_read;
+
+        if (ids.size() != 0 && find(ids.begin(), ids.end(), atom_id) == ids.end()) continue;
+        Position p(data[x_ind],data[y_ind],data[z_ind]);
+        atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, p);
+        if (xu_ind == -1 || yu_ind == -1 || zu_ind == -1) {
+          p = Position(0,0,0);
+        } else { //(xu_ind != -1 && yu_ind != -1 && zu_ind != -1)
+          p = Position(data[xu_ind], data[yu_ind], data[zu_ind]);
+        }
+        atoms[atom_id - 1].setUnwrapped(p);
+      }
+      if (xu_ind == -1 && yu_ind == -1 && zu_ind == -1) {
+        if (!warned) {
+          cout << "WARNING: Unwrapped coordinates do not exist.\n";
+          warned = true;
+        }
+      }
+    } else if (str.find("#") != string::npos) {
+      cout << "Warning: image flags not currently taken into account.\n";
+      stringstream ss(str);
+      ss >> output_type >> output_type >> output_type; // we only need the last bit (e.g. Atoms # _charge_)
+      if (output_type.compare("atomic") == 0) {
+        // id type x y z
+        while (getline(fin, str)) {
+          stringstream s2(str);
+          if (!(s2 >> atom_id >> atom_type >> x >> y >> z)) {
+            cout << "Error: data corrupted. Expected id type x y z\n"
+                 << "Line: " << str << "\n";
+            exit(FILE_FORMAT_ERROR);
+          }
+          xu = 0;
+          yu = 0;
+          zu = 0;
+          if (atom_id > atoms.size()) {atoms.resize(atom_id, Atom());}
+          ++n_read;
+          if (ids.size() != 0 && find(ids.begin(), ids.end(), atom_id) == ids.end()) continue;
+          Position p(x,y,z);
+          atoms[atom_id - 1] = Atom(atom_id, atom_type, 0, p);
+          p = Position(xu, yu, zu);
+          atoms[atom_id - 1].setUnwrapped(p);
+        }
+      } else if (output_type.compare("charge") == 0) {
+        // id type q x y z
+        while (getline(fin, str)) {
+          stringstream s2(str);
+          if (!(s2 >> atom_id >> atom_type >> charge >> x >> y >> z)) {
+            cout << "Error: data corrupted. Expected id type q x y z\n"
+                 << "Line: " << str << "\n";
+            exit(FILE_FORMAT_ERROR);
+          }
+          xu = x;
+          yu = y;
+          zu = z;
+          if (atom_id > atoms.size()) {atoms.resize(atom_id, Atom());}
+          ++n_read;
+          if (ids.size() != 0 && find(ids.begin(), ids.end(), atom_id) == ids.end()) continue;
+          Position p(x,y,z);
+          atoms[atom_id - 1] = Atom(atom_id, atom_type, charge, p);
+          p = Position(xu, yu, zu);
+          atoms[atom_id - 1].setUnwrapped(p);
+        }
+      }
+    }
+  } else { // file format from find_grains output
     getline(fin, str); // we ignore the first line
     while (getline(fin, str)) {
       stringstream ss(str);

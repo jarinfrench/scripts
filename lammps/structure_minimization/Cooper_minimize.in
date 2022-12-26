@@ -1,0 +1,74 @@
+include init.mod
+include potential.mod
+
+run 0 # to get the potential energy calculated
+
+variable e_tot equal pe
+variable init_energy equal ${e_tot}
+
+# perform an initial relaxation
+fix relax all box/relax aniso 0.0
+minimize 1e-15 1e-8 5000 500000
+
+write_dump all custom ${label}_initial_min.dump ${dump_format}
+unfix relax
+
+variable first_min_energy equal ${e_tot}
+
+if "${isCoreShell} == 1" then &
+  "velocity all create ${Tanneal} 100 mom yes dist gaussian loop all bias yes temp CStemp" &
+  "velocity all scale ${Tanneal} temp CStemp" &
+elif "${isCoreShell} == 0" &
+  "velocity all create ${Tanneal} 100 mom yes dist gaussian loop all" &
+else &
+  "print 'Invalid isCoreShell value (${isCoreShell})'" &
+  quit
+
+
+fix 1 all nve/limit 0.1
+run 2500 
+unfix 1
+write_dump all custom ${label}_nve_limit_1.dump ${dump_format}
+
+fix 1 all nvt temp ${Tanneal} ${Tanneal} 0.2
+if "${isCoreShell} == 1" then &
+  "fix_modify 1 temp CStemp"
+run 2500 
+write_dump all custom ${label}_high_temp.dump ${dump_format}
+
+unfix 1
+
+variable anneal_energy equal ${e_tot}
+
+fix 2 all langevin ${Tanneal} 0.0 10 18257
+fix 3 all nve
+
+if "${isCoreShell} == 1" then &
+  "fix_modify 2 temp CStemp"
+
+run 15000 
+write_dump all custom ${label}_damped_temperature.dump ${dump_format}
+
+variable quench_energy equal ${e_tot}
+
+unfix 2
+unfix 3
+
+fix relax all box/relax aniso 0.0
+minimize 1e-15 1e-8 5000 50000
+
+unfix relax
+minimize 1e-15 1e-8 5000 50000
+
+write_dump all custom ${label}_final_min.dump ${dump_format}
+variable final_energy equal ${e_tot}
+
+print "-----------------------------------------------------------------"
+print "-------------------------Energies--------------------------------"
+print "-----------------------------------------------------------------"
+print "Initial Energy: ${init_energy}"
+print "First Minimization Energy: ${first_min_energy}"
+print "Annealing Energy: ${anneal_energy}"
+print "Quench Energy: ${quench_energy}"
+print "Final Minimization Energy: ${final_energy}"
+print "-----------------------------------------------------------------"

@@ -1,0 +1,26 @@
+# mr configuration file for all git repositories that I use
+# NOTE: this is not up to date yet!  Need to figure out how to incorporate my moose-update alias into this file.
+# See https://myrepos.branchable.com/ for more information
+[projects/scripts]
+checkout = git clone 'git@github.com:jarinfrench/scripts.git' 'scripts'
+
+[projects/moose]
+checkout = git clone 'git@github.com:jarinfrench/moose.git' 'moose'
+
+[projects/lammps]
+checkout = git clone 'https://github.com/lammps/lammps.git' 'lammps'
+
+[projects/atomsk]
+checkout = git clone 'git@github.com:pierrehirel/atomsk.git' 'atomsk'
+
+[projects/cxxopts]
+checkout = git clone 'git@github.com:jarro2783/cxxopts.git' 'cxxopts'
+
+[projects/rtags]
+checkout = git clone 'https://github.com/Andersbakken/rtags.git' 'rtags'
+
+[projects/cod]
+checkout = git clone 'https://github.com/dim-an/cod.git' 'cod'
+
+[projects/git-summary]
+checkout = git clone 'https://github.com/MirkoLedda/git-summary.git' 'git-summary'

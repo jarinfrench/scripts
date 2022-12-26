@@ -1,0 +1,6 @@
+set palette defined ( 0 "#00c000", 0.5 "#ffc020", 1 "#ff0000" )
+
+# These are all equivalent
+#set palette defined ( 0 "web-green", 0.5 "goldenrod", 1 "red" )
+#set palette defined ( 0 "#00c000",   0.5 "#ffc020",   1 "#ff0000" )
+#set palette defined ( 0 0 3/4. 0,    1 1 3/4. 1/8.,   2 10 0 )

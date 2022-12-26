@@ -24,35 +24,43 @@ if (!exists("r")) {
     print "r = ".r
 }
 
-if (!exists("basename")) {
-    print "Please enter the base file name of the files to plot as \`gnuplot -e \"basename=\'<base file name>\'\"\`"
-    exit
-} else {
-    print "basename = ".basename
-    axis = system('echo "'.basename.'" | egrep -o "_[0-9][0-9][0-9]_" | cut -c 2-4')
-    print "axis = ".axis
-    potential = system('echo "'.basename.'" | egrep -o "_[eb]a[sm][a_](k_)?" | cut -c 2- | head -c -2')
-    if (el eq "UO2") {
-        print "potential = ".potential
-    }
-}
+# if (!exists("basename")) {
+#     print "Please enter the base file name of the files to plot as \`gnuplot -e \"basename=\'<base file name>\'\"\`"
+#     exit
+# } else {
+#     print "basename = ".basename
+#     axis = system('echo "'.basename.'" | egrep -o "_[0-9][0-9][0-9]_" | cut -c 2-4')
+#     print "axis = ".axis
+#     potential = system('echo "'.basename.'" | egrep -o "_[eb]a[sm][a_](k_)?" | cut -c 2- | head -c -2')
+#     if (el eq "UO2") {
+#         print "potential = ".potential
+#     }
+# }
 print "\n"
 
 # Full data plot
 force_vel_data_title = el." Velocity vs Force (r_0 = ".r."\305) - T = ".T." K"
-x_label = 'Force (GPa)'
+x_label = 'Inverse radius (\305^{-1})'
 y_label = 'Velocity (m/s)'
 
 set title force_vel_data_title
 set xlabel x_label
 set ylabel y_label
-set key inside bottom right
+set cblabel "Time (ps)"
+set key inside top right
 
-average_file = system("ls ".basename."_average.txt")
+stats "force_velocity_data.txt" using 1 nooutput
+set xrange [0:0.1]
+set yrange [-1:15]
 
-num_list = system("ls -v ".basename."_[0-9]*.txt | egrep -o [0-9][0-9]?\.txt$ | cut -d. -f1")
-plot for [i in num_list] basename."_".i.".txt" index 0 u 4:5 every :::0::0 title "Run ".i, \
-basename."_average.txt" index 0 u 4:5 every :::0::0 title "Average"
+save "force_vs_velocity_commands.plt"
+#set terminal push
+set terminal png
+set output "force_vs_velocity.png"
 
-call "export.plt" basename."_force_vs_velocity.png"
-replot
+plot "force_velocity_data.txt" index 0 u (1/$3):($1 < STATS_max - 120 ? -1*$5 :1/0):1 every :::0::0 with points palette notitle
+#replot
+#set output
+#set terminal pop
+#call "export.plt" "force_vs_velocity.png"
+#replot

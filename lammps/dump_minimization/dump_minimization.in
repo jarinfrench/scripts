@@ -1,0 +1,36 @@
+units metal
+atom_style charge
+timestep 0.002
+dimension 3
+boundary p p p
+
+if "$(!is_defined(variable,base))" then &
+    "print 'Needs `base` variable passed via command line!'" &
+    "quit 1"
+if "$(!is_defined(variable,timestep))" then &
+    "print 'Needs `timestep` variable passed via command line!'" &
+    "quit 1"
+
+read_data ${base}
+
+kspace_style pppm 1.0e-5
+pair_style hybrid/overlay coul/long 11.0 eam/alloy
+pair_coeff * * coul/long
+pair_coeff * * eam/alloy CeThUNpPuAmCmO.eam.alloy U O
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+min_style cg
+thermo 1000
+thermo_style custom step temp pe vol
+thermo_modify flush yes
+
+label loop
+read_dump ${timestep}.dump ${timestep} x y z
+set type 1 charge +2.2208
+set type 2 charge -1.1104
+minimize 1e-15 1e-8 50000 500000
+write_dump all custom ${timestep}_min.dump id type q x y z
+next timestep
+jump SELF loop

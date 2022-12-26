@@ -976,9 +976,11 @@ vector <double> ulomekSymmetryParameter(vector <Atom>& atoms,
   }
 
   // Note that an adjustment parameter can assign atoms to a grain boundary, rather than to a grain
+  double c = input.fi_cut / input.scalenorm;
   for (size_t i = 0; i < symm.size(); ++i) {
-    if (symm[i] > input.fi_cut) {atoms[i].setMark(1);}
-    else {atoms[i].setMark(2);}
+    if (symm[i] > c) {atoms[i].setMark(1);}
+    else if (symm[i] <= -c) {atoms[i].setMark(2);}
+    else {atoms[i].setMark(3);}
   }
   return symm;
 }
@@ -1078,7 +1080,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms,
 
 void processData(const inputData& input) {
   boxData box;
-  int n_grain_1, n_grain_2; // number of atoms assigned to each grain
+  int n_grain_1, n_grain_2, n_gb; // number of atoms assigned to each grain
   int N; // number of atoms
   string str, filename2; // junk string variable, filename of the data with the grain assignment
 
@@ -1091,7 +1093,9 @@ void processData(const inputData& input) {
   ofstream fout_data(verify1.validNewFile().c_str());
   checkFileStream(fout_data, verify1.validNewFile());
 
-  fout_data << "# Data consists of: [timestep/file, atoms in grain 1, atoms in grain 2]\n";
+  fout_data << "# Data consists of: [timestep/file, atoms in grain 1, atoms in grain 2";
+  if (input.algorithm == 'u') {fout_data << ", atom in GB";}
+  fout_data << "]\n";
 
   // VerifyNewFile verify2("misorientation_data.txt");
   // ofstream fout_misorientation(verify2.validNewFile().c_str());
@@ -1100,10 +1104,11 @@ void processData(const inputData& input) {
   int aa = 1;
   int x_index = -1, y_index = -1, z_index = -1; // indices for the x, y, and z positions of the atoms
   int id_index = -1, type_index = -1, charge_index = -1; // indices for the atom id, type, and charge
-  for (vector <string>::const_iterator it = input.files.begin(); it != input.files.end(); ++it) {
+  for (vector <string>::const_iterator it = input.files.begin(); it != input.files.end(); ++it) { // TODO: parallelize this
     box.reset();
     n_grain_1 = 0;
     n_grain_2 = 0;
+    n_gb = 0;
     ifstream fin((*it).c_str());
     checkFileStream(fin, *it);
 
@@ -1278,13 +1283,18 @@ void processData(const inputData& input) {
       if (!allowed_atoms[i]) {continue;}
       if (atoms[i].getMark() == 1) {++n_grain_1;}
       else if (atoms[i].getMark() == 2) {++n_grain_2;}
+      else if (atoms[i].getMark() == 3 && input.algorithm == 'u') {++n_gb;}
       else {
         cerr << "Error: Unrecognized grain assignment.\n";
         exit(BOUNDS_ERROR);
       }
     }
 
-    fout_data << n_grain_1 << " " << n_grain_2 << "\n";
+    fout_data << n_grain_1 << " " << n_grain_2;
+    if (input.algorithm == 'u') {
+      fout_data << " " << n_gb;
+    }
+    fout_data << "\n";
 
     if (input.print_files_every != 0 && ((aa - 1) % input.print_files_every == 0 || aa == input.files.size())) {
       writeAtomsToFile(filename2, atoms, allowed_atoms, symm, input, box);

@@ -1,0 +1,14 @@
+{
+  "tagsymbols": "@",
+  "encrypt": false,
+  "linewrap": 79,
+  "default_minute": 0,
+  "journals": {
+    "default": "${HOME}/.journal/journal.txt"
+  },
+  "__comment": "See https://buildmedia.readthedocs.org/media/pdf/jrnl/latest/jrnl.pdf for more info",
+  "timeformat": "%Y-%m-%d %H:%M",
+  "default_hour": 9,
+  "editor": "/usr/bin/atom",
+  "highlight": true
+}

@@ -1,0 +1,57 @@
+units metal
+atom_style charge
+timestep 0.002
+dimension 3
+boundary p p p
+
+lattice fcc ${a0}
+region 1 block 0 10 0 10 0 10 units lattice
+create_box 2 1
+create_atoms 1 region 1
+
+lattice custom ${a0} basis 0.25 0.25 0.25 &
+  basis 0.25 0.25 0.75 &
+  basis 0.25 0.75 0.25 &
+  basis 0.25 0.75 0.75 &
+  basis 0.75 0.25 0.25 &
+  basis 0.75 0.25 0.75 &
+  basis 0.75 0.75 0.25 &
+  basis 0.75 0.75 0.75
+
+create_atoms 2 region 1
+
+variable U equal 1
+variable O equal 2
+
+mass ${U} 238.0289
+mass ${O} 15.9994
+
+group U type ${U}
+group O type ${O}
+
+set group U charge  2.2208
+set group O charge -1.1104
+
+kspace_style pppm 1.0e-5
+
+pair_style hybrid/overlay coul/long 11.0 eam/alloy
+pair_coeff * * coul/long
+pair_coeff * * eam/alloy CeThUNpPuAmCmO.eam.alloy U O
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp pe lx ly lz
+thermo_modify flush yes
+thermo 100
+
+variable LX equal xhi-xlo
+variable LY equal yhi-ylo
+variable LZ equal zhi-zlo
+variable PE equal pe
+
+min_style cg
+minimize 1.0e-15 1.0e-4 50000 5000000
+
+print "${a0} ${PE}" append "uo2_eam_lattice_params.txt"
+

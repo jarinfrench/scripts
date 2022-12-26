@@ -1,0 +1,47 @@
+units metal
+atom_style atomic
+dimension 3
+boundary p p p
+timestep 0.002
+
+read_data ${datafile} extra/atom/types 1
+
+variable total equal count(all)
+variable imp_percent equal ${c}/100
+variable seed2 equal round(random(1,1000000,${SEED}))
+print "The random seed for impurity atom locations is ${seed2}"
+
+group U type 1
+set group U type/subset 2 $(round(v_total*v_imp_percent)) ${seed2}
+
+pair_style eam/alloy
+if "${imp} == 1" then &
+"pair_coeff * * U_Mo_Xe.2013.eam.alloy U Mo" &
+"group Mo type 2" &
+"variable imp_name string 'Mo'" &
+elif "${imp} == 2" &
+"pair_coeff * * U_Mo_Xe.2013.eam.alloy U Xe" &
+"group Xe type 2" &
+"variable imp_name string 'Xe'" &
+else &
+"print 'Unknown impurity type: ${imp}'" &
+quit
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp pe press pxx pyy pzz
+thermo_modify flush yes
+thermo 100
+
+variable MC_T equal 300 # Monte carlo temperature
+variable T equal 1100 # simulation temperature
+variable timesteps_per_fix_application equal 1
+variable n_swaps_per_attempt equal 1000
+velocity all create ${T} ${SEED} mom  yes dist gaussian loop all
+
+fix 1 all atom/swap ${timesteps_per_fix_application} ${n_swaps_per_attempt} ${SEED} ${MC_T} types 1 2
+fix 2 all npt temp ${T} ${T} 0.2 aniso 0.0 0.0 0.2 drag 0.20
+dump 1 all custom 10000 U_${axis}_${mis}_*.dump id type x y z
+
+run 100000

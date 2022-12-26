@@ -1,0 +1,40 @@
+units metal
+atom_style charge
+timestep 0.002
+dimension 3
+boundary p p p
+
+read_data ${file}
+
+variable rcut equal 11.0
+kspace_style pppm 1.0e-5
+# Cooper
+pair_style hybrid/overlay coul/long ${rcut} eam/alloy
+pair_coeff * * coul/long
+pair_coeff * * eam/alloy CeThUNpPuAmCmO.eam.alloy U O
+
+# Basak
+#pair_style hybrid/overlay buck/coul/long ${rcut} morse ${rcut}
+#pair_coeff 1 1 buck/coul/long 294.63998712541093  0.327022 0.0  ${rcut}
+#pair_coeff 1 2 buck/coul/long 693.64876989599281  0.327022 0.0  ${rcut}
+#pair_coeff 2 2 buck/coul/long 1633.0051486644522  0.327022 3.948788013 ${rcut}
+#pair_coeff 1 2 morse          0.57718803139609665 1.65     2.369 ${rcut}
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo 1000
+thermo_style custom step temp pe vol
+thermo_modify flush yes
+
+min_style cg
+fix 1 all box/relax aniso 0
+minimize 1e-15 1e-8 50000 5000000
+unfix 1
+velocity all create 1500 ${SEED} mom yes dist gaussian loop all
+fix 2 all nvt temp 1500 1500 0.2 drag 0.20
+run 50000
+unfix 2
+minimize 1e-15 1e-8 50000 5000000
+
+write_dump all custom ${file}_minimized.dump id type q x y z

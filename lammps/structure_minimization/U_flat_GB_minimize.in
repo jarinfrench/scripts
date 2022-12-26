@@ -1,0 +1,22 @@
+units metal
+atom_style atomic
+dimension 3
+boundary p p p
+timestep 0.002
+
+read_data ${datafile}
+
+pair_style eam/alloy
+pair_coeff * * U_Mo_Xe.2013.eam.alloy U
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp pe press pxx pyy pzz
+thermo_modify flush yes
+thermo 1
+
+min_style cg
+minimize 1.0e-15 1.0e-4 50000 5000000
+
+write_dump all custom ${datafile}_minimized.dump id type x y z

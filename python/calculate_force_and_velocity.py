@@ -1,10 +1,10 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
-from __future__ import division, print_function
 from sys import exit, argv
 import numpy as np
 import matplotlib.pyplot as plt
 import math, itertools, argparse
+import os
 
 # Creates an iterator over the previous item (a), current item (b), and the next item (c) as a tuple, for each item that has all three.
 def threes(iterator):
@@ -15,7 +15,7 @@ def threes(iterator):
     next(c,None)
     return zip(a,b,c)
 
-def calculateLatticeParam(T, potential = 0):
+def calculateLatticeParam(T, c, potential = 0):
     dbFile="/home/jarinf/projects/scripts/lattice_params.db"
     data = []
     with open(dbFile,'r') as f:
@@ -25,9 +25,9 @@ def calculateLatticeParam(T, potential = 0):
             else:
                 data.append(line)
     if potential == 0:
-        print("There are %d fits:" %len(data))
+        print(f"There are {len(data)} fits:")
         for i in range(len(data)):
-            print("  {num} - {name}".format(num = i + 1, name = data[i].split()[0]))
+            print(f"  {i + 1} - {data[i].split()[0]}")
         potential = int(input("Please specify the fit to use: "))
 
     while potential > len(data) or potential < 1:
@@ -35,19 +35,14 @@ def calculateLatticeParam(T, potential = 0):
         potential = int(input("Please specify the fit to use: "))
 
 
-    name, T0, T1, yInt, slope, T2, yInt2, linC, paraC = data[potential - 1].split()
-    print("Using the {name} potential".format(name = name))
+    name, c_min, c_max, T_min, T_max, c3, c2, c1, T3, T2, T1, cT, cT2, c2T, a0 = [i if idx == 0 else float(i) for idx,i in enumerate(data[potential - 1].split())]
+    print(f"Using the {name} potential")
 
-    if T < float(T0) or T > float(T2):
-        print("Temperature out of fitted range.")
+    if T < float(T_min) or T > float(T_max) or c < float(c_min) or c > float(c_max):
+        print(f"Temperature or concentration out of fitted range ({T_min} <= T <= {T_max}, {c_min} <= c <= {c_max})")
         exit(3)
-    elif T >= float(T0) and T <= float(T1):
-        return float(yInt) + float(slope) * T
-    elif T > float(T1) and T <= float(T2):
-        return float(yInt2) + float(linC) * T + float(paraC) * T**2
     else:
-        print("Error calculating lattice parameter")
-        exit(4)
+        return c**3 * c3 + c**2 * c2 + c * c1 + T**3 * T3 + T**2 + T2 + T * T1 + cT * c * T + cT2 * c * T**2 + c**2 * T * c2T + a0
 
 def onClick(event):
     global ix,iy
@@ -101,26 +96,38 @@ def calculateVelocity(ns,ts,a0,Lz):
 
 parser = argparse.ArgumentParser(description="Calculates the velocity and forces for an assumed cylindrical grain boundary given a data file in the format <timestep> <n grain 1> <n grain 2>")
 parser.add_argument('t', metavar = 'T', type = float, help = "Temperature of the simulation")
+parser.add_argument('c', type = float, help = "Concentration of solute in the structure")
 parser.add_argument('l', metavar = 'Lz', type = float, help = "Thickness of the grain")
 parser.add_argument('a', metavar = 'a0', type = float, help = "Lattice parameter at 0 K")
-parser.add_argument('gamma', type = float, help = "Random grain boundary energy value")
+parser.add_argument('gamma', type = float, help = "Random grain boundary energy value (use 1 for the 'reduced' force)")
 parser.add_argument('-p', '--potential', type = int, help = "Number of the potential to use from the database file", default = 0)
 parser.add_argument('-g', '--graph', action = "store_true", help = "Option to display a graph showing the grain growth (N vs t) for help in determining when growth stops")
-parser.add_argument('-u', '--use',  choices = [1, 2], help = "If the data set to be used in calculating the data (between n1 and n2) is known, specify with this option")
+parser.add_argument('-u', '--use',  type = int, choices = [1, 2], help = "If the data set to be used in calculating the data (between n1 and n2) is known, specify with this option")
 
 args = parser.parse_args()
 
 # May change this to be an argument
 dataFile = "data.txt" # data file containing the timestep, and number of atoms in each grain
 dataOutfile = "force_velocity_data.txt"
-a0=calculateLatticeParam(args.t, args.potential)
+a0 = calculateLatticeParam(args.t, args.c, args.potential)
 
 data = []
+last_point = -1
+current_point = 0
+if os.path.exists("slope_calc.txt"):
+    # If this file exists, use it's last fitted point to end the dataFile read early
+    with open("slope_calc.txt", 'r') as f:
+        for line in f: # format: area_data.txt dA/dt = <> error = <> r_sq = <> fit to points <>:<>
+            pass
+        last_point = int(line.split(':')[-1]) - 1
 with open(dataFile,'r') as f:
     for _ in range(3):
         next(f)
     for line in f:
+        if last_point == current_point:
+            break
         data.append(line)
+        current_point += 1
 
 vel = []
 force = []

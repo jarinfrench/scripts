@@ -1,0 +1,43 @@
+units      metal
+atom_style atomic
+timestep   0.002
+dimension  3
+boundary   p p f
+
+variable a0 equal 3.542
+read_data fixed_input.dat
+
+variable LLX equal (xhi-xlo)
+variable LLY equal (yhi-ylo)
+variable LLZ equal (zhi-zlo)
+
+print "Lx=${LLX}, Ly=${LLY}, Lz=${LLZ}"
+
+region fixed_embedded cylinder z $(v_LLX/2) $(v_LLY/2) 90.0 $(0.2*v_LLZ) $(0.8*v_LLZ)
+region eq_slice block INF INF INF INF 0 17.71
+
+group fixed_embedded region fixed_embedded
+group free subtract all fixed_embedded
+
+
+pair_style eam/alloy
+pair_coeff * * /home/frenjari/projects/lammps/lammps-11Aug17/potentials/U_Mo_Xe.2013.eam.alloy U
+
+neighbor 1.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo_style custom step temp press pe pxx pyy pzz lx ly lz
+thermo_modify flush yes
+thermo 100
+
+velocity free create 1300 ${SEED} mom yes dist gaussian loop all
+print "The random seed for initial Gaussian velocity distribution is ${SEED}"
+
+dump atompos all custom 10000 *.dump id type x y z xu yu zu
+fix nvt_thermostat free nvt temp 1300 1300 0.2 drag 0.20
+fix freeze fixed_embedded setforce 0 0 0
+
+run 100000 # equilibration phase
+
+group eq_slice region eq_slice
+write_dump eq_slice custom equilibrated.dump id type x y z

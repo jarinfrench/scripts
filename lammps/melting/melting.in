@@ -1,0 +1,38 @@
+# Compute the melting temperature for a material
+#
+# Written by Jarin French (Virginia Tech, jarinf@vt.edu)
+#
+# This script uses the following include files:
+#
+#   init.mod  (must be modified for different crystal structures)
+#             Define initial configuration of atoms and unit cell
+#
+#   potential.mod  (must be modified for different pair styles)
+#                  Define pair style
+#
+# To run this on a different system, modify the init.mod and potential.mod files
+#
+
+include init.mod
+include potential.mod
+
+# First we need to generate the melt: fix the left half of the box to not move,
+# and let the right half melt at high temperature (Tmelt)
+dump 1 all custom 500 *.dump id type x y z
+# fix freeze solid setforce 0.0 0.0 0.0
+fix melt liquid npt temp ${Tmelt} ${Tmelt} $(100.0*dt) aniso 0.0 0.0 $(1000*dt)
+fix wall liquid wall/harmonic xlo 4.8 5 0 1 xhi EDGE 5 0 1 pbc yes units lattice
+run 2000
+
+# Now cool the melt to the estimated melting temperature
+unfix melt
+fix melt_equilibrate liquid npt temp ${melt_est} ${melt_est} $(100*dt) aniso 0.0 0.0 $(1000*dt)
+run 2000
+
+# now equilibrate
+unfix freeze
+unfix wall
+unfix melt_equilibrate
+fix equilibrate all nph aniso 0.0 0.0 $(1000*dt) ptemp ${melt_est}
+
+run 10000

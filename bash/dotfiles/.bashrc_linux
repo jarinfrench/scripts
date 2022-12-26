@@ -1,0 +1,168 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# for examples
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+if [ -f ~/.bash_variables ]; then
+  . ~/.bash_variables
+fi
+
+#export MOOSE_PROMPT=true # enable pretty prompt
+export MOOSE_JUMP=true # enable autojump
+
+source /usr/share/autojump/autojump.bash # enables autojump
+
+. ~/.bash_command_timer.sh
+
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND ;} history -a; history -n"
+export HISTCONTROL=ignoreboth:erasedups # don't put duplicate lines or lines starting with space in the history.
+export HISTSIZE=1000000
+export HISTFILESIZE=""
+shopt -s histappend # append to the history file, don't overwrite it
+shopt -s checkwinsize # check window size after each command, update LINES and COLUMNS values as needed
+shopt -s cdspell # When changing directories, small typos can be ignored by bash
+shopt -s cmdhist # multi-line commands are stored as one history entry.
+bind '"\e[B": history-search-forward' # perform a search on up ...
+bind '"\e[A": history-search-backward' # ...and down arrow press
+#bind 'set show-all-if-ambiguous on' # remove the need to press tab twice when there is more than 1 match # this is frustrating sometimes, useful at other times...
+export HISTTIMEFORMAT="%d/%m/%y %T  "
+
+# Colored man pages
+export LESS_TERMCAP_mb=$'\E[01;31m'
+export LESS_TERMCAP_md=$'\E[01;31m'
+export LESS_TERMCAP_me=$'\E[0m'
+export LESS_TERMCAP_se=$'\E[0m'         # end the info box
+export LESS_TERMCAP_so=$'\E[01;42;30m'  # begin the info box
+export LESS_TERMCAP_ue=$'\E[0m'
+export LESS_TERMCAP_us=$'\E[01;32m'
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# set a fancy prompt (non-color, unless we know we "want" color)
+case "$TERM" in
+    xterm-color|*-256color) color_prompt=yes;;
+esac
+
+# uncomment for a colored prompt, if the terminal has the capability; turned
+# off by default to not distract the user: the focus in a terminal window
+# should be on the output of commands, not on the prompt
+#force_color_prompt=yes
+
+if [ -n "$force_color_prompt" ]; then
+    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+	# We have color support; assume it's compliant with Ecma-48
+	# (ISO/IEC-6429). (Lack of such support is extremely rare, and such
+	# a case would tend to support setf rather than setaf.)
+	color_prompt=yes
+    else
+	color_prompt=
+    fi
+fi
+
+# Allows the git branch to be put in the terminal prompt
+source ~/projects/scripts/bash/git_completion.sh
+source ${HOME}/projects/scripts/bash/git_prompt.sh
+
+PS1_SET_TITLE='\[\e]0;\u: $(shorten_path.py 0)\a\]' # same command as in PS1, but does _not_ shorten the path.
+if [ "$color_prompt" = yes ]; then
+  PS1="${PS1_SET_TITLE}${debian_chroot:+($debian_chroot)}${GRNBLD}\u${RESET}:${BLUBLD}\$(shorten_path.py)${YLWBLD}\$(__git_ps1)${RESET}$ "
+  #PS1="${debian_chroot:+($debian_chroot)}${GRNBLD}\u${RESET}:${BLUBLD}\$(shorten_path.py)${YLWBLD}\$(__git_ps1) ${REDBLD}[\T] ${CYANBLD}(\${timer_show})${RESET}$ "
+else
+    PS1='${debian_chroot:+($debian_chroot)}\u:\w\$ '
+fi
+unset color_prompt force_color_prompt
+
+# If this is an xterm set the title to user@host:dir
+case "$TERM" in
+xterm*|rxvt*)
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    ;;
+*)
+    ;;
+esac
+
+# enable color support of ls and also add handy aliases
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto' # overshadowed by using alias exa="ls"
+    alias dir='dir --color=auto'
+    alias vdir='vdir --color=auto'
+
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+
+# colored GCC warnings and errors
+#export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+# some more ls aliases
+alias ll='ls -AlF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# Add an "alert" alias for long running commands.  Use like so:
+#   sleep 10; alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+# Bash function definitions.
+# If there are user-defined functions that you find useful, put them
+# in this file to have access to them all the time.
+if [ -f ~/.bash_functions ]; then
+    . ~/.bash_functions
+fi
+
+# enable programmable completion features (you don't need to enable
+# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
+# sources /etc/bash.bashrc).
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash
+
+# Allows for tab-completion of aliases
+source ~/.alias_completion.sh
+
+source <(cod init $$ bash)
+
+eval "$(ntfy shell-integration -fL 30)" # for notifying when long-running commands finish
+
+### Bashhub.com Installation.
+### This Should be at the EOF. https://bashhub.com/docs
+if [ -f ~/.bashhub/bashhub.sh ]; then
+  source ~/.bashhub/bashhub.sh
+fi
+
+#### ------------- USPEX v.10.5.0 ------------- ####
+export MCRROOT=/usr/local/USPEX_v10.5
+export PATH=/usr/local/USPEX_v10.5/application/archive/:$PATH
+export USPEXPATH=/usr/local/USPEX_v10.5/application/archive/src
+###----------------------------------------------
+
+[[ -f ~/.resh/shellrc ]] && source ~/.resh/shellrc # this line was added by RESH (Rich Enchanced Shell History)
+
+[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh # this line was added by RESH (Rich Enchanced Shell History)
