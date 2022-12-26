@@ -18,3 +18,17 @@ undo.data
 sync_hook.log
 .netrwhist
 .atom/*
+.vscode/*
+awk/awk-libs
+bash/dotfiles/.atom/*
+bash/dotfiles/.git_template/*
+bash/dotfiles/.ssh/*
+c++/*
+lattice_params_old.db
+octave/Point-Set Registration/*
+python_modules/*.c
+python_modules/*.so
+rust/*
+src/find_grains/*
+src/standalone/*
+src/tests/*
