@@ -1,12 +1,11 @@
 #! /usr/bin/env python3
 
 import argparse
-import matplotlib.pyplot as plt
-import numpy as np
-import sys, pwlf # PieceWise Linear Fitting
 import csv
 
-from GPyOpt.methods import BayesianOptimization
+import matplotlib.pyplot as plt
+import numpy as np
+import pwlf  # PieceWise Linear Fitting
 
 parser = argparse.ArgumentParser(usage = '%(prog)s [-h] file', description = "Plot the MSD in 1, 2, and 3D from a LAMMPS simulation")
 parser.add_argument('file', help = "The data file containing the MSD data.")

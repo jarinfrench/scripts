@@ -39,11 +39,11 @@ data = pd.read_csv("/media/jarinf/Research2/tmp/U/raw_individual_mobility_data_w
 # Defaults and constants
 default_fig = go.Figure()
 default_fig.update_layout(autosize = False, width = 1500, height = 500, margin = dict(l = 5, r = 10, b = 50, t = 50, pad = 4))
-ytickvals = [i*1e-10 for i in range(5,10)] + [i * 1e-9 for i in range(10)] + [i *1e-8 for i in range(10)] + [1e-7]
-yticktext = [str(i) if i in [1e-9,1e-8,1e-7] else "" for i in ytickvals]
+ytickvals = [i*1e-10 for i in range(1,10)] + [i * 1e-9 for i in range(10)] + [i *1e-8 for i in range(10)] + [1e-7]
+yticktext = [str(i) if i in [1e-10,1e-9,1e-8,1e-7] else "" for i in ytickvals]
 xtickvals = [Arrhenius(i) for i in np.sort(data['T'].unique())[::-1]]
 xticktext = [str(i) for i in np.sort(data['T'].unique())[::-1]]
-default_fig.update_yaxes(title = r"Reduced Mobility (m<sup>2</sup>/s)", exponentformat = 'e', type = 'log', range = [-9.5, -7], tickvals = ytickvals, ticktext = yticktext)
+default_fig.update_yaxes(title = r"Reduced Mobility (m<sup>2</sup>/s)", exponentformat = 'e', type = 'log', range = [-10.5, -7], tickvals = ytickvals, ticktext = yticktext)
 default_fig.update_xaxes(title = "Temperature (K)", range = [Arrhenius(1450), Arrhenius(1000)], tickvals = xtickvals, ticktext = xticktext)
 
 system_select_dict = [{'label': i, 'value': i} if not i == "None" else {'label': 'Pure U', 'value': i} for i in data.index.get_level_values('type').unique()]
@@ -97,9 +97,9 @@ app.layout = html.Div([
         id = 'growth-threshold-input',
         type = 'number',
         placeholder = 'Enter the minimum % growth as a fraction',
-        debounce = True,
+        debounce = False,
         min = 0,
-        max = 1,
+        max = 1, step = 0.01,
         style = {'width': '260px'}
         )], style = {'width': '1000px', 'float': 'left'}),
     html.Br(),

@@ -32,3 +32,4 @@ rust/*
 src/find_grains/*
 src/standalone/*
 src/tests/*
+bash/dotfiles/.atom/*
