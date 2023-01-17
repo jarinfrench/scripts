@@ -7,7 +7,9 @@ import numpy as np
 import statsmodels.api as sm
 from numpy.lib.recfunctions import append_fields
 
-cs = [str(i) + 'at%' for i in [1, 3, 5, 7, 10, 12, 14, 17, 19, 21]]
+# cs = [str(i) + 'at%' for i in [1, 3, 5, 7, 10, 12, 14, 17, 19, 21]]
+cs = [f'{i:.2f}at%' for i in [0.25, 0.50, 0.75,
+                              1.00, 1.25, 1.50, 2.0, 2.5, 5.0, 7.5]]
 Ts = ['T1050', 'T1200', 'T1400']
 dirs = ['dir_1', 'dir_2', 'dir_3']
 

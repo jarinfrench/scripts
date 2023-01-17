@@ -597,7 +597,7 @@ vector <Atom> getAtomData(ifstream& fin, const inputData& input, const boxData& 
 
   if (n_atoms_read != atoms.size()) {
     cerr << "Error: number of atoms read does not match the number of atoms in the simulation.\n"
-         << "N = " << atoms.size() << " != n_atoms_read = " << atoms.size() << "\n";
+         << "N = " << atoms.size() << " != n_atoms_read = " << n_atoms_read << "\n";
     exit(ATOM_COUNT_ERROR);
   }
   return atoms;
