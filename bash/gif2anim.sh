@@ -44,47 +44,64 @@
 #
 # 1 November 2005  Expanded with options for basename handling.
 #
-PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
-PROGDIR=`dirname $PROGNAME`            # extract directory of program
-PROGNAME=`basename $PROGNAME`          # base name of program
-Usage() {                              # output the script comments as docs
+PROGNAME=$(type "$0" | awk '{print $3}') # search for executable on path
+PROGDIR=$(dirname "$PROGNAME")           # extract directory of program
+PROGNAME=$(basename "$PROGNAME")         # base name of program
+Usage() {                                # output the script comments as docs
   echo >&2 "$PROGNAME:" "$@"
   sed >&2 -n '/^###/q; /^#/!q; s/^#//; s/^ //; 3s/^/Usage: /; 2,$ p' \
-          "$PROGDIR/$PROGNAME"
-  exit 10;
+    "$PROGDIR/$PROGNAME"
+  exit 10
 }
 
-sfx="gif"           # Default output suffix of images to produce
-init=1              # the count for the first frame in sequence
-fmt="%03d"          # The format for frame count
-frames=true         # output frame images by defult
-basename=           # use this name for the individual frame images
-animfile=           # no default animfile to output to.
-all_gifs=           # forcefully convert any ".gif" file
-coalesce=           # coalesce flag (off)
-VERBOSE=            # be verbose (off)
-time_sync=0         # add time sync comments (off)
+sfx="gif"   # Default output suffix of images to produce
+init=1      # the count for the first frame in sequence
+fmt="%03d"  # The format for frame count
+frames=true # output frame images by defult
+basename=   # use this name for the individual frame images
+animfile=   # no default animfile to output to.
+coalesce=   # coalesce flag (off)
+VERBOSE=    # be verbose (off)
+time_sync=0 # add time sync comments (off)
 awk=awk
 
 while [ $# -gt 0 ]; do
   case "$1" in
-  --help|--doc*) Usage ;;
-  -c) coalesce='-coalesce' ;;  # coalesce animation (on)
-  -t) time_sync=1 ;;           # add time sync comments (on)
-  -l) frames=; animfile=- ;;   # List anim file to standard output, no images
-  -v) VERBOSE=true ;;          # Be verbose
-  -n) frames= ;;               # don't output any individual frames
-  -s) sfx="$2"; shift ;;       # output frame images with this suffix
-  -g) sfx="gif" ;;             # output frame images as GIF's (default)
-  -x) sfx="xpm" ;;             # output frame images as XPM's
-  -i) init="$2"; shift ;;      # the count for the first frame in sequence
-  -b) basename="$2"; shift ;;  # use this basename for frames
-  -o) animfile="$2"; shift ;;  # output .anim file here
-  --) shift; break ;;    # end of user options
+  --help | --doc*) Usage ;;
+  -c) coalesce='-coalesce' ;; # coalesce animation (on)
+  -t) time_sync=1 ;;          # add time sync comments (on)
+  -l)
+    frames=
+    animfile=-
+    ;;                # List anim file to standard output, no images
+  -v) VERBOSE=true ;; # Be verbose
+  -n) frames= ;;      # don't output any individual frames
+  -s)
+    sfx="$2"
+    shift
+    ;;             # output frame images with this suffix
+  -g) sfx="gif" ;; # output frame images as GIF's (default)
+  -x) sfx="xpm" ;; # output frame images as XPM's
+  -i)
+    init="$2"
+    shift
+    ;; # the count for the first frame in sequence
+  -b)
+    basename="$2"
+    shift
+    ;; # use this basename for frames
+  -o)
+    animfile="$2"
+    shift
+    ;; # output .anim file here
+  --)
+    shift
+    break
+    ;; # end of user options
   -*) Usage "Unknown option \"$1\"" ;;
-  *)  break ;;           # end of user options
+  *) break ;; # end of user options
   esac
-  shift   # next option
+  shift # next option
 done
 
 if [ $# -eq 0 ]; then
@@ -92,7 +109,7 @@ if [ $# -eq 0 ]; then
 fi
 
 # echo without return (all systems, including old BSD systems)
-if [ "X`echo -n`" = "X-n" ]; then
+if [ "X$(echo -n)" = "X-n" ]; then
   echo_n() { echo ${1+"$@"}'\c'; }
 else
   echo_n() { echo -n ${1+"$@"}; }
@@ -100,9 +117,10 @@ fi
 
 # Is the command available on this machine?
 cmd_found() {
-  case "`type $1 2>&1`" in *'not found'*) return 1 ;; esac; return 0
+  case "$(type $1 2>&1)" in *'not found'*) return 1 ;; esac
+  return 0
 }
-cmd_found convert  || Usage "No IM convert command found -- ABORTING"
+cmd_found convert || Usage "No IM convert command found -- ABORTING"
 cmd_found identify || Usage "No IM identify command found -- ABORTING"
 
 # output animation details to stdout
@@ -117,7 +135,7 @@ fi
 
 # -----------------------------------------------------
 
-for i in "$@" ; do
+for i in "$@"; do
   [ "$VERBOSE" ] && echo_n "converting \"$i\" "
   if [ ! -f "$i" ]; then
     echo >&2 "Unable find file \"$i\""
@@ -125,23 +143,25 @@ for i in "$@" ; do
   fi
 
   # --- find out the type ---
-  name="`expr "//$i" : '.*/\([^/]*\)'`"           # remove path to file
-  suffix="`expr "$name" : '.*\.\([^./]*\)$'`"     # extract last suffix
-  name="`expr "$name" : '\(.*\)\.[^.]*$'`"        # remove last suffix
+  name="$(expr "//$i" : '.*/\([^/]*\)')"       # remove path to file
+  suffix="$(expr "$name" : '.*\.\([^./]*\)$')" # extract last suffix
+  name="$(expr "$name" : '\(.*\)\.[^.]*$')"    # remove last suffix
 
   case "$name.$suffix" in
-   *.gif ) ;;
-   * )     [ "$VERBOSE" ] && echo_n "${b}"
-           echo >&2 "Skipping non-GIF file: \"$i\""
-           continue ;;
+  *.gif) ;;
+  *)
+    [ "$VERBOSE" ] && echo_n "${b}"
+    echo >&2 "Skipping non-GIF file: \"$i\""
+    continue
+    ;;
   esac
 
-  name=`echo "$name" | sed 's/_anim//'`        # remove any "_anim" part
+  name=$(echo "$name" | sed 's/_anim//') # remove any "_anim" part
   [ "$basename" ] && name=$basename
   anim_output=${animfile:-"$name.anim"}
 
   # Generate Animation file...
-  date=`date +'%Y-%m-%d %R:%S'`
+  date=$(date +'%Y-%m-%d %R:%S')
   convert "$i" $coalesce -verbose info:- |
     $awk ' #  Parse IM "identify" output, for almost direct use by "convert"
       BEGIN { print "#";
@@ -191,21 +211,21 @@ for i in "$@" ; do
                   frame++, size, offset;
         }
       END { if ( time_sync ) printf "# LOOP TIME %d\n", time; }
-    ' > $anim_output
+    ' >"$anim_output"
   [ "$VERBOSE" -a -f "$anim_output" ] &&
-         echo_n "`grep -c \\.$sfx\$ ${name}.anim | tr -d ' '` frames"
+    echo_n "$(grep -c \\."$sfx"\$ "${name}.anim" | tr -d ' ') frames"
 
   # split up GIF animation (reseting animation meta-data)
   if [ "$frames" ]; then
     convert "$i" $coalesce \
-            +repage -set delay 0 -set dispose none -loop 0 \
-            -scene $init +adjoin  "${name}_${fmt}.${sfx}"
+      +repage -set delay 0 -set dispose none -loop 0 \
+      -scene "$init" +adjoin "${name}_${fmt}.${sfx}"
 
     # Fix the X Pixmap color tables
     # using the AIcons Library "xpm-fix" script
     if [ "$sfx" = 'xpm' ] && cmd_found xpm-fix; then
       [ "$VERBOSE" ] && echo_n " xpm-fixes"
-      xpm-fix `sed -n "s/ *BASENAME_/${name}_/p" ${name}.anim`
+      xpm-fix $(sed -n "s/ *BASENAME_/${name}_/p" ${name}.anim)
     fi
   fi
 

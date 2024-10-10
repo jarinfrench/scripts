@@ -9,6 +9,7 @@
 #include <cmath> // for sin, cos
 #include <numeric> // for iota
 #include <algorithm> // for min, max_element, fill
+// #include <omp.h>
 
 #include <cxxopts.hpp>
 
@@ -17,14 +18,14 @@
 #include "error_code_defines.h"
 #include "verifyNewFile.h"
 
-using namespace std;
-
 #define PI 3.141592653589793
+
+// TODO: fix race condition(s?) for parallelized loops
 
 static bool show_warnings = true;
 static bool has_charge = false;
 static bool print_nearest_neighbors = false;
-static const map <string, vector <Position> > first_nn_list = {
+static const std::map <std::string, std::vector <Position> > first_nn_list = {
   {"fcc", // 12 1st nearest neighbors
     {Position(0.0, 0.5, -0.5), Position(0.0, -0.5, 0.5), Position( 0.0, -0.5, -0.5), Position( 0.0,  0.5, 0.5),
      Position(0.5, 0.0, -0.5), Position(0.5,  0.0, 0.5), Position(-0.5,  0.0, -0.5), Position(-0.5,  0.0, 0.5),
@@ -39,7 +40,7 @@ static const map <string, vector <Position> > first_nn_list = {
      Position( 0.0, 1.0, 0.0), Position(0.0, 0.0, -1.0), Position(0.0,  0.0, 1.0)}
   }
 };
-static const map <string, vector <vector <double>> > basis_vectors = {
+static const std::map <std::string, std::vector <std::vector <double>> > basis_vectors = {
   {"fcc",
     {{0.5, 0.5, 0.0}, {0.5, 0.0, 0.5}, {0.0, 0.5, 0.5}}
   },
@@ -47,20 +48,20 @@ static const map <string, vector <vector <double>> > basis_vectors = {
     {{-0.5, 0.5, 0.5}, {0.5, -0.5, 0.5}, {0.5, 0.5, -0.5}}
   }
 };
-static map <int, vector <Position> > rotated_1nn;
+static std::map <int, std::vector <Position> > rotated_1nn;
 
-bool neighborComparison(pair <int, double> a, pair <int, double> b) {
+bool neighborComparison(std::pair <int, double> a, std::pair <int, double> b) {
   return a.second < b.second;
 }
 
-double calculateAxisMagnitude(const vector <double>& axis) {
+double calculateAxisMagnitude(const std::vector <double>& axis) {
   return sqrt(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
 }
 
-vector <double> normalize(const vector <double>& axis) {
-  vector <double> result (3, 0.0);
+std::vector <double> normalize(const std::vector <double>& axis) {
+  std::vector <double> result (3, 0.0);
   if (axis.size() != 3) {
-    cerr << "Vector size is incorrect (" << axis.size() << " != 3). Cannot normalize.\n";
+    std::cerr << "std::vector size is incorrect (" << axis.size() << " != 3). Cannot normalize.\n";
     exit(VECTOR_SIZE_ERROR);
   }
 
@@ -75,23 +76,23 @@ struct inputData {
   // directly from the input file
   int n_files, n_types;
   double theta, r_cut, fi_cut, a0;
-  string crystal_structure;
-  vector <double> new_x_axis {0.0,0.0,0.0}, new_y_axis{0.0,0.0,0.0}, new_z_axis{0.0,0.0,0.0};
-  vector <double> old_x_axis {0.0,0.0,0.0}, old_y_axis{0.0,0.0,0.0}, old_z_axis{0.0,0.0,0.0};
-  vector <string> files; // the data files to examine
-  string r_axis; // the string representation of the orientation matrix, given as zzz
+  std::string crystal_structure;
+  std::vector <double> new_x_axis {0.0,0.0,0.0}, new_y_axis{0.0,0.0,0.0}, new_z_axis{0.0,0.0,0.0};
+  std::vector <double> old_x_axis {0.0,0.0,0.0}, old_y_axis{0.0,0.0,0.0}, old_z_axis{0.0,0.0,0.0};
+  std::vector <std::string> files; // the data files to examine
+  std::string r_axis; // the std::string representation of the orientation matrix, given as zzz
 
   // from the command line
-  vector <int> ignored_atoms, atom_ids_list;
+  std::vector <int> ignored_atoms, atom_ids_list;
   char algorithm; // which algorithm to use
-  string outfile, nn_filebase;
+  std::string outfile, nn_filebase;
   unsigned int print_files_every = 0;
 
   // calculated from input file
   double sinin, cosin, janssens_symm; // sin and cos of the angle, the janssens symmetry parameter for ideal lattices.
-  vector <Position> perfect_matrix_neighbors, perfect_grain_neighbors;
-  vector <vector <double> > basis_1 {{0.0, 0.0, 0.0}, {0.0,0.0,0.0}, {0.0, 0.0, 0.0}};
-  vector <vector <double> > basis_2 = basis_1, reciprocal_1 = basis_1, reciprocal_2 = basis_1;
+  std::vector <Position> perfect_matrix_neighbors, perfect_grain_neighbors;
+  std::vector <std::vector <double> > basis_1 {{0.0, 0.0, 0.0}, {0.0,0.0,0.0}, {0.0, 0.0, 0.0}};
+  std::vector <std::vector <double> > basis_2 = basis_1, reciprocal_1 = basis_1, reciprocal_2 = basis_1;
   double scalenorm = 0;
 
   void calculateTrig() {
@@ -119,7 +120,7 @@ struct inputData {
     perfect_matrix_neighbors = first_nn_list.at(crystal_structure);
     perfect_grain_neighbors = first_nn_list.at(crystal_structure);
 
-    // expand the neighbor vectors to be the same size as the crystal structure,
+    // expand the neighbor std::vectors to be the same size as the crystal structure,
     // and rotate the second matrix
 
     for (size_t i = 0; i < perfect_matrix_neighbors.size(); ++i) {
@@ -142,7 +143,7 @@ struct inputData {
       perfect_grain_neighbors[i][1] = y * cosin + x * sinin;
     }
 
-    vector <double> distances;
+    std::vector <double> distances;
     janssens_symm = 0.0;
     for (size_t i = 0; i < perfect_matrix_neighbors.size(); ++i) {
       x = perfect_matrix_neighbors[i][0];
@@ -167,19 +168,19 @@ struct inputData {
   void calculateReciprocalLattices() {
     // hard coded numbers because these sizes do not change - they form the 3x3
     // orientation matrix of the two grains
-    vector <vector <double> > rot_mat = {
+    std::vector <std::vector <double> > rot_mat = {
       {cosin, -sinin, 0.0},
       {sinin, cosin, 0.0},
       {0.0, 0.0, 1.0}
     };
 
-    vector <vector <double> > orient_mat_1 = {
+    std::vector <std::vector <double> > orient_mat_1 = {
       {normalize(new_x_axis)},
       {normalize(new_y_axis)},
       {normalize(new_z_axis)}
     };
 
-    vector <vector <double> > orient_mat_2 (3, vector <double> (3, 0.0));
+    std::vector <std::vector <double> > orient_mat_2 (3, std::vector <double> (3, 0.0));
     for (size_t i = 0; i < orient_mat_2.size(); ++i) {
       for (size_t j = 0; j < orient_mat_2[i].size(); ++j) {
         orient_mat_2[i][j] = rot_mat[i][0] * orient_mat_1[0][j] + rot_mat[i][1] * orient_mat_1[1][j] + rot_mat[i][2] * orient_mat_1[2][j];
@@ -197,7 +198,7 @@ struct inputData {
 
     for (size_t row = 0; row < 3; ++row) {
       for (size_t col = 0; col < 3; ++col) {
-        // Need to transpose the basis_1 vector before multiplying by the rotation matrix
+        // Need to transpose the basis_1 std::vector before multiplying by the rotation matrix
         // then transposing that result as the answer for basis_2, hence the [col][row] indexing
         // for both basis matrices.
         basis_2[col][row] = rot_mat[row][0] * basis_1[col][0] +
@@ -273,21 +274,21 @@ struct inputData {
       } // iy
     } // ix
 
-    cout << "  Number of neighbors: " << neigh << "\n";
+    std::cout << "  Number of neighbors: " << neigh << "\n";
   }
 
   template <typename T>
-  string generateNNFilename(const T& id) const {
-    if (nn_filebase.find("*") == string::npos) {return nn_filebase;}
+  std::string generateNNFilename(const T& id) const {
+    if (nn_filebase.find("*") == std::string::npos) {return nn_filebase;}
 
     // This is limited in the sense that we only replace the first occurence
-    // of "*" in the string
-    string first = nn_filebase.substr(0,nn_filebase.find("*"));
-    string last = nn_filebase.substr(nn_filebase.find("*") + 1);
+    // of "*" in the std::string
+    std::string first = nn_filebase.substr(0,nn_filebase.find("*"));
+    std::string last = nn_filebase.substr(nn_filebase.find("*") + 1);
 
-    string tmp;
-    stringstream ss;
-    ss << id; ss >> tmp; // convert the id to a string
+    std::string tmp;
+    std::stringstream ss;
+    ss << id; ss >> tmp; // convert the id to a std::string
 
     return first + tmp + last;
   }
@@ -321,7 +322,7 @@ struct dataIndices {
 } data_indices;
 
 void printInputFileHelp() {
-  cout << "\n\nThe first line of the input file must contain the following items in order:\n"
+  std::cout << "\n\nThe first line of the input file must contain the following items in order:\n"
        << "  1. The number of files to be processed.\n"
        << "  2. The additional rotation to apply to the system (for Zhang method) OR\n"
        << "     the misorientation of the embedded grain (for the other methods).\n"
@@ -341,9 +342,9 @@ void printInputFileHelp() {
 }
 
 template <typename T>
-void checkFileStream(T& stream, const string& file) {
+void checkFileStream(T& stream, const std::string& file) {
   if (stream.fail()) {
-    cerr << "Error opening file \"" << file << "\"\n";
+    std::cerr << "Error opening file \"" << file << "\"\n";
     exit(FILE_OPEN_ERROR);
   }
 }
@@ -357,54 +358,54 @@ double anInt(double x) {
   return (double)(temp);
 }
 
-double dotp(const vector <double>& v1, const vector <double>& v2) {
+double dotp(const std::vector <double>& v1, const std::vector <double>& v2) {
   if (v1.size() != 3 || v2.size() != 3) {
-    cerr << "Error: vector size incorrect - should have three elements!\n";
+    std::cerr << "Error: std::vector size incorrect - should have three elements!\n";
     exit(VECTOR_SIZE_ERROR);
   }
 
   return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
-inline bool exists (const string& file) {
+inline bool exists (const std::string& file) {
   struct stat buffer;
   return (stat (file.c_str(), &buffer) == 0);
 }
 
-vector <double> getAxisData(istream& fin) {
-  string str;
-  vector <double> axis (3, 0.0);
-  getline(fin, str);
-  stringstream ss(str);
+std::vector <double> getAxisData(std::istream& fin) {
+  std::string str;
+  std::vector <double> axis (3, 0.0);
+  std::getline(fin, str);
+  std::stringstream ss(str);
   if (!(ss >> axis[0] >> axis[1] >> axis[2])) {
-    cerr << "Error reading axis: " << str << "\n";
+    std::cerr << "Error reading axis: " << str << "\n";
     exit(AXIS_READ_ERROR);
   }
   return axis;
 }
 
-void initializeRotatedPerfectNeighborList(const string& structure, const vector <Position>& perfect_neighbors, const string& r_axis, const double& a0) {
-  string path, str;
+void initializeRotatedPerfectNeighborList(const std::string& structure, const std::vector <Position>& perfect_neighbors, const std::string& r_axis, const double& a0) {
+  std::string path, str;
   int theta;
   double x, y, z;
   bool rebuild_cache = false;
 
   if (const char* db_dir = getenv("TRAUTT_DB_DIR")) {
-    path = string(db_dir) + "/" + structure + "_" + r_axis + "_rotated_1nn.db";
+    path = std::string(db_dir) + "/" + structure + "_" + r_axis + "_rotated_1nn.db";
   } else {
     path = "./" + structure + "_" + r_axis + "_rotated_1nn.db";
   }
 
   if (exists(path)) {
-    ifstream fin(path.c_str());
+    std::ifstream fin(path.c_str());
     checkFileStream(fin, path);
     int line_no = 0;
 
-    while (getline(fin, str)) {
+    while (std::getline(fin, str)) {
       ++line_no;
       int num = 0;
-      vector <Position> ps;
-      stringstream ss(str);
+      std::vector <Position> ps;
+      std::stringstream ss(str);
       ss >> theta;
       while (ss >> x >> y >> z) {
         ++num;
@@ -413,21 +414,21 @@ void initializeRotatedPerfectNeighborList(const string& structure, const vector 
 
       switch (num) {
         case 12: if (structure.compare("fcc") != 0) {
-            cerr << "Database corrupted at line " << line_no << "\n";
+            std::cerr << "Database corrupted at line " << line_no << "\n";
             rebuild_cache = true;
           }
           break;
         case 8: if (structure.compare("bcc") != 0) {
-            cerr << "Database corrupted at line " << line_no << "\n";
+            std::cerr << "Database corrupted at line " << line_no << "\n";
             rebuild_cache = true;
           }
           break;
         case 6: if (structure.compare("sc") != 0) {
-            cerr << "Database corrupted at line " << line_no << "\n";
+            std::cerr << "Database corrupted at line " << line_no << "\n";
             rebuild_cache = true;
           }
           break;
-        default: cerr << "Database corrupted at line " << line_no << "\n";
+        default: std::cerr << "Database corrupted at line " << line_no << "\n";
           rebuild_cache = true;
       }
       rotated_1nn[theta] = ps;
@@ -445,10 +446,10 @@ void initializeRotatedPerfectNeighborList(const string& structure, const vector 
 
   if (rebuild_cache) {
     // generate the rotation matrix, multiply it onto the 1nn positions, save and write the result
-    ofstream fout(path.c_str());
+    std::ofstream fout(path.c_str());
     checkFileStream(fout, path);
     double costheta, sintheta, degrees = PI / 180.0, xtmp, ytmp;
-    rotated_1nn.clear(); // empty the map since we're rebuilding
+    rotated_1nn.clear(); // empty the std::map since we're rebuilding
 
     // The non-rotated case
     fout << 0;
@@ -458,7 +459,7 @@ void initializeRotatedPerfectNeighborList(const string& structure, const vector 
     fout << "\n";
 
     for (unsigned int i = 0; i < 90; ++i) {
-      vector <Position> positions;
+      std::vector <Position> positions;
       costheta = cos(i * degrees);
       sintheta = sin(i * degrees);
 
@@ -477,28 +478,28 @@ void initializeRotatedPerfectNeighborList(const string& structure, const vector 
 
 }
 
-void parseInputFile(inputData& input, const string& input_file) {
-  string str; // junk string variable
+void parseInputFile(inputData& input, const std::string& input_file) {
+  std::string str; // junk std::string variable
 
-  ifstream fin(input_file.c_str());
+  std::ifstream fin(input_file.c_str());
   checkFileStream(fin, input_file);
 
-  getline(fin, str);
-  stringstream ss(str);
+  std::getline(fin, str);
+  std::stringstream ss(str);
   if (!(ss >> input.n_files >> input.theta >> input.n_types >> input.r_cut >> input.fi_cut >> input.a0 >> input.crystal_structure)) {
-    cerr << "Error reading the input file. Did you forget a value?";
+    std::cerr << "Error reading the input file. Did you forget a value?";
     printInputFileHelp();
     exit(INPUT_FORMAT_ERROR);
   }
 
   input.calculateTrig();
 
-  vector <int> n(input.n_types);
+  std::vector <int> n(input.n_types);
   iota(n.begin(), n.end(), 1); // makes a list of numbers from 1 to n_types
 
   if (all_of(n.begin(), n.end(), [&](const int & i) {
       return find(input.ignored_atoms.begin(), input.ignored_atoms.end(), i) != input.ignored_atoms.end();})) {
-    cout << "All atoms ignored. Exiting...\n";
+    std::cout << "All atoms ignored. Exiting...\n";
     exit(EXIT_SUCCESS);
   }
 
@@ -507,12 +508,12 @@ void parseInputFile(inputData& input, const string& input_file) {
   input.new_y_axis = getAxisData(fin);
   input.new_z_axis = getAxisData(fin);
 
-  // store the integer values of the rotation axis into a string
-  stringstream r_axis;
+  // store the integer values of the rotation axis into a std::string
+  std::stringstream r_axis;
   r_axis << (int)(input.new_z_axis[0]) << (int)(input.new_z_axis[1]) << (int)(input.new_z_axis[2]);
   r_axis >> input.r_axis;
 
-  cout << "Input parameters:"
+  std::cout << "Input parameters:"
        << "\n  n_files = " << input.n_files
        << "\n  theta = " << input.theta
        << "\n  n_types = " << input.n_types
@@ -541,7 +542,7 @@ void parseInputFile(inputData& input, const string& input_file) {
 
   // get the desired files
   int aa = 0;
-  while (getline(fin, str) && aa <= input.n_files) {
+  while (std::getline(fin, str) && aa <= input.n_files) {
     if (!str.empty()) {
       input.files.push_back(str);
       ++aa;
@@ -549,20 +550,20 @@ void parseInputFile(inputData& input, const string& input_file) {
   }
 
   if (show_warnings && input.files.size() != input.n_files) {
-    cout << "Warning: " << input.n_files << " files specified in input file, but only " << input.files.size() << " found.\n";
+    std::cout << "Warning: " << input.n_files << " files specified in input file, but only " << input.files.size() << " found.\n";
   }
 }
 
-vector <Atom> getAtomData(ifstream& fin, const inputData& input, const boxData& box) {
+std::vector <Atom> getAtomData(std::ifstream& fin, const inputData& input, const boxData& box) {
   int n_atoms_read = 0; // number of atoms read
-  string str; // holds the info
-  vector <double> data; // holds the number of elements
-  vector <Atom> atoms; // the set of atoms
+  std::string str; // holds the info
+  std::vector <double> data; // holds the number of elements
+  std::vector <Atom> atoms; // the set of atoms
   int atom_id, type; // id number and type of the atom
   double charge, x, y, z; // charge, and wrapped position of atom
 
-  while (getline(fin, str)) {
-    stringstream ss(str);
+  while (std::getline(fin, str)) {
+    std::stringstream ss(str);
     double dummy;
     while (ss >> dummy) {data.push_back(dummy);} // counts the number of elements
 
@@ -577,7 +578,7 @@ vector <Atom> getAtomData(ifstream& fin, const inputData& input, const boxData& 
     data.clear();
 
     if (type > input.n_types) {
-      cerr << "Error: unexpected atom type.\n"
+      std::cerr << "Error: unexpected atom type.\n"
            << "n_types = " << input.n_types << " < this atom's type = " << type << "\n";
       exit(ATOM_TYPE_ERROR);
     }
@@ -596,14 +597,14 @@ vector <Atom> getAtomData(ifstream& fin, const inputData& input, const boxData& 
   fin.close();
 
   if (n_atoms_read != atoms.size()) {
-    cerr << "Error: number of atoms read does not match the number of atoms in the simulation.\n"
+    std::cerr << "Error: number of atoms read does not match the number of atoms in the simulation.\n"
          << "N = " << atoms.size() << " != n_atoms_read = " << n_atoms_read << "\n";
     exit(ATOM_COUNT_ERROR);
   }
   return atoms;
 }
 
-vector <vector <int> > generateCellLinkedList(const vector <Atom>& atoms,
+std::vector <std::vector <int> > generateCellLinkedList(const std::vector <Atom>& atoms,
                                               const inputData& input,
                                               const boxData& box) {
   int ncellx, ncelly, ncellz; // number of cells in each direction
@@ -611,9 +612,9 @@ vector <vector <int> > generateCellLinkedList(const vector <Atom>& atoms,
   double lcellx, lcelly, lcellz; // length of cells in each direction
   int n_atoms_per_cell; // number of atoms allowed per cell
   double drij_sq, rxij, ryij, rzij; // square of distance, x, y, and z separation.
-  vector <vector <int> > iatom; // cell-linked list
-  vector <vector <vector <int> > > icell; // cell index
-  vector <vector <vector <vector <int> > > > pcell; // atom index in each cell
+  std::vector <std::vector <int> > iatom; // cell-linked list
+  std::vector <std::vector <std::vector <int> > > icell; // cell index
+  std::vector <std::vector <std::vector <std::vector <int> > > > pcell; // atom index in each cell
 
   double rcut = input.a0 * input.r_cut;
   double rcut_sq = rcut * rcut;
@@ -629,17 +630,17 @@ vector <vector <int> > generateCellLinkedList(const vector <Atom>& atoms,
   lcellz = box.Lz / ncellz;
 
   // Minimum number of atoms allowed of 100
-  n_atoms_per_cell = max((int)(atoms.size() / (double)(ncellx * ncelly * ncellz)), 100);
+  n_atoms_per_cell = std::max((int)(atoms.size() / (double)(ncellx * ncelly * ncellz)), 100);
 
-  // resize the vectors
-  icell.resize(ncellx, vector <vector <int> > // x dimension
-              (ncelly, vector <int> // y dimension
+  // resize the std::vectors
+  icell.resize(ncellx, std::vector <std::vector <int> > // x dimension
+              (ncelly, std::vector <int> // y dimension
               (ncellz, 0))); // z dimension
-  pcell.resize(ncellx, vector <vector <vector <int> > > // x dimension
-              (ncelly, vector <vector <int> > // y dimension
-              (ncellz, vector <int> // z dimension
+  pcell.resize(ncellx, std::vector <std::vector <std::vector <int> > > // x dimension
+              (ncelly, std::vector <std::vector <int> > // y dimension
+              (ncellz, std::vector <int> // z dimension
               (n_atoms_per_cell, 0)))); // atom number in cell.
-  iatom.resize(n_atoms_per_cell, vector <int> (atoms.size(),0));
+  iatom.resize(n_atoms_per_cell, std::vector <int> (atoms.size(),0));
 
   // generate the pcell and icell matrices.
   for (size_t i = 0; i < atoms.size(); ++i) {
@@ -663,6 +664,7 @@ vector <vector <int> > generateCellLinkedList(const vector <Atom>& atoms,
     pcell[idx][idy][idz][icell[idx][idy][idz] - 1] = i;
   }
 
+  #pragma omp parallel for collapse(3)
   for (int i = 0; i < ncellx; ++i) { // For each x cell
     for (int j = 0; j < ncelly; ++j) { // For each y cell
       for (int k = 0; k < ncellz; ++k) { // For each z cell
@@ -710,13 +712,13 @@ vector <vector <int> > generateCellLinkedList(const vector <Atom>& atoms,
                   iatom[0][id] += 1; //for atom id - number of neighbors
                   if (iatom[0][id] >= n_atoms_per_cell) {
                     n_atoms_per_cell += 100;
-                    iatom.resize(n_atoms_per_cell, vector <int> (atoms.size(),0));
+                    iatom.resize(n_atoms_per_cell, std::vector <int> (atoms.size(),0));
                   }
                   iatom[(iatom[0][id])][id] = jd; // point to the next atom
                   iatom[0][jd] += 1; // for atom jd
                   if (iatom[0][jd] >= n_atoms_per_cell) {
                     n_atoms_per_cell += 100;
-                    iatom.resize(n_atoms_per_cell, vector <int> (atoms.size(),0));
+                    iatom.resize(n_atoms_per_cell, std::vector <int> (atoms.size(),0));
                   }
                   iatom[(iatom[0][jd])][jd] = id;
                 } // m
@@ -731,16 +733,17 @@ vector <vector <int> > generateCellLinkedList(const vector <Atom>& atoms,
   return iatom;
 }
 
-vector <double> zhangSymmetryParameter(vector <Atom>& atoms,
-                                       const vector <vector <int> >& iatom,
-                                       const vector <bool> allowed_atoms,
+std::vector <double> zhangSymmetryParameter(std::vector <Atom>& atoms,
+                                       const std::vector <std::vector <int> >& iatom,
+                                       const std::vector <bool> allowed_atoms,
                                        const inputData& input,
                                        const boxData& box) {
-  vector <double> symm (atoms.size(), 0.0);
+  std::vector <double> symm (atoms.size(), 0.0);
   // positions, distances, changed positions, square of distance, cos^2 of angle, orientation parameter
   double x, y, z, rxij, ryij, rzij, xtemp, ytemp, drij_sq, costheta_sq, val;
   double coeffs [2] = {3.0, 2.0}; // coefficients of the orientation parameter calculation
 
+  #pragma omp parallel for
   for (size_t i = 0; i < atoms.size(); ++i) {
     // Check if we are ignoring this atom type
     if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
@@ -756,7 +759,7 @@ vector <double> zhangSymmetryParameter(vector <Atom>& atoms,
     for (int l = 1; l <= iatom[0][i]; ++l) {
       unsigned int id = iatom[l][i];
 
-      // Position difference vector
+      // Position difference std::vector
       rxij = atoms[id].getWrapped()[0] - x;
       ryij = atoms[id].getWrapped()[1] - y;
       rzij = atoms[id].getWrapped()[2] - z;
@@ -774,7 +777,7 @@ vector <double> zhangSymmetryParameter(vector <Atom>& atoms,
       rxij = xtemp;
       ryij = ytemp;
 
-      // Rotate the vector into the <100> reference frame
+      // Rotate the std::vector into the <100> reference frame
       // NOTE: in order for this method to work well, the correct cutoff distance needs to be used!
       xtemp = rxij * input.new_x_axis[0] + ryij * input.new_y_axis[0] + rzij * input.new_z_axis[0];
       ytemp = rxij * input.new_x_axis[1] + ryij * input.new_y_axis[1] + rzij * input.new_z_axis[1];
@@ -803,7 +806,7 @@ vector <double> zhangSymmetryParameter(vector <Atom>& atoms,
     // each other in the simulation, which may not always be the case.
     else if (iatom[0][i] == 0 && i != 0) {
       if (show_warnings) {
-        cout << "\nWarning: no neighbors detected for atom " << atoms[i].getId()
+        std::cout << "\nWarning: no neighbors detected for atom " << atoms[i].getId()
         << ". Using the symmetry parameter of the previous atom = " << symm[i - 1] << "\n";
       }
       symm[i] = symm[i - 1];
@@ -817,23 +820,24 @@ vector <double> zhangSymmetryParameter(vector <Atom>& atoms,
   return symm;
 }
 
-vector <double> janssensSymmetryParameter(vector <Atom>& atoms,
-                                          const vector <vector <int> >& iatom,
-                                          const vector <bool> allowed_atoms,
+std::vector <double> janssensSymmetryParameter(std::vector <Atom>& atoms,
+                                          const std::vector <std::vector <int> >& iatom,
+                                          const std::vector <bool> allowed_atoms,
                                           const inputData& input,
                                           const boxData& box) {
-  vector <double> symm (atoms.size(), 0.0);
-  vector <Position> neighbor_positions;
+  std::vector <double> symm (atoms.size(), 0.0);
+  std::vector <Position> neighbor_positions;
   double x, y, z, rxij, ryij, rzij, drij_sq, rcut, val;
-  vector <double> distances;
+  std::vector <double> distances;
 
   if (input.fi_cut <= 0 || input.fi_cut >= 1.0) {
-    cerr << "Error: the Janssens method requires an orientation parameter cutoff in the range 0 < fi_cut < 1\n";
+    std::cerr << "Error: the Janssens method requires an orientation parameter cutoff in the range 0 < fi_cut < 1\n";
     exit(BOUNDS_ERROR);
   }
 
   rcut = input.a0 * input.r_cut;
 
+  #pragma omp parallel for
   for (size_t i = 0; i < atoms.size(); ++i) {
     // move to the next atom if ignoring this atom type
     if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
@@ -892,7 +896,7 @@ vector <double> janssensSymmetryParameter(vector <Atom>& atoms,
     if (!(allowed_atoms[i])) {continue;}
     else if (iatom[0][i] == 0 && i != 0) {
       if (show_warnings) {
-        cout << "\nWarning: no neighbors detected for atom " << atoms[i].getId()
+        std::cout << "\nWarning: no neighbors detected for atom " << atoms[i].getId()
              << ". Using the symmetry parameter of the previous atom = " << symm[i - 1] << "\n";
       }
       symm[i] = symm[i - 1];
@@ -904,14 +908,14 @@ vector <double> janssensSymmetryParameter(vector <Atom>& atoms,
   return symm;
 }
 
-vector <double> ulomekSymmetryParameter(vector <Atom>& atoms,
-                                        const vector <vector <int> >& iatom,
-                                        const vector <bool> allowed_atoms,
+std::vector <double> ulomekSymmetryParameter(std::vector <Atom>& atoms,
+                                        const std::vector <std::vector <int> >& iatom,
+                                        const std::vector <bool> allowed_atoms,
                                         const inputData& input,
                                         const boxData& box) {
-  vector <double> symm (atoms.size(), 0.0);
-  vector <vector <double> > Q; // combined reciprocal lattice vectors
-  vector <double> kappa = {1.0, 1.0, 1.0, -1.0, -1.0, -1.0};
+  std::vector <double> symm (atoms.size(), 0.0);
+  std::vector <std::vector <double> > Q; // combined reciprocal lattice std::vectors
+  std::vector <double> kappa = {1.0, 1.0, 1.0, -1.0, -1.0, -1.0};
   double x, y, z, dijx, dijy, dijz, dikx, diky, dikz, rsqij, rsqik, wij, wik, scalarprod;
   unsigned int id;
 
@@ -925,6 +929,7 @@ vector <double> ulomekSymmetryParameter(vector <Atom>& atoms,
     Q.push_back(input.reciprocal_2[i]);
   }
 
+  #pragma omp parallel for
   for (size_t i = 0; i < atoms.size(); ++i) {
     // move to the next atom if ignoring this atom type
     if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
@@ -985,20 +990,21 @@ vector <double> ulomekSymmetryParameter(vector <Atom>& atoms,
   return symm;
 }
 
-vector <double> trauttSymmetryParameter(vector <Atom>& atoms,
-                                        const vector <vector <int> >& iatom,
-                                        const vector <bool> allowed_atoms,
+std::vector <double> trauttSymmetryParameter(std::vector <Atom>& atoms,
+                                        const std::vector <std::vector <int> >& iatom,
+                                        const std::vector <bool> allowed_atoms,
                                         const inputData& input,
                                         const boxData& box) {
-  vector <double> symm (atoms.size(), 0.0);
+  std::vector <double> symm (atoms.size(), 0.0);
   Position pref, pdiff, numerator; // position of reference atom, differences in position, top part of exponential in eq. 33
   unsigned int id;
-  vector <double> symm_test(rotated_1nn.size(), 0.0);
+  std::vector <double> symm_test(rotated_1nn.size(), 0.0);
   double a0_sq = input.a0 * input.a0;
-  map <int, int> histogram; // key is the misorientation, value is the count
+  std::map <int, int> histogram; // key is the misorientation, value is the count
   VerifyNewFile verify("trautt_histogram.txt");
   // see Trautt & Mishin, Acta Mat 60 (2012) 2407-2424 equation (33)
 
+  #pragma omp parallel for
   for (size_t i = 0; i < atoms.size(); ++i) {
     if (find(input.ignored_atoms.begin(), input.ignored_atoms.end(), atoms[i].getType()) != input.ignored_atoms.end()) {continue;}
     if (!allowed_atoms[i]) {continue;}
@@ -1023,13 +1029,13 @@ vector <double> trauttSymmetryParameter(vector <Atom>& atoms,
       }
     }
     auto max_it = max_element(symm_test.begin(), symm_test.end());
-    // cout << *max_it << " at index " << max_it - symm_test.begin() << "\n";
+    // std::cout << *max_it << " at index " << max_it - symm_test.begin() << "\n";
     ++histogram[max_it - symm_test.begin()];
     atoms[i].setMark(max_it - symm_test.begin());
     symm[i] = *max_it;
   }
 
-  ofstream fout(verify.validNewFile().c_str());
+  std::ofstream fout(verify.validNewFile().c_str());
   checkFileStream(fout, verify.validNewFile());
 
   for (auto& item: histogram) {
@@ -1040,12 +1046,12 @@ vector <double> trauttSymmetryParameter(vector <Atom>& atoms,
   return symm;
 }
 
-void writeAtomsToFile(const string& filename, const vector <Atom>& atoms,
-                      const vector <bool> allowed_atoms, const vector <double>& symm,
+void writeAtomsToFile(const std::string& filename, const std::vector <Atom>& atoms,
+                      const std::vector <bool> allowed_atoms, const std::vector <double>& symm,
                       const inputData& input, const boxData& box) {
   int n_atoms_written = 0;
 
-  ofstream fout(filename.c_str());
+  std::ofstream fout(filename.c_str());
   checkFileStream(fout, filename);
 
   // This writes things in a Tecplot-readable file format
@@ -1072,7 +1078,7 @@ void writeAtomsToFile(const string& filename, const vector <Atom>& atoms,
 
   int num_allowed_atoms = accumulate(allowed_atoms.begin(), allowed_atoms.end(), 0);
   if (num_allowed_atoms != n_atoms_written) {
-    cerr << "Error: number of atoms written does not match number of atoms specified to be written\n"
+    std::cerr << "Error: number of atoms written does not match number of atoms specified to be written\n"
          << "num_allowed_atoms = " << num_allowed_atoms << " != n_atoms_written = " << n_atoms_written << "\n";
     exit(ATOM_COUNT_ERROR);
   }
@@ -1082,15 +1088,15 @@ void processData(const inputData& input) {
   boxData box;
   int n_grain_1, n_grain_2, n_gb; // number of atoms assigned to each grain
   int N; // number of atoms
-  string str, filename2; // junk string variable, filename of the data with the grain assignment
+  std::string str, filename2; // junk std::string variable, filename of the data with the grain assignment
 
-  vector <Atom> atoms; // the atoms from the data file
-  vector <bool> allowed_atoms; // the atoms that will be printed
-  vector <vector <int> > iatom; // cell-linked list
-  vector <double> symm; // the orientation factors
+  std::vector <Atom> atoms; // the atoms from the data file
+  std::vector <bool> allowed_atoms; // the atoms that will be printed
+  std::vector <std::vector <int> > iatom; // cell-linked list
+  std::vector <double> symm; // the orientation factors
 
   VerifyNewFile verify1(input.outfile);
-  ofstream fout_data(verify1.validNewFile().c_str());
+  std::ofstream fout_data(verify1.validNewFile().c_str());
   checkFileStream(fout_data, verify1.validNewFile());
 
   fout_data << "# Data consists of: [timestep/file, atoms in grain 1, atoms in grain 2";
@@ -1098,37 +1104,37 @@ void processData(const inputData& input) {
   fout_data << "]\n";
 
   // VerifyNewFile verify2("misorientation_data.txt");
-  // ofstream fout_misorientation(verify2.validNewFile().c_str());
+  // std::ofstream fout_misorientation(verify2.validNewFile().c_str());
   // checkFileStream(fout_misorientation, verify2.validNewFile());
 
   int aa = 1;
   int x_index = -1, y_index = -1, z_index = -1; // indices for the x, y, and z positions of the atoms
   int id_index = -1, type_index = -1, charge_index = -1; // indices for the atom id, type, and charge
-  for (vector <string>::const_iterator it = input.files.begin(); it != input.files.end(); ++it) { // TODO: parallelize this
+  for (std::vector <std::string>::const_iterator it = input.files.begin(); it != input.files.end(); ++it) { // TODO: parallelize this
     box.reset();
     n_grain_1 = 0;
     n_grain_2 = 0;
     n_gb = 0;
-    ifstream fin((*it).c_str());
+    std::ifstream fin((*it).c_str());
     checkFileStream(fin, *it);
 
-    if ((*it).find("dump") != string::npos) {
+    if ((*it).find("dump") != std::string::npos) {
       int timestep;
-      getline(fin, str); // Gets ITEM: TIMESTEP
+      std::getline(fin, str); // Gets ITEM: TIMESTEP
       fin >> timestep; // Gets the timestep number
       fin.ignore();
       if (aa == 1) {
         if (show_warnings && timestep != 0) {
-          cout << "Warning: first data file is not at timestep 0\n";
+          std::cout << "Warning: first data file is not at timestep 0\n";
         }
       }
 
-      getline(fin, str); // Gets ITEM: NUMBER OF ATOMS
+      std::getline(fin, str); // Gets ITEM: NUMBER OF ATOMS
       fin >> N; // number of atoms
       fin.ignore();
 
-      getline(fin, str); // Gets ITEM: BOX BOUNDS
-      if (str.find("xy") == string::npos) {
+      std::getline(fin, str); // Gets ITEM: BOX BOUNDS
+      if (str.find("xy") == std::string::npos) {
         fin >> box.xlow >> box.xhigh
             >> box.ylow >> box.yhigh
             >> box.zlow >> box.zhigh;
@@ -1140,10 +1146,10 @@ void processData(const inputData& input) {
       }
       fin.ignore();
 
-      getline(fin, str); // Gets ITEM: ATOMS <data types>
-      string data_types = str.substr(str.find("ATOMS") + 6);
-      stringstream ss(data_types);
-      string tmp;
+      std::getline(fin, str); // Gets ITEM: ATOMS <data types>
+      std::string data_types = str.substr(str.find("ATOMS") + 6);
+      std::stringstream ss(data_types);
+      std::string tmp;
       int idx = 0, xu_index = -1, yu_index = -1, zu_index = -1;
       while (ss >> tmp) {
         if (tmp.compare("id") == 0) {id_index = idx;}
@@ -1159,26 +1165,26 @@ void processData(const inputData& input) {
       }
       // Use unwrapped positions if regular positions are not available
       if (x_index == -1) {
-        if (xu_index == -1) {cout << "Error finding x position index"; exit(INPUT_FORMAT_ERROR);}
+        if (xu_index == -1) {std::cout << "Error finding x position index"; exit(INPUT_FORMAT_ERROR);}
         else {x_index = xu_index;}
       }
       if (y_index == -1) {
-        if (yu_index == -1) {cout << "Error finding y position index"; exit(INPUT_FORMAT_ERROR);}
+        if (yu_index == -1) {std::cout << "Error finding y position index"; exit(INPUT_FORMAT_ERROR);}
         else {y_index = yu_index;}
       }
       if (z_index == -1) {
-        if (zu_index == -1) {cout << "Error finding z position index"; exit(INPUT_FORMAT_ERROR);}
+        if (zu_index == -1) {std::cout << "Error finding z position index"; exit(INPUT_FORMAT_ERROR);}
         else {y_index = yu_index;}
       }
       filename2 = (*it).substr(0,(*it).find(".dump")) + "_interface.dat";
 
       fout_data << timestep << " ";
     }
-    else if ((*it).find(".dat") != string::npos) {
-      getline(fin, str); // gets comment line TODO: This is where I need to parse what data values are included
-      string data_types = str.substr(str.find("[") + 1, str.find("]") - str.find("[") - 1);
-      stringstream ss(data_types);
-      string tmp;
+    else if ((*it).find(".dat") != std::string::npos) {
+      std::getline(fin, str); // gets comment line TODO: This is where I need to parse what data values are included
+      std::string data_types = str.substr(str.find("[") + 1, str.find("]") - str.find("[") - 1);
+      std::stringstream ss(data_types);
+      std::string tmp;
       int idx = 0;
       while (ss >> tmp) {
         if (tmp.compare("ID") == 0 || tmp.compare("id") == 0) {id_index = idx;}
@@ -1189,9 +1195,9 @@ void processData(const inputData& input) {
         else if (tmp.compare("z") == 0) {z_index = idx;}
         ++idx;
       }
-      if (x_index == -1) {cout << "Error finding x position index"; exit(INPUT_FORMAT_ERROR);}
-      if (y_index == -1) {cout << "Error finding y position index"; exit(INPUT_FORMAT_ERROR);}
-      if (z_index == -1) {cout << "Error finding z position index"; exit(INPUT_FORMAT_ERROR);}
+      if (x_index == -1) {std::cout << "Error finding x position index"; exit(INPUT_FORMAT_ERROR);}
+      if (y_index == -1) {std::cout << "Error finding y position index"; exit(INPUT_FORMAT_ERROR);}
+      if (z_index == -1) {std::cout << "Error finding z position index"; exit(INPUT_FORMAT_ERROR);}
       fin >> N >> str; // number of atoms
       fin >> str >> str >> str; // atom types n_types - specified in the input file
       fin >> box.xlow >> box.xhigh >> str >> str
@@ -1199,20 +1205,20 @@ void processData(const inputData& input) {
           >> box.zlow >> box.zhigh >> str >> str;
       fin.ignore();
 
-      getline(fin, str);
-      if (str.find("xy") != string::npos) { // Triclinic tilt factors
+      std::getline(fin, str);
+      if (str.find("xy") != std::string::npos) { // Triclinic tilt factors
         fin >> box.xy >> box.xz >> box.yz >> str >> str >> str;
         fin.ignore();
       }
 
-      getline(fin, str);
-      getline(fin, str);
+      std::getline(fin, str);
+      std::getline(fin, str);
       filename2 = (*it).substr(0,(*it).find(".dat")) + "_interface.dat";
 
       fout_data << (*it).substr(0, (*it).find(".dat")) << " ";
     }
     else {
-      cerr << "Error: Unknown file type\n";
+      std::cerr << "Error: Unknown file type\n";
       exit(FILE_FORMAT_ERROR);
     }
     data_indices.id = id_index;
@@ -1248,14 +1254,14 @@ void processData(const inputData& input) {
     }
 
     if (print_nearest_neighbors) {
-      string neighbor_filename = input.generateNNFilename(aa);
-      ofstream fout_neighbors(neighbor_filename.c_str());
+      std::string neighbor_filename = input.generateNNFilename(aa);
+      std::ofstream fout_neighbors(neighbor_filename.c_str());
       checkFileStream(fout_neighbors, neighbor_filename);
 
       for (size_t i = 0; i < atoms.size(); ++i) {
         if (!allowed_atoms[i]) {continue;} // only print the specified atoms
         else {
-          vector <int> neighs; // neighbors of atom i
+          std::vector <int> neighs; // neighbors of atom i
           fout_neighbors << "Atom " << i << " has " << iatom[0][i] << "neighbors:\n";
           for (int l = 1; l <= iatom[0][i]; ++l) {neighs.push_back(iatom[l][i]);}
           sort (neighs.begin(), neighs.end());
@@ -1273,7 +1279,7 @@ void processData(const inputData& input) {
       symm = trauttSymmetryParameter(atoms, iatom, allowed_atoms, input, box);
     }
     else {
-      cerr << "Unknown orientation parameter algorithm. Exiting...\n";
+      std::cerr << "Unknown orientation parameter algorithm. Exiting...\n";
       exit(ERROR_CODE_NOT_DEFINED);
     }
 
@@ -1285,7 +1291,7 @@ void processData(const inputData& input) {
       else if (atoms[i].getMark() == 2) {++n_grain_2;}
       else if (atoms[i].getMark() == 3 && input.algorithm == 'u') {++n_gb;}
       else {
-        cerr << "Error: Unrecognized grain assignment.\n";
+        std::cerr << "Error: Unrecognized grain assignment.\n";
         exit(BOUNDS_ERROR);
       }
     }
@@ -1302,25 +1308,25 @@ void processData(const inputData& input) {
 
     fin.close();
 
-    cout << "\r";
-    cout << "Processing of file \"" << (*it) << "\" completed.";
-    cout.flush();
+    std::cout << "\r";
+    std::cout << "Processing of file \"" << (*it) << "\" completed.";
+    std::cout.flush();
     ++aa;
   }
   fout_data.close();
 }
 
-vector <int> getAtomIdsList(const string& file) {
-  string str;
-  vector <int> id_list;
-  ifstream fin(file.c_str());
+std::vector <int> getAtomIdsList(const std::string& file) {
+  std::string str;
+  std::vector <int> id_list;
+  std::ifstream fin(file.c_str());
   checkFileStream(fin, file);
 
-  while (getline(fin, str)) {
-    stringstream ss(str);
+  while (std::getline(fin, str)) {
+    std::stringstream ss(str);
     int tmp;
     if (!(ss >> tmp)) {
-      cerr << "Error reading atom IDs.\n";
+      std::cerr << "Error reading atom IDs.\n";
       exit(FILE_FORMAT_ERROR);
     }
     else {id_list.push_back(tmp);}
@@ -1331,7 +1337,7 @@ vector <int> getAtomIdsList(const string& file) {
 }
 
 void printAlgorithmCitations() {
-  cout << "Trautt algorithm:\n"
+  std::cout << "Trautt algorithm:\n"
        << "  Trautt Z.T. and Mishin, Y. Acta Materialia 60(5) 2407-2424 (2012)\n"
        << "Zhang algorithm:\n"
        << "  Zhang H. et al., Acta Materialia 53(1) 79-86 (2005)\n"
@@ -1344,7 +1350,7 @@ void printAlgorithmCitations() {
 int main(int argc, char** argv)
 {
   inputData input;
-  string input_file;
+  std::string input_file;
 
   try {
     cxxopts::Options options(argv[0], "Determines which grain atoms belong to.");
@@ -1355,15 +1361,15 @@ int main(int argc, char** argv)
     options
       .allow_unrecognised_options()
       .add_options()
-        ("f,file", "Input file", cxxopts::value<string>(input_file), "file")
-        ("o,output", "Output file. Uniqueness is assured.", cxxopts::value<string>(input.outfile)->default_value("data.txt"), "file")
+        ("f,file", "Input file", cxxopts::value<std::string>(input_file), "file")
+        ("o,output", "Output file. Uniqueness is assured.", cxxopts::value<std::string>(input.outfile)->default_value("data.txt"), "file")
         ("e,every", "Option to specify how frequently interface files should be written. 1 specifies every file, 0 specifies none, any other integer specifies than every n files should be written. First and last interface files are always written if n != 0.", cxxopts::value<unsigned int>(input.print_files_every)->default_value("1"), "n")
-        ("i,ignore", "Ignore atoms of a specific type (number) during neighbor list creation - each type must be specified separately", cxxopts::value<vector <int> >(), "atom_type")
+        ("i,ignore", "Ignore atoms of a specific type (number) during neighbor list creation - each type must be specified separately", cxxopts::value<std::vector <int> >(), "atom_type")
         ("g,algorithm", "The algorithm for assigning atoms to grains. u - Ulomek, z - Zhang, j - Janssens, t - Trautt", cxxopts::value<char>(input.algorithm)->default_value("u"))
         ("c,citations", "Show the citations for the different algorithms and exit", cxxopts::value<bool>()->default_value("false"))
         ("q,quiet", "Suppress warnings", cxxopts::value<bool>(show_warnings)->implicit_value("false"))
-        ("atom-ids", "Only output the results for the specified IDs from the file (containing a list of atom ids)", cxxopts::value<string>(), "file")
-        ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<string>(input.nn_filebase)->default_value("nearest_neighbors_*.txt"), "file")
+        ("atom-ids", "Only output the results for the specified IDs from the file (containing a list of atom ids)", cxxopts::value<std::string>(), "file")
+        ("print-nearest-neighbors", "Print the nearest neighbor list to a file", cxxopts::value<std::string>(input.nn_filebase)->default_value("nearest_neighbors_*.txt"), "file")
         ("h,help", "Show the help");
 
     options.parse_positional({"file"});
@@ -1375,34 +1381,34 @@ int main(int argc, char** argv)
     }
 
     if (result.count("help") || result.count("file") == 0) {
-      cout << options.help();
+      std::cout << options.help();
       printInputFileHelp();
       return EXIT_SUCCESS;
     }
 
     if (result.count("ignore")) {
-      input.ignored_atoms = result["ignore"].as<vector <int> >();
-      cout << "Ignoring atoms of type: ";
-      for (vector <int>::iterator it = input.ignored_atoms.begin(); it != input.ignored_atoms.end();) {
-        cout << *it;
-        if (++it != input.ignored_atoms.end()) {cout << ", ";}
+      input.ignored_atoms = result["ignore"].as<std::vector <int> >();
+      std::cout << "Ignoring atoms of type: ";
+      for (std::vector <int>::iterator it = input.ignored_atoms.begin(); it != input.ignored_atoms.end();) {
+        std::cout << *it;
+        if (++it != input.ignored_atoms.end()) {std::cout << ", ";}
       }
-      cout << "\n";
+      std::cout << "\n";
     }
-    else {cout << "Processing all atom types.\n";}
+    else {std::cout << "Processing all atom types.\n";}
 
     if (result.count("print-nearest-neighbors")) {print_nearest_neighbors = true;}
 
-    if (result.count("atom-ids")) {input.atom_ids_list = getAtomIdsList(result["atom-ids"].as<string>());}
+    if (result.count("atom-ids")) {input.atom_ids_list = getAtomIdsList(result["atom-ids"].as<std::string>());}
 
     if (result.count("file")) {
       parseInputFile(input, input_file);
       processData(input);
-      cout << "\n";
+      std::cout << "\n";
     }
   }
   catch (const cxxopts::OptionException& e) {
-    cerr << "Error parsing options: " << e.what() << "\n";
+    std::cerr << "Error parsing options: " << e.what() << "\n";
     return OPTION_PARSING_ERROR;
   }
 

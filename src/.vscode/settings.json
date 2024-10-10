@@ -1,0 +1,11 @@
+{
+    "editor.detectIndentation": false,
+    "editor.formatOnPaste": false,
+    "editor.formatOnSave": false,
+    "[cpp]": {
+        "editor.tabSize": 2
+    },
+    "[python]": {
+        "editor.tabSize": 4
+    }
+}

@@ -32,43 +32,49 @@
 #
 #  Anthony Thyssen    20 April 1996
 #
-ORIGDIR=`pwd`
-PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
-PROGDIR=`dirname $PROGNAME`            # extract directory of program
-PROGNAME=`basename $PROGNAME`          # base name of program
-Usage() {                              # output the script comments as docs
+ORIGDIR=$(pwd)
+PROGNAME=$(type "$0" | awk '{print $3}') # search for executable on path
+PROGDIR=$(dirname "$PROGNAME")           # extract directory of program
+PROGNAME=$(basename "$PROGNAME")         # base name of program
+Usage() {                                # output the script comments as docs
   echo >&2 "$PROGNAME:" "$@"
   sed >&2 -n '/^###/q; /^#/!q; s/^#//; s/^ //; 3s/^/Usage: /; 2,$ p' \
-          "$PROGDIR/$PROGNAME"
-  exit 10;
+    "$PROGDIR/$PROGNAME"
+  exit 10
 }
 
 #VERBOSE=       # report the animation images being processed
 #debug=true     # debug the convert line executed
 
-basename=      # use this name for the individual frame images
-sfx=_anim.gif  # the suffix to and to created GIF animation
-COALESCED=     # frames are coalesced, ignore initial set page size option
+basename=     # use this name for the individual frame images
+sfx=_anim.gif # the suffix to and to created GIF animation
+COALESCED=    # frames are coalesced, ignore initial set page size option
 
 while [ $# -gt 0 ]; do
   case "$1" in
-  --help|--doc*) Usage ;;
+  --help | --doc*) Usage ;;
 
-  -b) shift; basename="$1" ;;
+  -b)
+    shift
+    basename="$1"
+    ;;
   -g) sfx=.gif ;;
   -c) COALESCED='/^-page [0-9][0-9]*x[0-9][0-9]*$/d' ;;
   --debug) debug=true ;;
 
-  --) shift; break ;;    # end of user options
+  --)
+    shift
+    break
+    ;; # end of user options
   -*) Usage "Unknown option \"$1\"" ;;
-  *)  break ;;           # end of user options
+  *) break ;; # end of user options
   esac
-  shift   # next option
+  shift # next option
 done
 
-[ $# -gt 1 ] && VERBOSE=true  # report each file as it is converted
+[ $# -gt 1 ] && VERBOSE=true # report each file as it is converted
 
-for i in "$@" ; do
+for i in "$@"; do
   if [ ! -r "$i" ]; then
     echo >&2 "Unable to read \"$i\""
     continue
@@ -76,26 +82,31 @@ for i in "$@" ; do
 
   [ "$VERBOSE" ] && echo "converting \"$i\""
 
-  path=`expr "$i" : '\(.*\)/'`                 # get file path (if any)
-  name=`expr "//$i" : '.*/\([^/]*\)'`           # remove path to file
-  suffix=`expr "$name" : '.*\.\([^./]*\)$'`     # extract last suffix
-  name=`expr "$name" : '\(.*\)\.[^.]*$'`        # remove last suffix
-  : ${path:=.}
+  path=$(expr "$i" : '\(.*\)/')              # get file path (if any)
+  name=$(expr "//$i" : '.*/\([^/]*\)')       # remove path to file
+  suffix=$(expr "$name" : '.*\.\([^./]*\)$') # extract last suffix
+  name=$(expr "$name" : '\(.*\)\.[^.]*$')    # remove last suffix
+  : "${path:=.}"
 
   bname="$name"
   [ "$basename" ] && bname="$basename"
 
   case "$suffix" in
-    anim) ;;
-    *) echo >&2 "Skipping Non Animation file: \"$i\""
-       continue ;;
+  anim) ;;
+  *)
+    echo >&2 "Skipping Non Animation file: \"$i\""
+    continue
+    ;;
   esac
 
   # This is the heart of the animation creator
   # The sed script removes comments from the scripts options
   # though ensures it does not remove any #RRGGBB color arguments.
   #
-  cd $path
+  cd "$path" || {
+    echo "Error changing to ${path}"
+    exit
+  }
   [ "$debug" ] && set -x
   #convert -adjoin -colors 256 \
   sed 's/#[^0-9a-fA-F].*//; s/#$//;
@@ -103,14 +114,17 @@ for i in "$@" ; do
        '"$COALESCED"';
        s/BASENAME/'"$bname"'/;
        /^$/d;
-       ' $name.$suffix |\
-  convert `cat` $ORIGDIR/$bname$sfx 2>&1
-      #|| echo "anim2gif: Convert returned failed error status $?"
-      #|| rm -f $ORIGDIR/$bname$sfx
+       ' $name.$suffix |
+    convert $(cat) $ORIGDIR/$bname$sfx 2>&1
+  #|| echo "anim2gif: Convert returned failed error status $?"
+  #|| rm -f $ORIGDIR/$bname$sfx
   [ "$debug" ] && set -
 
   # Return to the original directory
-  cd $ORIGDIR
+  cd "$ORIGDIR" || {
+    echo "Error changing to ${ORIGDIR}"
+    exit
+  }
 
   # Removed as being obsolete.
   #[ -f $bname$sfx ] &&

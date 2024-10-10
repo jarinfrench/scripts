@@ -44,7 +44,7 @@ const std::map<std::string, double> second_nn_distance = {
 std::vector<Atom> parseDumpFile(std::string);
 std::map<std::string, int> parseAtomPropertyIndices(std::string);
 std::vector<std::vector<int> > generateNeighborList(std::vector<Atom>, std::string, double);
-void analyzeNearestNeighbors(std::vector<Atom>, std::vector<std::vector <int> >);
+void analyzeNearestNeighbors(std::vector<Atom>, std::vector<std::vector <int> >, std::string);
 
 int main(int argc, char **argv) {
   // The variables we need
@@ -73,9 +73,11 @@ int main(int argc, char **argv) {
       std::cerr << "The crystal structure must be one of 'fcc', 'bcc', or 'sc'\n";
       exit(OPTION_PARSING_ERROR);
     }
+
     atoms = parseDumpFile(file);
     iatom = generateNeighborList(atoms, structure, a0);
-    analyzeNearestNeighbors(atoms, iatom);
+    std::string timestep = file.substr(0,file.find('.'));
+    analyzeNearestNeighbors(atoms, iatom, timestep);
 
   } catch (const cxxopts::OptionException& e) {
     std::cerr << "Error parsing options: " << e.what() << "\n";
@@ -320,9 +322,10 @@ std::vector<std::vector<int> > generateNeighborList(std::vector<Atom> atoms, std
   return iatom;
 }
 
-void analyzeNearestNeighbors(std::vector<Atom> atoms, std::vector<std::vector<int> > iatom) {
+void analyzeNearestNeighbors(std::vector<Atom> atoms, std::vector<std::vector<int> > iatom, std::string timestep) {
 
-  std::ofstream fout("nearest_neighbors.txt");
+  std::ofstream fout("nearest_neighbors.txt", std::ios_base::app);
+  // fout << "id n_impurities n_neighbors\n";
 
   double average_n_impurities_in_range = 0;
   for (size_t i = 0; i < atoms.size(); ++i) {
@@ -332,11 +335,11 @@ void analyzeNearestNeighbors(std::vector<Atom> atoms, std::vector<std::vector<in
       Atom atom_neighbor = atoms[iatom[l][i]];
       n_impurities_in_range += (atom_neighbor.getType() == 2 ? 1 : 0);
     }
-    fout << atom_focus.getId() << " " << n_impurities_in_range / (iatom[0][i] + 1.0) << "\n";
+    fout << timestep << " " << atom_focus.getId() << " " << n_impurities_in_range  << " " << iatom[0][i] + 1.0 << "\n";
     // divide the number of impurities found by the total number of atoms in this region (including the focus atom)
     average_n_impurities_in_range += n_impurities_in_range / (iatom[0][i] + 1.0);
   }
-  average_n_impurities_in_range /= atoms.size();
+  // average_n_impurities_in_range /= atoms.size();
   
-  std::cout << "An average of " << average_n_impurities_in_range * 100 << "% of atoms had an impurity within 2 nearest neighbors\n";
+  // std::cout << "An average of " << average_n_impurities_in_range * 100 << "% of atoms had an impurity within 2 nearest neighbors\n";
 }

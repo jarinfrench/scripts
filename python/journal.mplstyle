@@ -1,0 +1,16 @@
+font.size: 16
+axes.linewidth: 2
+
+xtick.major.size: 10
+xtick.minor.size: 5
+xtick.major.width: 2
+xtick.minor.width: 2
+xtick.direction: in
+xtick.minor.visible: True
+
+ytick.major.size: 10
+ytick.minor.size: 5
+ytick.major.width: 2
+ytick.minor.width: 2
+ytick.direction: in
+ytick.minor.visible: True

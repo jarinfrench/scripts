@@ -71,8 +71,8 @@ vector <fit> setPotentials(const string& database_file) {
   ifstream fin(database_file.c_str());
   checkFileStream(fin, database_file);
 
-  for (int i = 0; i < 5; ++i) {getline(fin,str);} // get the comment lines
   while (getline(fin, str)) {
+    if (str[0] == '#' || str.find_first_not_of("\t\n\v\f\r ") == std::string::npos) {continue;} // ignore commented lines and blank lines
     fit temp;
     stringstream ss(str);
     if (!(ss >> temp.name >> temp.min_conc >> temp.max_conc >> temp.min_T
@@ -121,7 +121,7 @@ double latticeParam(const double T, const double conc, const fit& lattice_fit) {
   }
 
   if (conc > lattice_fit.max_conc || conc < lattice_fit.min_conc) {
-    cerr << "Concentration out of fitted range (" << lattice_fit.min_conc << "% - " << lattice_fit.max_conc << "%).\n";
+    cerr << "Concentration out of fitted range (" << lattice_fit.min_conc << " - " << lattice_fit.max_conc << ").\n";
     exit(BOUNDS_ERROR);
   }
 
@@ -143,7 +143,7 @@ void parseInput(const string& filename, const fit& lattice_fit) {
     showInputFileHelp();
   }
 
-  if (input.concentration >= 1) {
+  if (input.concentration > 1) {
     cout << "Assuming concentration given in percent, converting to fraction: " << input.concentration << " --> " << input.concentration / 100.0 << "\n";
     input.concentration /= 100.0;
   }
@@ -161,7 +161,7 @@ void parseInput(const string& filename, const fit& lattice_fit) {
 void calculateGrainArea(const fit& lattice_fit, const string& output_file, const double& dt) {
   string str;
   double t0, t1, structure_factor; // Times
-  int N1_0, N2_0, N1_next, N2_next; // atom numbers
+  int N1_0, N2_0, N1_next, N2_next, n_gb; // atom numbers
   double lattice_param = latticeParam(input.temperature, input.concentration, lattice_fit);
   double scale_factor = lattice_param / input.a0;
   double Lz = input.height * scale_factor;
@@ -176,7 +176,18 @@ void calculateGrainArea(const fit& lattice_fit, const string& output_file, const
   fout << "# This is the area data for T = " << input.temperature << " K [time (ps) area (Angstroms^2)]\n";
 
   getline(fin, str);
+
+  size_t first_bracket = str.find('[',0);
+  size_t last_bracket = str.rfind(']');
+  string elements = str.substr(first_bracket, last_bracket-first_bracket);
+
+  string::difference_type n_elements = std::count(elements.begin(), elements.end(), ',') + 1;
+
+
   fin >> t0 >> N1_0 >> N2_0;
+  if (n_elements == 4) {
+    fin >> n_gb;
+  }
 
   structure_factor = lattice_param * lattice_param * lattice_param; // a0^3
   if (input.structure.compare("sc") == 0) {structure_factor /= Lz;}
@@ -191,6 +202,9 @@ void calculateGrainArea(const fit& lattice_fit, const string& output_file, const
 
   fout << setprecision(0) << t0 * dt << " " << setprecision(2) << N1_0 * structure_factor << " " << N2_0 * structure_factor << "\n";
   while (fin >> t1 >> N1_next >> N2_next) {
+    if (n_elements == 4) {
+      fin >> n_gb;
+    }
     if (t1 < t0) {
       cerr << "Error: data file corrupted.  t0 = " << t0 << " >= t1 = " << t1 << "\n";
       exit(FILE_FORMAT_ERROR);

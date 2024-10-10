@@ -64,6 +64,7 @@ fi
 }
 
 hist-check() {
+  local num_lines
   if [ -z "$1" ]; then
     num_lines=10
   else
@@ -108,6 +109,7 @@ dp() {
 }
 
 get_abs_filename() {
+  local filename parentdir
   # $1 : relative filename
   filename=$1
   parentdir=$(dirname "${filename}")
@@ -120,6 +122,7 @@ get_abs_filename() {
 }
 
 parent() {
+  local file num_parent full_path parent_dir num
   if [ -z "$1" ]; then
     echo "Usage: parent <file> <N>"
     echo "       N is the Nth parent from file (default 1)"
@@ -196,14 +199,15 @@ ProgressBar() {
 # To be used in conjunction with alias lln (defined in .bash_aliases)
 lf() {
  if [ "x${1}" == "x" ]; then
-   n=1
+   local n=1
  else
-   n="${1}"
+   local n="${1}"
  fi
  ls -rt1 | tail -n ${n} | head -n 1
 }
 
 runtime() {
+  local processes
   if [ -z "$1" ]; then
     echo "Usage: runtime <program_name(s)>"
     echo ""
@@ -215,27 +219,34 @@ runtime() {
 }
 
 torange() {
+  local first last
   while read num; do
     if [[ -z ${first} ]]; then
       first=${num}
       last=${num}
       continue
-    fi
+    fi  
     if [[ num -ne $((last + 1)) ]]; then
       if [[ first -eq last ]]; then
-        echo ${first}
+        echo "${first}"
       else
-        echo ${first}-${last}
-      fi
+        echo "${first}-${last}"
+      fi  
       first=${num}
       last=${num}
     else
       : $((last++))
-    fi
-  done < $1
+    fi  
+  done < "$1"
+  if [[ first -eq last ]]; then
+    echo "${first}"
+  else
+    echo "${first}-${last}"
+  fi
 }
 
 mklnk() {
+  local abs_path_src abs_path_dest
   if [ -z "$2" ]; then
     echo "Makes a hard link of the file to the original"
     echo "Usage: ml <source_file> <destination_file>"
@@ -252,6 +263,7 @@ mklnk() {
 
 # An efficient way of searching the bashhub history - uses fzf (fuzzy finder)
 hs() {
+  local n
   if [ -z "$1" ]; then
     n=100
   else
@@ -301,6 +313,7 @@ trim() {
   # Usage: trim "string" "pattern"
   # if pattern is not passed, the default is space
 
+  local pattern
   if [[ -z "$2" ]]; then
     pattern=" "
     set -f
@@ -339,6 +352,7 @@ if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
   }
 
   scancel_range() {
+    local beg end job_lilst n_jobs
     if [ "$#" -ne 2 ]; then
       echo "Please enter the beginning and end range for the jobs to delete"
       return 1
@@ -358,20 +372,21 @@ if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
   }
 
   shist() {
+    local n date_str format_str cmd
     if [[ "$*" == *help* ]]; then
       echo "Show the history of jobs you've submitted. The first positional parameter is the number of jobs to show, and the second (optional) parameter can be one of either -c, -t, -p, -r, or -x to show jobs that have completed successfully, timed out, are pending, are running, or were cancelled respectively." | fold -sw 80
       return 0
     fi
 
     if [ -z "$1" ]; then
-      local n=5
+      n=5
     else
-      local n=$1
+      n=$1
     fi
-    local date_str=`date --date 'today -1 month' +%F`
-    local format_str="JobID%10,JobName%15,Elapsed%13,State%12,End%20"
+    date_str=`date --date 'today -1 month' +%F`
+    format_str="JobID%10,JobName%15,Elapsed%13,State%12,End%20"
     if [ -z "$2" ]; then
-      local cmd=DEFAULT
+      cmd=DEFAULT
     else
       case "$2" in
         c|-c|--c|--completed|--complete|C|-C|--C) local cmd=COMPLETED ;;
@@ -381,7 +396,7 @@ if [ -n "${SSH_CLIENT}" ] || [ -n "${SSH_TTY}" ]; then
         x|-x|--x|--cancelled|X|-X|--X) local cmd=CANCELLED ;;
         d|-d|--d|--default|D|-D|--D) local cmd=DEFAULT ;;
         *) echo "Unrecognized option, showing default"
-           local cmd=DEFAULT ;;
+           cmd=DEFAULT ;;
       esac
     fi
 

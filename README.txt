@@ -1,9 +1,6 @@
 This directory contains a set of scripts that have been developed by Jarin French
 for furthering research goals.
 
-alphabetize_bib.py: An attempt to create a script that automatically
-alphabetizes a LaTeX .bib file.  Still a work in progress.
-
 angles_generator.py: A simple script that generates a list of angles for use
 in other scripts (i.e. genOrientationMatrices.sh).
 

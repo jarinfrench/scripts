@@ -31,16 +31,16 @@ BIN =../bin
 # -Z outputs a zero byte (NULL character) instead of the character that normally follows the file name
 # -l prints the name of each input file that does have a match
 OMPFILES := $(shell $(GREP) -lr "\#include <omp.h>" *.cpp)
-ATOMFILES := $(shell $(GREP) -lr --exclude="atom.cpp" --exclude="verifyNewFile.cpp" "\#include \"atom.h\"" *.cpp)
-UTILFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" --exclude="phase_field.cpp" --exclude="Box.cpp" --exclude="LAMMPSDataFileReader.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"")
-POSITIONFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" --exclude="Box.cpp" | xargs -0 grep -lr "\#include \"position.h\"")
+ATOMFILES := $(shell $(GREP) -lr --exclude="atom.cpp" --exclude="verifyNewFile.cpp" --exclude="find_grains_v2.cpp" "\#include \"atom.h\"" *.cpp)
+UTILFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="find_grains_v2.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" --exclude="phase_field.cpp" --exclude="Box.cpp" --exclude="LAMMPSDataFileReader.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"")
+POSITIONFILES := $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="find_grains_v2.cpp" --exclude="phase_field.cpp" --exclude="position.cpp" --exclude="Box.cpp" | xargs -0 grep -lr "\#include \"position.h\"")
 
-ATOMPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" --exclude="verifyNewFile.cpp" "\#include \"atom.h\"" *.cpp | sed "s/.cpp//g")
-ATOMDBGPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" --exclude="verifyNewFile.cpp" "\#include \"atom.h\"" *.cpp | sed 's/.cpp/_dbg /g')
-UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" --exclude="phase_field.cpp" --exclude="Box.cpp" --exclude="LAMMPSDataFileReader.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
-UTILSDBG := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" --exclude="phase_field.cpp" --exclude="Box.cpp" --exclude="LAMMPSDataFileReader.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
-POSITIONPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp//g')
-POSITIONDBGPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
+ATOMPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" --exclude="verifyNewFile.cpp" --exclude="find_grains_v2.cpp" "\#include \"atom.h\"" *.cpp | sed "s/.cpp//g")
+ATOMDBGPROGS := $(shell $(GREP) -lr --exclude="atom.cpp" --exclude="verifyNewFile.cpp" --exclude="find_grains_v2.cpp" "\#include \"atom.h\"" *.cpp | sed 's/.cpp/_dbg /g')
+UTILS := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="find_grains_v2.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" --exclude="phase_field.cpp" --exclude="Box.cpp" --exclude="LAMMPSDataFileReader.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp//g')
+UTILSDBG := $(shell $(GREP) -LrZ "\#include \"atom.h\"" --exclude="atom.cpp" --exclude="find_grains_v2.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" --exclude="phase_field.cpp" --exclude="Box.cpp" --exclude="LAMMPSDataFileReader.cpp" *.cpp | xargs -0 $(GREP) -Lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
+POSITIONPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="find_grains_v2.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp//g')
+POSITIONDBGPROGS = $(shell $(GREP) -LrZ "\#include \"atom.h\"" *.cpp --exclude="phase_field.cpp" --exclude="find_grains_v2.cpp" --exclude="position.cpp" --exclude="verifyNewFile.cpp" | xargs -0 grep -lr "\#include \"position.h\"" | sed 's/.cpp/_dbg/g')
 ALLEXECUTABLES = $(ATOMPROGS) $(ATOMDBGPROGS) $(UTILS) $(UTILSDBG) $(POSITIONPROGS) $(POSITIONDBGPROGS)
 ALLDBGEXECUTABLES = $(ATOMDBGPROGS) $(UTILSDBG) $(POSITIONDBGPROGS)
 
